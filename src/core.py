@@ -764,39 +764,56 @@ class ImageInstanceOps:
         gap = diagnostics["gap"]
         delta_from_blank = diagnostics["delta_from_blank"]
 
-        if gap >= weak_mark_params.conflict_min_gap or delta_from_blank >= weak_mark_params.conflict_min_delta_from_blank:
+        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        auto_resolve_min_confidence = getattr(
+            weak_mark_params, "conflict_auto_resolve_min_confidence", 0.8
+        )
+        review_min_confidence = getattr(
+            weak_mark_params, "conflict_review_min_confidence", 0.65
+        )
+
+        if confidence >= auto_resolve_min_confidence:
+            status = "RESOLVED_CANDIDATE"
+        elif confidence >= review_min_confidence:
+            status = "NEEDS_REVIEW"
+        else:
+            status = "LOW_CONFIDENCE"
+
+        if status in {"RESOLVED_CANDIDATE", "NEEDS_REVIEW"}:
             logger.warning(
                 f"Single-choice conflict resolved: field '{field_label}' "
                 f"{''.join(b.field_value for b in detected_bubbles)} -> "
                 f"'{darkest_bubble.field_value}' "
+                f"status={status} confidence={confidence:.3f} "
                 f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
                 f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
                 f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                    f"delta={delta_from_blank:.2f})"
+                f"delta={delta_from_blank:.2f})"
             )
             self.append_single_choice_conflict_review(
                 field_label,
                 "".join(b.field_value for b in detected_bubbles),
                 darkest_bubble.field_value,
                 diagnostics,
-                "RESOLVED_CANDIDATE",
+                status,
             )
             return [darkest_bubble]
 
         logger.warning(
             f"Single-choice conflict unresolved: field '{field_label}' "
             f"{''.join(b.field_value for b in detected_bubbles)} -> blank "
+            f"status={status} confidence={confidence:.3f} "
             f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
             f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
             f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                f"delta={delta_from_blank:.2f})"
+            f"delta={delta_from_blank:.2f})"
         )
         self.append_single_choice_conflict_review(
             field_label,
             "".join(b.field_value for b in detected_bubbles),
             darkest_bubble.field_value,
             diagnostics,
-            "LOW_CONFIDENCE",
+            status,
         )
         return []
 

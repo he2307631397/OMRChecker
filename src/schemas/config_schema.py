@@ -110,6 +110,16 @@ CONFIG_SCHEMA = {
                     "minimum": 0,
                     "maximum": 100,
                 },
+                "conflict_auto_resolve_min_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "conflict_review_min_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
                 "max_mean": {"type": "number", "minimum": 0, "maximum": 255},
                 "supported_field_types": {
                     "type": "array",

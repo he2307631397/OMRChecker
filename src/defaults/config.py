@@ -40,6 +40,8 @@ CONFIG_DEFAULTS = DotMap(
             "resolve_single_choice_conflicts": False,
             "conflict_min_gap": 5,
             "conflict_min_delta_from_blank": 12,
+            "conflict_auto_resolve_min_confidence": 0.8,
+            "conflict_review_min_confidence": 0.65,
             "max_mean": 215,
             "supported_field_types": ["QTYPE_MCQ4"],
             "exclude_labels": [],

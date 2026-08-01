@@ -36,6 +36,8 @@ def make_ops(**weak_overrides):
         "resolve_single_choice_conflicts": False,
         "conflict_min_gap": 5,
         "conflict_min_delta_from_blank": 12,
+        "conflict_auto_resolve_min_confidence": 0.8,
+        "conflict_review_min_confidence": 0.65,
         "max_mean": 215,
         "supported_field_types": ["QTYPE_MCQ4"],
         "exclude_labels": [],
@@ -444,6 +446,76 @@ def test_single_choice_conflict_records_review_candidate_without_changing_result
     assert review["status"] == "RESOLVED_CANDIDATE"
     assert review["reason"] == "single_choice_conflict"
     assert 0.0 <= review["confidence"] <= 1.0
+
+
+def test_single_choice_conflict_high_confidence_auto_resolves_without_review_status():
+    ops = make_ops(
+        resolve_single_choice_conflicts=True,
+        conflict_auto_resolve_min_confidence=0.8,
+        conflict_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=False)
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    resolved = ops.resolve_single_choice_conflict(
+        field,
+        bubbles,
+        [196.584, 188.276, 163.636, 189.782],
+        detected,
+    )
+
+    assert [bubble.field_value for bubble in resolved] == ["C"]
+    assert ops.last_weak_fill_reviews[-1]["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert ops.last_weak_fill_reviews[-1]["candidate"] == "C"
+    assert ops.last_weak_fill_reviews[-1]["status"] == "RESOLVED_CANDIDATE"
+    assert ops.last_weak_fill_reviews[-1]["confidence"] >= 0.8
+
+
+def test_single_choice_conflict_medium_confidence_auto_resolves_with_review_status():
+    ops = make_ops(
+        resolve_single_choice_conflicts=True,
+        conflict_auto_resolve_min_confidence=0.8,
+        conflict_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=False)
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2]]
+
+    resolved = ops.resolve_single_choice_conflict(
+        field,
+        bubbles,
+        [178.0, 190.0, 199.0, 220.0],
+        detected,
+    )
+
+    assert [bubble.field_value for bubble in resolved] == ["A"]
+    assert ops.last_weak_fill_reviews[-1]["candidate"] == "A"
+    assert ops.last_weak_fill_reviews[-1]["status"] == "NEEDS_REVIEW"
+    assert 0.65 <= ops.last_weak_fill_reviews[-1]["confidence"] < 0.8
+
+
+def test_single_choice_conflict_below_review_confidence_blanks_candidate():
+    ops = make_ops(
+        resolve_single_choice_conflicts=True,
+        conflict_auto_resolve_min_confidence=0.8,
+        conflict_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=False)
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2]]
+
+    resolved = ops.resolve_single_choice_conflict(
+        field,
+        bubbles,
+        [190.0, 194.0, 198.0, 220.0],
+        detected,
+    )
+
+    assert resolved == []
+    assert ops.last_weak_fill_reviews[-1]["candidate"] == "A"
+    assert ops.last_weak_fill_reviews[-1]["status"] == "LOW_CONFIDENCE"
+    assert ops.last_weak_fill_reviews[-1]["confidence"] < 0.65
 
 
 def test_multi_select_conflict_does_not_record_single_choice_review():

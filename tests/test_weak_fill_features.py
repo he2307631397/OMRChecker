@@ -20,6 +20,7 @@ class FakeFieldBlock:
     multi_select: bool = False
     bubble_dimensions: tuple[int, int] = (30, 18)
     shift: int = 0
+    direction: str = "horizontal"
 
 
 def make_ops(**weak_overrides):
@@ -47,7 +48,30 @@ def make_ops(**weak_overrides):
         "weak_fill_max_ambiguity": 1.25,
     }
     params.update(weak_overrides)
-    return ImageInstanceOps(DotMap({"outputs": {"save_image_level": 0}, "weak_mark_params": params}))
+    weak_identifier_params = {
+        "enabled": False,
+        "labels": [],
+        "exclude_labels": [],
+        "min_gap": 8,
+        "min_delta_from_blank": 15,
+        "adaptive_min_gap": 8,
+        "adaptive_min_delta_from_blank": 15,
+        "min_page_z_score": 2.0,
+        "min_dark_pixel_ratio": 0.08,
+        "min_density_gap": 0.03,
+        "max_mean": 215,
+        "adaptive_max_mean": 230,
+        "supported_field_types": ["QTYPE_INT"],
+    }
+    return ImageInstanceOps(
+        DotMap(
+            {
+                "outputs": {"save_image_level": 0},
+                "weak_mark_params": params,
+                "weak_identifier_params": weak_identifier_params,
+            }
+        )
+    )
 
 
 def make_bubbles():
@@ -286,9 +310,32 @@ def test_setup_outputs_adds_independent_weak_fill_review_csv_without_changing_re
 
     assert results_header == '"file_id","input_path","output_path","score","q1","q2"'
     assert review_header.startswith(
-        '"file_id","input_path","output_path","field","candidate","confidence","status"'
+        '"file_id","input_path","output_path","review_type","field",'
+        '"original_value","candidate","confidence","status"'
     )
     assert "WeakFillReview" in outputs.files_obj
+
+
+def test_review_csv_header_includes_review_type_and_original_value(tmp_path):
+    from types import SimpleNamespace
+
+    from src.utils.file import setup_outputs_for_template
+
+    paths = SimpleNamespace(
+        results_dir=tmp_path / "Results",
+        manual_dir=tmp_path / "Manual",
+    )
+    paths.results_dir.mkdir()
+    paths.manual_dir.mkdir()
+    template = SimpleNamespace(output_columns=["q1", "q2"])
+
+    setup_outputs_for_template(paths, template)
+
+    header = (tmp_path / "Results" / "WeakFillReview.csv").read_text().splitlines()[0]
+    assert header.startswith(
+        '"file_id","input_path","output_path","review_type","field",'
+        '"original_value","candidate","confidence","status"'
+    )
 
 
 def test_append_weak_fill_reviews_writes_one_row_per_candidate(tmp_path):
@@ -324,8 +371,190 @@ def test_append_weak_fill_reviews_writes_one_row_per_candidate(tmp_path):
     )
 
     assert csv_path.read_text().splitlines() == [
-        '"sheet.png","/in/sheet.png","/out/sheet.png","q5","D","0.730",'
-        '"WEAK_MARK","feature_score","page_delta,density_gap","5.00",'
+        '"sheet.png","/in/sheet.png","/out/sheet.png","WEAK_MARK_REVIEW","q5","","D",'
+        '"0.730","WEAK_MARK","feature_score","page_delta,density_gap","5.00",'
         '"adaptive_min_delta_from_blank","0.100","0.200","0.400",'
         '"4.000","0.500","1.000"'
     ]
+
+
+def test_append_review_rows_writes_review_type_and_original_value(tmp_path):
+    from types import SimpleNamespace
+
+    from src.entry import append_weak_fill_review_rows
+
+    csv_path = tmp_path / "WeakFillReview.csv"
+    review = {
+        "review_type": "SINGLE_CHOICE_CONFLICT_REVIEW",
+        "field": "q1",
+        "original_value": "ABCD",
+        "candidate": "C",
+        "confidence": 0.82,
+        "status": "RESOLVED_CANDIDATE",
+        "reason": "single_choice_conflict",
+        "evidence": "gap,delta_from_blank,center_density",
+        "score": 4.2,
+        "legacy_rejection": "",
+        "ambiguity": 0.08,
+        "density_gap": 0.25,
+        "center_density": 0.62,
+        "center_edge_ratio": 6.0,
+        "threshold_vote_ratio": 0.75,
+        "multiscale_stability": 1.0,
+    }
+    outputs = SimpleNamespace(files_obj={"WeakFillReview": str(csv_path)})
+
+    append_weak_fill_review_rows(
+        "sheet.png",
+        "/in/sheet.png",
+        "/out/sheet.png",
+        [review],
+        outputs,
+    )
+
+    assert csv_path.read_text().splitlines() == [
+        '"sheet.png","/in/sheet.png","/out/sheet.png",'
+        '"SINGLE_CHOICE_CONFLICT_REVIEW","q1","ABCD","C","0.820",'
+        '"RESOLVED_CANDIDATE","single_choice_conflict",'
+        '"gap,delta_from_blank,center_density","4.20","",'
+        '"0.080","0.250","0.620","6.000","0.750","1.000"'
+    ]
+
+
+def test_single_choice_conflict_records_review_candidate_without_changing_result():
+    ops = make_ops(resolve_single_choice_conflicts=True)
+    field_block = FakeFieldBlock()
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    result = ops.resolve_single_choice_conflict(
+        field_block,
+        bubbles,
+        [200.0, 212.0, 178.0, 215.0],
+        detected,
+    )
+
+    assert result == [bubbles[2]]
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert review["field"] == "q1"
+    assert review["original_value"] == "ABCD"
+    assert review["candidate"] == "C"
+    assert review["status"] == "RESOLVED_CANDIDATE"
+    assert review["reason"] == "single_choice_conflict"
+    assert 0.0 <= review["confidence"] <= 1.0
+
+
+def test_multi_select_conflict_does_not_record_single_choice_review():
+    ops = make_ops(resolve_single_choice_conflicts=True)
+    field_block = FakeFieldBlock(multi_select=True)
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1]]
+
+    result = ops.resolve_single_choice_conflict(
+        field_block,
+        bubbles,
+        [180.0, 181.0, 220.0, 225.0],
+        detected,
+    )
+
+    assert result == detected
+    assert ops.last_weak_fill_reviews == []
+
+
+def test_weak_identifier_candidate_records_id_review():
+    ops = make_ops()
+    ops.tuning_config.weak_identifier_params.enabled = True
+    ops.tuning_config.weak_identifier_params.labels = []
+    ops.tuning_config.weak_identifier_params.exclude_labels = []
+    ops.tuning_config.weak_identifier_params.min_gap = 8
+    ops.tuning_config.weak_identifier_params.min_delta_from_blank = 15
+    ops.tuning_config.weak_identifier_params.max_mean = 220
+    ops.tuning_config.weak_identifier_params.adaptive_max_mean = 230
+    ops.tuning_config.weak_identifier_params.supported_field_types = ["QTYPE_INT"]
+
+    field_block = FakeFieldBlock(field_type="QTYPE_INT", direction="vertical")
+    bubbles = [FakeBubble("id7", str(i), x=10, y=10 + i * 6) for i in range(10)]
+
+    image = np.full((90, 50), 240, dtype=np.uint8)
+    image[54:64, 18:32] = 170
+
+    result = ops.get_weak_identifier_bubble(
+        field_block,
+        bubbles,
+        [222, 221, 220, 219, 218, 217, 216, 180, 215, 214],
+        [],
+        image,
+        {"mean": 225.0, "std": 2.0},
+    )
+
+    assert result is not None
+    assert result.field_value == "7"
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "ID_REVIEW"
+    assert review["field"] == "id7"
+    assert review["original_value"] == ""
+    assert review["candidate"] == "7"
+    assert review["status"] == "RESOLVED_CANDIDATE"
+    assert review["reason"] == "weak_identifier_candidate"
+    assert 0.0 <= review["confidence"] <= 1.0
+
+
+def test_rejected_weak_identifier_candidate_records_low_confidence_review():
+    ops = make_ops()
+    ops.tuning_config.weak_identifier_params.enabled = True
+    ops.tuning_config.weak_identifier_params.labels = []
+    ops.tuning_config.weak_identifier_params.exclude_labels = []
+    ops.tuning_config.weak_identifier_params.min_gap = 8
+    ops.tuning_config.weak_identifier_params.min_delta_from_blank = 15
+    ops.tuning_config.weak_identifier_params.max_mean = 220
+    ops.tuning_config.weak_identifier_params.adaptive_max_mean = 230
+    ops.tuning_config.weak_identifier_params.supported_field_types = ["QTYPE_INT"]
+
+    field_block = FakeFieldBlock(field_type="QTYPE_INT", direction="vertical")
+    bubbles = [FakeBubble("id7", str(i), x=10, y=10 + i * 6) for i in range(10)]
+    image = np.full((90, 50), 240, dtype=np.uint8)
+    image[54:64, 18:32] = 210
+
+    result = ops.get_weak_identifier_bubble(
+        field_block,
+        bubbles,
+        [222, 221, 220, 219, 218, 217, 216, 210, 215, 214],
+        [],
+        image,
+        {"mean": 225.0, "std": 2.0},
+    )
+
+    assert result is None
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "ID_REVIEW"
+    assert review["field"] == "id7"
+    assert review["candidate"] == "7"
+    assert review["status"] == "LOW_CONFIDENCE"
+    assert review["legacy_rejection"] == "support"
+
+
+def test_single_choice_conflict_review_can_be_observed_without_resolving_answer():
+    ops = make_ops(resolve_single_choice_conflicts=False)
+    field_block = FakeFieldBlock()
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    result = ops.observe_single_choice_conflict_review(
+        field_block,
+        bubbles,
+        [200.0, 212.0, 178.0, 215.0],
+        detected,
+    )
+
+    assert result == detected
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert review["field"] == "q1"
+    assert review["original_value"] == "ABCD"
+    assert review["candidate"] == "C"
+    assert review["status"] == "REVIEW"

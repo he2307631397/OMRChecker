@@ -462,6 +462,35 @@ class ImageInstanceOps:
         )
         return max(0.0, min(confidence, 1.0))
 
+    @staticmethod
+    def get_single_choice_conflict_confidence(diagnostics):
+        """Convert single-choice conflict separation into a bounded confidence."""
+        gap_component = min(max(diagnostics.get("gap", 0.0), 0.0) / 20.0, 1.0)
+        delta_component = min(
+            max(diagnostics.get("delta_from_blank", 0.0), 0.0) / 40.0, 1.0
+        )
+        confidence = gap_component * 0.55 + delta_component * 0.45
+        return max(0.0, min(confidence, 1.0))
+
+    @staticmethod
+    def get_identifier_review_confidence(diagnostics):
+        """Convert weak identifier evidence into a bounded review confidence."""
+        gap_component = min(max(diagnostics.get("gap", 0.0), 0.0) / 25.0, 1.0)
+        delta_component = min(
+            max(diagnostics.get("delta_from_blank", 0.0), 0.0) / 45.0, 1.0
+        )
+        page_component = min(max(diagnostics.get("page_z_score", 0.0), 0.0) / 10.0, 1.0)
+        density_component = min(
+            max(diagnostics.get("density_gap", 0.0), 0.0) / 0.25, 1.0
+        )
+        confidence = (
+            gap_component * 0.30
+            + delta_component * 0.30
+            + page_component * 0.20
+            + density_component * 0.20
+        )
+        return max(0.0, min(confidence, 1.0))
+
     def append_weak_fill_review(
         self, field_label, candidate, score_decision, diagnostics, legacy_rejection
     ):
@@ -485,6 +514,90 @@ class ImageInstanceOps:
                 "multiscale_stability": diagnostics.get("multiscale_stability", 0.0),
             }
         )
+
+    def append_single_choice_conflict_review(
+        self, field_label, original_value, candidate, diagnostics, status
+    ):
+        """Store one single-choice conflict candidate for auxiliary review outputs."""
+        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        self.last_weak_fill_reviews.append(
+            {
+                "review_type": "SINGLE_CHOICE_CONFLICT_REVIEW",
+                "field": field_label,
+                "original_value": original_value,
+                "candidate": candidate,
+                "status": status,
+                "confidence": confidence,
+                "score": confidence * 5.0,
+                "reason": "single_choice_conflict",
+                "legacy_rejection": "",
+                "evidence": "gap,delta_from_blank",
+                "ambiguity": 1.0 - confidence,
+                "density_gap": 0.0,
+                "center_density": 0.0,
+                "center_edge_ratio": 0.0,
+                "threshold_vote_ratio": 0.0,
+                "multiscale_stability": 0.0,
+            }
+        )
+
+    def append_identifier_review(
+        self, field_label, candidate, diagnostics, status, legacy_rejection=""
+    ):
+        """Store one weak identifier candidate for auxiliary review outputs."""
+        confidence = self.get_identifier_review_confidence(diagnostics)
+        self.last_weak_fill_reviews.append(
+            {
+                "review_type": "ID_REVIEW",
+                "field": field_label,
+                "original_value": "",
+                "candidate": candidate,
+                "status": status,
+                "confidence": confidence,
+                "score": confidence * 5.0,
+                "reason": "weak_identifier_candidate",
+                "legacy_rejection": legacy_rejection,
+                "evidence": "gap,delta_from_blank,page_z,density_gap",
+                "ambiguity": 1.0 - confidence,
+                "density_gap": diagnostics.get("density_gap", 0.0),
+                "center_density": diagnostics.get("darkest_center_density", 0.0),
+                "center_edge_ratio": diagnostics.get("darkest_center_edge_ratio", 0.0),
+                "threshold_vote_ratio": 0.0,
+                "multiscale_stability": 0.0,
+            }
+        )
+
+    def observe_single_choice_conflict_review(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Record a single-choice conflict review without changing detected bubbles."""
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if getattr(weak_mark_params, "resolve_single_choice_conflicts", False):
+            return detected_bubbles
+
+        if field_block.multi_select:
+            return detected_bubbles
+
+        if field_block.field_type not in weak_mark_params.supported_field_types:
+            return detected_bubbles
+
+        if len(detected_bubbles) <= 1:
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        if field_label in weak_mark_params.exclude_labels:
+            return detected_bubbles
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        darkest_bubble = field_block_bubbles[diagnostics["darkest_index"]]
+        self.append_single_choice_conflict_review(
+            field_label,
+            "".join(b.field_value for b in detected_bubbles),
+            darkest_bubble.field_value,
+            diagnostics,
+            "REVIEW",
+        )
+        return detected_bubbles
 
     def get_weak_marked_bubble(
         self, field_block, field_block_bubbles, q_strip_vals, image, page_blank_model
@@ -659,7 +772,14 @@ class ImageInstanceOps:
                 f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
                 f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
                 f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                f"delta={delta_from_blank:.2f})"
+                    f"delta={delta_from_blank:.2f})"
+            )
+            self.append_single_choice_conflict_review(
+                field_label,
+                "".join(b.field_value for b in detected_bubbles),
+                darkest_bubble.field_value,
+                diagnostics,
+                "RESOLVED_CANDIDATE",
             )
             return [darkest_bubble]
 
@@ -669,7 +789,14 @@ class ImageInstanceOps:
             f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
             f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
             f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-            f"delta={delta_from_blank:.2f})"
+                f"delta={delta_from_blank:.2f})"
+        )
+        self.append_single_choice_conflict_review(
+            field_label,
+            "".join(b.field_value for b in detected_bubbles),
+            darkest_bubble.field_value,
+            diagnostics,
+            "LOW_CONFIDENCE",
         )
         return []
 
@@ -730,6 +857,13 @@ class ImageInstanceOps:
             and diagnostics["density_gap"] >= weak_identifier_params.min_density_gap
         )
         if darkest_mean > weak_identifier_params.adaptive_max_mean:
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "adaptive_max_mean",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=adaptive_max_mean darkest_mean={darkest_mean:.2f}, "
@@ -743,6 +877,13 @@ class ImageInstanceOps:
             return None
 
         if darkest_mean > weak_identifier_params.max_mean and not adaptive_rule:
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "max_mean_without_adaptive_support",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=max_mean_without_adaptive_support darkest_mean={darkest_mean:.2f}, "
@@ -756,6 +897,13 @@ class ImageInstanceOps:
             return None
 
         if not (strict_mean_rule or adaptive_rule):
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "support",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=support darkest_mean={darkest_mean:.2f}, "
@@ -769,6 +917,12 @@ class ImageInstanceOps:
             return None
 
         weak_bubble = field_block_bubbles[darkest_index]
+        self.append_identifier_review(
+            field_label,
+            weak_bubble.field_value,
+            diagnostics,
+            "RESOLVED_CANDIDATE",
+        )
         logger.warning(
             f"Weak identifier fallback: field '{field_label}' -> "
             f"'{weak_bubble.field_value}' "
@@ -1195,6 +1349,12 @@ class ImageInstanceOps:
                                 -1,
                             )
 
+                    detected_bubbles = self.observe_single_choice_conflict_review(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
                     detected_bubbles = self.resolve_single_choice_conflict(
                         field_block,
                         field_block_bubbles,

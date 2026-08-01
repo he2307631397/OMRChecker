@@ -1,5 +1,0 @@
-case,csv_path,rows,id_fields,id_blank_cells,id_blank_rows,q_blank_cells,any_blank_rows
-baseline,outputs_inputs_21_baseline\Results\Results_12PM.csv,21,8,78,10,8,11
-auto_align,outputs_inputs_21_auto_align\Results\Results_12PM.csv,21,8,74,10,4,10
-crop_page,outputs_inputs_21_crop_page\Results\Results_12PM.csv,0,8,0,0,0,0
-feature_align,outputs_inputs_21_feature_align\Results\Results_12PM.csv,21,8,0,0,1,1

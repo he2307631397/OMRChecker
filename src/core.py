@@ -101,13 +101,56 @@ class ImageInstanceOps:
         threshold = max(0, blank_baseline - 20)
         return float(np.mean(roi < threshold))
 
+    @staticmethod
+    def get_candidate_density_features(image, field_block, bubble, blank_baseline):
+        """Return general dark-pixel density features for one bubble ROI."""
+        box_w, box_h = field_block.bubble_dimensions
+        x, y = (bubble.x + field_block.shift, bubble.y)
+        roi = image[y : y + box_h, x : x + box_w]
+        if roi.size == 0:
+            return {
+                "dark_ratio": 0.0,
+                "center_density": 0.0,
+                "edge_density": 0.0,
+                "center_edge_ratio": 0.0,
+            }
+
+        threshold = max(0, blank_baseline - 20)
+        dark_mask = roi < threshold
+        dark_ratio = float(np.mean(dark_mask))
+
+        pad_x = max(1, int(box_w / 4))
+        pad_y = max(1, int(box_h / 4))
+        center = dark_mask[pad_y : box_h - pad_y, pad_x : box_w - pad_x]
+        center_density = float(np.mean(center)) if center.size else 0.0
+
+        edge_mask = dark_mask.copy()
+        if center.size:
+            edge_mask[pad_y : box_h - pad_y, pad_x : box_w - pad_x] = False
+        edge_count = edge_mask.size - center.size
+        edge_density = float(np.sum(edge_mask) / max(edge_count, 1))
+        center_edge_ratio = center_density / max(edge_density, 0.01)
+
+        return {
+            "dark_ratio": dark_ratio,
+            "center_density": center_density,
+            "edge_density": edge_density,
+            "center_edge_ratio": center_edge_ratio,
+        }
+
     def enrich_diagnostics_with_density(
         self, image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
     ):
         densities = []
+        density_features = []
         for bubble in field_block_bubbles:
             densities.append(
                 self.get_candidate_density(
+                    image, field_block, bubble, diagnostics["blank_baseline"]
+                )
+            )
+            density_features.append(
+                self.get_candidate_density_features(
                     image, field_block, bubble, diagnostics["blank_baseline"]
                 )
             )
@@ -121,6 +164,32 @@ class ImageInstanceOps:
                 "darkest_density": darkest_density,
                 "second_density": second_density,
                 "density_gap": darkest_density - second_density,
+                "dark_ratios": [item["dark_ratio"] for item in density_features],
+                "center_densities": [
+                    item["center_density"] for item in density_features
+                ],
+                "edge_densities": [item["edge_density"] for item in density_features],
+                "center_edge_ratios": [
+                    item["center_edge_ratio"] for item in density_features
+                ],
+                "darkest_dark_ratio": density_features[darkest_index]["dark_ratio"]
+                if density_features
+                else 0.0,
+                "darkest_center_density": density_features[darkest_index][
+                    "center_density"
+                ]
+                if density_features
+                else 0.0,
+                "darkest_edge_density": density_features[darkest_index][
+                    "edge_density"
+                ]
+                if density_features
+                else 0.0,
+                "darkest_center_edge_ratio": density_features[darkest_index][
+                    "center_edge_ratio"
+                ]
+                if density_features
+                else 0.0,
                 "page_blank_mean": page_blank_model["mean"],
                 "page_blank_std": page_blank_model["std"],
                 "delta_from_page_blank": page_blank_model["mean"]
@@ -130,6 +199,92 @@ class ImageInstanceOps:
             }
         )
         return diagnostics
+
+    def get_single_choice_weak_fill_decision(self, diagnostics):
+        """Classify a blank single-choice weak-fill candidate from reusable features."""
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if not getattr(weak_mark_params, "weak_fill_score_enabled", False):
+            return {"status": "LEGACY", "score": 0.0, "reason": "score_disabled"}
+
+        page_delta = diagnostics["delta_from_page_blank"]
+        page_z = diagnostics["page_z_score"]
+        local_delta = diagnostics["delta_from_blank"]
+        gap = diagnostics["gap"]
+        dark_ratio = diagnostics.get(
+            "darkest_dark_ratio", diagnostics.get("darkest_density", 0.0)
+        )
+        center_density = diagnostics.get(
+            "darkest_center_density", diagnostics.get("darkest_density", 0.0)
+        )
+        center_edge_ratio = diagnostics.get("darkest_center_edge_ratio", 0.0)
+        density_gap = diagnostics.get("density_gap", 0.0)
+
+        score = 0.0
+        reasons = []
+        if page_delta >= weak_mark_params.weak_fill_min_page_delta:
+            score += 1.0
+            reasons.append("page_delta")
+        if page_z >= weak_mark_params.min_page_z_score:
+            score += 1.0
+            reasons.append("page_z")
+        if dark_ratio >= weak_mark_params.weak_fill_min_dark_ratio:
+            score += 1.0
+            reasons.append("dark_ratio")
+        if center_density >= weak_mark_params.weak_fill_min_center_density:
+            score += 1.0
+            reasons.append("center_density")
+        if center_edge_ratio >= 1.0:
+            score += 0.5
+            reasons.append("center_edge")
+        if local_delta >= weak_mark_params.adaptive_min_delta_from_blank:
+            score += 0.75
+            reasons.append("local_delta")
+        if gap >= weak_mark_params.min_gap:
+            score += 0.75
+            reasons.append("gap")
+        if density_gap >= weak_mark_params.min_density_gap:
+            score += 0.5
+            reasons.append("density_gap")
+
+        ambiguity = 0.0
+        if gap < weak_mark_params.min_gap:
+            ambiguity += (weak_mark_params.min_gap - gap) / max(
+                weak_mark_params.min_gap, 1
+            )
+        if density_gap < 0:
+            ambiguity += abs(density_gap) * 2
+
+        if ambiguity > weak_mark_params.weak_fill_max_ambiguity:
+            return {
+                "status": "REVIEW",
+                "score": score,
+                "reason": "ambiguous",
+                "evidence": reasons,
+                "ambiguity": ambiguity,
+            }
+        if score >= weak_mark_params.weak_fill_min_score:
+            return {
+                "status": "WEAK_MARK",
+                "score": score,
+                "reason": "feature_score",
+                "evidence": reasons,
+                "ambiguity": ambiguity,
+            }
+        if score >= weak_mark_params.weak_fill_review_min_score:
+            return {
+                "status": "REVIEW",
+                "score": score,
+                "reason": "low_score",
+                "evidence": reasons,
+                "ambiguity": ambiguity,
+            }
+        return {
+            "status": "EMPTY",
+            "score": score,
+            "reason": "low_score",
+            "evidence": reasons,
+            "ambiguity": ambiguity,
+        }
 
     def get_weak_marked_bubble(
         self, field_block, field_block_bubbles, q_strip_vals, image, page_blank_model

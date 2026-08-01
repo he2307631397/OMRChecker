@@ -109,3 +109,28 @@ def test_feature_decision_rejects_ambiguous_density_even_with_page_support():
 def test_existing_disabled_config_keeps_fallback_off():
     ops = make_ops(enabled=False)
     assert not ops.tuning_config.weak_mark_params.enabled
+
+
+def test_blank_single_choice_review_logging_does_not_auto_fill_when_score_supported(caplog):
+    ops = make_ops(
+        adaptive_min_delta_from_blank=40,
+        weak_fill_score_enabled=True,
+        weak_fill_min_score=3.0,
+        weak_fill_review_min_score=2.0,
+    )
+    field = FakeFieldBlock()
+    bubbles = make_bubbles()
+    q_vals = [202.7, 208.6, 217.0, 219.0]
+
+    result = ops.get_weak_marked_bubble(
+        field,
+        bubbles,
+        q_vals,
+        make_image(fill_value=180),
+        {"mean": 223.6, "std": 1.4},
+    )
+
+    assert result is None
+    assert "Weak mark candidate review" in caplog.text
+    assert "status=WEAK_MARK" in caplog.text
+    assert "score=" in caplog.text

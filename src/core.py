@@ -349,6 +349,29 @@ class ImageInstanceOps:
                 rejection_reason = "support"
 
         if rejection_reason is not None:
+            score_decision = self.get_single_choice_weak_fill_decision(diagnostics)
+            if score_decision["status"] != "EMPTY":
+                logger.warning(
+                    f"Weak mark candidate review: field '{field_label}' "
+                    f"candidate='{field_block_bubbles[darkest_index].field_value}' "
+                    f"status={score_decision['status']} "
+                    f"score={score_decision['score']:.2f} "
+                    f"reason={score_decision['reason']} "
+                    f"legacy_rejection={rejection_reason} "
+                    f"evidence={','.join(score_decision.get('evidence', []))} "
+                    f"ambiguity={score_decision.get('ambiguity', 0.0):.2f} "
+                    f"darkest_mean={darkest_mean:.2f}, "
+                    f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+                    f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+                    f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
+                    f"page_z={diagnostics['page_z_score']:.2f}, "
+                    f"dark_ratio={diagnostics['darkest_dark_ratio']:.3f}, "
+                    f"center_density={diagnostics['darkest_center_density']:.3f}, "
+                    f"edge_density={diagnostics['darkest_edge_density']:.3f}, "
+                    f"center_edge_ratio={diagnostics['darkest_center_edge_ratio']:.3f}, "
+                    f"density={diagnostics['darkest_density']:.3f}, "
+                    f"density_gap={diagnostics['density_gap']:.3f}"
+                )
             logger.info(
                 f"Weak mark candidate rejected: field '{field_label}' "
                 f"reason={rejection_reason} darkest_mean={darkest_mean:.2f}, "

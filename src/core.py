@@ -565,6 +565,38 @@ class ImageInstanceOps:
             }
         )
 
+    def observe_single_choice_conflict_review(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Record a single-choice conflict review without changing detected bubbles."""
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if getattr(weak_mark_params, "resolve_single_choice_conflicts", False):
+            return detected_bubbles
+
+        if field_block.multi_select:
+            return detected_bubbles
+
+        if field_block.field_type not in weak_mark_params.supported_field_types:
+            return detected_bubbles
+
+        if len(detected_bubbles) <= 1:
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        if field_label in weak_mark_params.exclude_labels:
+            return detected_bubbles
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        darkest_bubble = field_block_bubbles[diagnostics["darkest_index"]]
+        self.append_single_choice_conflict_review(
+            field_label,
+            "".join(b.field_value for b in detected_bubbles),
+            darkest_bubble.field_value,
+            diagnostics,
+            "REVIEW",
+        )
+        return detected_bubbles
+
     def get_weak_marked_bubble(
         self, field_block, field_block_bubbles, q_strip_vals, image, page_blank_model
     ):
@@ -1294,6 +1326,12 @@ class ImageInstanceOps:
                                 -1,
                             )
 
+                    detected_bubbles = self.observe_single_choice_conflict_review(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
                     detected_bubbles = self.resolve_single_choice_conflict(
                         field_block,
                         field_block_bubbles,

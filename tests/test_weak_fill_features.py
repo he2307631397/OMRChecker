@@ -500,3 +500,26 @@ def test_weak_identifier_candidate_records_id_review():
     assert review["status"] == "RESOLVED_CANDIDATE"
     assert review["reason"] == "weak_identifier_candidate"
     assert 0.0 <= review["confidence"] <= 1.0
+
+
+def test_single_choice_conflict_review_can_be_observed_without_resolving_answer():
+    ops = make_ops(resolve_single_choice_conflicts=False)
+    field_block = FakeFieldBlock()
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    result = ops.observe_single_choice_conflict_review(
+        field_block,
+        bubbles,
+        [200.0, 212.0, 178.0, 215.0],
+        detected,
+    )
+
+    assert result == detected
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert review["field"] == "q1"
+    assert review["original_value"] == "ABCD"
+    assert review["candidate"] == "C"
+    assert review["status"] == "REVIEW"

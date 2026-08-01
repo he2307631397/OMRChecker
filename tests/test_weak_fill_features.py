@@ -134,3 +134,49 @@ def test_blank_single_choice_review_logging_does_not_auto_fill_when_score_suppor
     assert "Weak mark candidate review" in caplog.text
     assert "status=WEAK_MARK" in caplog.text
     assert "score=" in caplog.text
+
+
+def test_threshold_vote_features_count_stable_dynamic_threshold_support():
+    ops = make_ops()
+    field = FakeFieldBlock()
+    bubbles = make_bubbles()
+    image = np.full((30, 140), 240, dtype=np.uint8)
+    image[5:13, 8:22] = 180
+    image[5:13, 43:57] = 235
+
+    features = ops.get_threshold_vote_features(
+        image,
+        field,
+        bubbles,
+        blank_baseline=240,
+        threshold_offsets=[10, 15, 20, 25],
+    )
+
+    assert features["threshold_vote_count"] == 4
+    assert features["threshold_vote_total"] == 4
+    assert features["threshold_vote_ratio"] == 1.0
+    assert len(features["threshold_dark_ratios"]) == 4
+    assert len(features["threshold_center_densities"]) == 4
+    assert features["threshold_density_gaps"][0] > 0
+
+
+def test_blank_single_choice_review_log_includes_threshold_votes(caplog):
+    ops = make_ops(
+        adaptive_min_delta_from_blank=40,
+        weak_fill_score_enabled=True,
+        weak_fill_min_score=3.0,
+        weak_fill_review_min_score=2.0,
+    )
+
+    result = ops.get_weak_marked_bubble(
+        FakeFieldBlock(),
+        make_bubbles(),
+        [202.7, 208.6, 217.0, 219.0],
+        make_image(fill_value=180),
+        {"mean": 223.6, "std": 1.4},
+    )
+
+    assert result is None
+    assert "Weak mark candidate review" in caplog.text
+    assert "threshold_vote_count=" in caplog.text
+    assert "threshold_vote_ratio=" in caplog.text

@@ -138,6 +138,78 @@ class ImageInstanceOps:
             "center_edge_ratio": center_edge_ratio,
         }
 
+    @staticmethod
+    def get_threshold_vote_features(
+        image, field_block, field_block_bubbles, blank_baseline, threshold_offsets=None
+    ):
+        """Return dynamic-threshold vote features for a single-choice field.
+
+        Each offset creates a threshold relative to the local blank baseline. The
+        darkest candidate receives one vote when its center density is strictly
+        higher than the next candidate at that threshold. This is observation
+        evidence only and does not change the legacy answer selection.
+        """
+        if threshold_offsets is None:
+            threshold_offsets = [10, 15, 20, 25]
+
+        vote_count = 0
+        darkest_indices = []
+        darkest_dark_ratios = []
+        darkest_center_densities = []
+        density_gaps = []
+        box_w, box_h = field_block.bubble_dimensions
+
+        for offset in threshold_offsets:
+            threshold = max(0, float(blank_baseline) - float(offset))
+            candidate_features = []
+            for bubble in field_block_bubbles:
+                x, y = (bubble.x + field_block.shift, bubble.y)
+                roi = image[y : y + box_h, x : x + box_w]
+                if roi.size == 0:
+                    candidate_features.append((0.0, 0.0))
+                    continue
+
+                dark_mask = roi < threshold
+                dark_ratio = float(np.mean(dark_mask))
+                pad_x = max(1, int(box_w / 4))
+                pad_y = max(1, int(box_h / 4))
+                center = dark_mask[pad_y : box_h - pad_y, pad_x : box_w - pad_x]
+                center_density = float(np.mean(center)) if center.size else 0.0
+                candidate_features.append((dark_ratio, center_density))
+
+            ranked = sorted(
+                enumerate(candidate_features),
+                key=lambda item: (item[1][1], item[1][0]),
+                reverse=True,
+            )
+            if not ranked:
+                darkest_indices.append(-1)
+                darkest_dark_ratios.append(0.0)
+                darkest_center_densities.append(0.0)
+                density_gaps.append(0.0)
+                continue
+
+            darkest_index, (dark_ratio, center_density) = ranked[0]
+            second_density = ranked[1][1][1] if len(ranked) > 1 else 0.0
+            density_gap = center_density - second_density
+            if center_density > 0 and density_gap > 0:
+                vote_count += 1
+            darkest_indices.append(darkest_index)
+            darkest_dark_ratios.append(dark_ratio)
+            darkest_center_densities.append(center_density)
+            density_gaps.append(density_gap)
+
+        total = len(threshold_offsets)
+        return {
+            "threshold_vote_count": vote_count,
+            "threshold_vote_total": total,
+            "threshold_vote_ratio": vote_count / max(total, 1),
+            "threshold_vote_indices": darkest_indices,
+            "threshold_dark_ratios": darkest_dark_ratios,
+            "threshold_center_densities": darkest_center_densities,
+            "threshold_density_gaps": density_gaps,
+        }
+
     def enrich_diagnostics_with_density(
         self, image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
     ):
@@ -197,6 +269,19 @@ class ImageInstanceOps:
                 "page_z_score": (page_blank_model["mean"] - diagnostics["darkest_mean"])
                 / page_blank_model["std"],
             }
+        )
+        diagnostics.update(
+            self.get_threshold_vote_features(
+                image,
+                field_block,
+                field_block_bubbles,
+                diagnostics["blank_baseline"],
+                getattr(
+                    self.tuning_config.weak_mark_params,
+                    "threshold_vote_offsets",
+                    None,
+                ),
+            )
         )
         return diagnostics
 
@@ -370,7 +455,11 @@ class ImageInstanceOps:
                     f"edge_density={diagnostics['darkest_edge_density']:.3f}, "
                     f"center_edge_ratio={diagnostics['darkest_center_edge_ratio']:.3f}, "
                     f"density={diagnostics['darkest_density']:.3f}, "
-                    f"density_gap={diagnostics['density_gap']:.3f}"
+                    f"density_gap={diagnostics['density_gap']:.3f}, "
+                    f"threshold_vote_count={diagnostics['threshold_vote_count']}, "
+                    f"threshold_vote_ratio={diagnostics['threshold_vote_ratio']:.3f}, "
+                    f"threshold_density_gaps="
+                    f"{','.join(f'{gap:.3f}' for gap in diagnostics['threshold_density_gaps'])}"
                 )
             logger.info(
                 f"Weak mark candidate rejected: field '{field_label}' "
@@ -394,7 +483,9 @@ class ImageInstanceOps:
             f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
             f"page_z={diagnostics['page_z_score']:.2f}, "
             f"density={diagnostics['darkest_density']:.3f}, "
-            f"density_gap={diagnostics['density_gap']:.3f})"
+            f"density_gap={diagnostics['density_gap']:.3f}, "
+            f"threshold_vote_count={diagnostics['threshold_vote_count']}, "
+            f"threshold_vote_ratio={diagnostics['threshold_vote_ratio']:.3f})"
         )
         return weak_bubble
 

@@ -286,9 +286,32 @@ def test_setup_outputs_adds_independent_weak_fill_review_csv_without_changing_re
 
     assert results_header == '"file_id","input_path","output_path","score","q1","q2"'
     assert review_header.startswith(
-        '"file_id","input_path","output_path","field","candidate","confidence","status"'
+        '"file_id","input_path","output_path","review_type","field",'
+        '"original_value","candidate","confidence","status"'
     )
     assert "WeakFillReview" in outputs.files_obj
+
+
+def test_review_csv_header_includes_review_type_and_original_value(tmp_path):
+    from types import SimpleNamespace
+
+    from src.utils.file import setup_outputs_for_template
+
+    paths = SimpleNamespace(
+        results_dir=tmp_path / "Results",
+        manual_dir=tmp_path / "Manual",
+    )
+    paths.results_dir.mkdir()
+    paths.manual_dir.mkdir()
+    template = SimpleNamespace(output_columns=["q1", "q2"])
+
+    setup_outputs_for_template(paths, template)
+
+    header = (tmp_path / "Results" / "WeakFillReview.csv").read_text().splitlines()[0]
+    assert header.startswith(
+        '"file_id","input_path","output_path","review_type","field",'
+        '"original_value","candidate","confidence","status"'
+    )
 
 
 def test_append_weak_fill_reviews_writes_one_row_per_candidate(tmp_path):
@@ -324,8 +347,51 @@ def test_append_weak_fill_reviews_writes_one_row_per_candidate(tmp_path):
     )
 
     assert csv_path.read_text().splitlines() == [
-        '"sheet.png","/in/sheet.png","/out/sheet.png","q5","D","0.730",'
-        '"WEAK_MARK","feature_score","page_delta,density_gap","5.00",'
+        '"sheet.png","/in/sheet.png","/out/sheet.png","WEAK_MARK_REVIEW","q5","","D",'
+        '"0.730","WEAK_MARK","feature_score","page_delta,density_gap","5.00",'
         '"adaptive_min_delta_from_blank","0.100","0.200","0.400",'
         '"4.000","0.500","1.000"'
+    ]
+
+
+def test_append_review_rows_writes_review_type_and_original_value(tmp_path):
+    from types import SimpleNamespace
+
+    from src.entry import append_weak_fill_review_rows
+
+    csv_path = tmp_path / "WeakFillReview.csv"
+    review = {
+        "review_type": "SINGLE_CHOICE_CONFLICT_REVIEW",
+        "field": "q1",
+        "original_value": "ABCD",
+        "candidate": "C",
+        "confidence": 0.82,
+        "status": "RESOLVED_CANDIDATE",
+        "reason": "single_choice_conflict",
+        "evidence": "gap,delta_from_blank,center_density",
+        "score": 4.2,
+        "legacy_rejection": "",
+        "ambiguity": 0.08,
+        "density_gap": 0.25,
+        "center_density": 0.62,
+        "center_edge_ratio": 6.0,
+        "threshold_vote_ratio": 0.75,
+        "multiscale_stability": 1.0,
+    }
+    outputs = SimpleNamespace(files_obj={"WeakFillReview": str(csv_path)})
+
+    append_weak_fill_review_rows(
+        "sheet.png",
+        "/in/sheet.png",
+        "/out/sheet.png",
+        [review],
+        outputs,
+    )
+
+    assert csv_path.read_text().splitlines() == [
+        '"sheet.png","/in/sheet.png","/out/sheet.png",'
+        '"SINGLE_CHOICE_CONFLICT_REVIEW","q1","ABCD","C","0.820",'
+        '"RESOLVED_CANDIDATE","single_choice_conflict",'
+        '"gap,delta_from_blank,center_density","4.20","",'
+        '"0.080","0.250","0.620","6.000","0.750","1.000"'
     ]

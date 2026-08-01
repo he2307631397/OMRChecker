@@ -210,6 +210,71 @@ class ImageInstanceOps:
             "threshold_density_gaps": density_gaps,
         }
 
+    @staticmethod
+    def get_multiscale_roi_features(image, field_block, field_block_bubbles, blank_baseline):
+        """Return small image-pyramid ROI stability features for a field.
+
+        The variants intentionally stay local to the bubble ROI: original ROI,
+        center-cropped ROI, lightly blurred ROI, and a down/up-sampled ROI. These
+        features are used for observation only and never override main detection.
+        """
+        box_w, box_h = field_block.bubble_dimensions
+        threshold = max(0, float(blank_baseline) - 20)
+        variants = ("original", "center", "blur", "pyramid")
+        vote_count = 0
+        vote_indices = []
+        center_densities = []
+        density_gaps = []
+
+        for variant in variants:
+            candidate_densities = []
+            for bubble in field_block_bubbles:
+                x, y = (bubble.x + field_block.shift, bubble.y)
+                roi = image[y : y + box_h, x : x + box_w]
+                if roi.size == 0:
+                    candidate_densities.append(0.0)
+                    continue
+
+                if variant == "center":
+                    pad_x = max(1, int(box_w / 4))
+                    pad_y = max(1, int(box_h / 4))
+                    roi = roi[pad_y : box_h - pad_y, pad_x : box_w - pad_x]
+                elif variant == "blur":
+                    roi = cv2.GaussianBlur(roi, (3, 3), 0)
+                elif variant == "pyramid":
+                    down_w = max(1, int(roi.shape[1] * 0.75))
+                    down_h = max(1, int(roi.shape[0] * 0.75))
+                    roi = cv2.resize(roi, (down_w, down_h), interpolation=cv2.INTER_AREA)
+                    roi = cv2.resize(roi, (box_w, box_h), interpolation=cv2.INTER_LINEAR)
+
+                candidate_densities.append(float(np.mean(roi < threshold)))
+
+            ranked = sorted(enumerate(candidate_densities), key=lambda item: item[1], reverse=True)
+            if not ranked:
+                vote_indices.append(-1)
+                center_densities.append(0.0)
+                density_gaps.append(0.0)
+                continue
+
+            darkest_index, darkest_density = ranked[0]
+            second_density = ranked[1][1] if len(ranked) > 1 else 0.0
+            density_gap = darkest_density - second_density
+            if darkest_density > 0 and density_gap > 0:
+                vote_count += 1
+            vote_indices.append(darkest_index)
+            center_densities.append(darkest_density)
+            density_gaps.append(density_gap)
+
+        total = len(variants)
+        return {
+            "multiscale_vote_count": vote_count,
+            "multiscale_vote_total": total,
+            "multiscale_stability": vote_count / max(total, 1),
+            "multiscale_vote_indices": vote_indices,
+            "multiscale_center_densities": center_densities,
+            "multiscale_density_gaps": density_gaps,
+        }
+
     def enrich_diagnostics_with_density(
         self, image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
     ):
@@ -281,6 +346,14 @@ class ImageInstanceOps:
                     "threshold_vote_offsets",
                     None,
                 ),
+            )
+        )
+        diagnostics.update(
+            self.get_multiscale_roi_features(
+                image,
+                field_block,
+                field_block_bubbles,
+                diagnostics["blank_baseline"],
             )
         )
         return diagnostics
@@ -459,7 +532,11 @@ class ImageInstanceOps:
                     f"threshold_vote_count={diagnostics['threshold_vote_count']}, "
                     f"threshold_vote_ratio={diagnostics['threshold_vote_ratio']:.3f}, "
                     f"threshold_density_gaps="
-                    f"{','.join(f'{gap:.3f}' for gap in diagnostics['threshold_density_gaps'])}"
+                    f"{','.join(f'{gap:.3f}' for gap in diagnostics['threshold_density_gaps'])}, "
+                    f"multiscale_vote_count={diagnostics['multiscale_vote_count']}, "
+                    f"multiscale_stability={diagnostics['multiscale_stability']:.3f}, "
+                    f"multiscale_density_gaps="
+                    f"{','.join(f'{gap:.3f}' for gap in diagnostics['multiscale_density_gaps'])}"
                 )
             logger.info(
                 f"Weak mark candidate rejected: field '{field_label}' "
@@ -485,7 +562,9 @@ class ImageInstanceOps:
             f"density={diagnostics['darkest_density']:.3f}, "
             f"density_gap={diagnostics['density_gap']:.3f}, "
             f"threshold_vote_count={diagnostics['threshold_vote_count']}, "
-            f"threshold_vote_ratio={diagnostics['threshold_vote_ratio']:.3f})"
+            f"threshold_vote_ratio={diagnostics['threshold_vote_ratio']:.3f}, "
+            f"multiscale_vote_count={diagnostics['multiscale_vote_count']}, "
+            f"multiscale_stability={diagnostics['multiscale_stability']:.3f})"
         )
         return weak_bubble
 

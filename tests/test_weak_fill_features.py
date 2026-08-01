@@ -180,3 +180,47 @@ def test_blank_single_choice_review_log_includes_threshold_votes(caplog):
     assert "Weak mark candidate review" in caplog.text
     assert "threshold_vote_count=" in caplog.text
     assert "threshold_vote_ratio=" in caplog.text
+
+
+def test_multiscale_roi_features_measure_scale_stability_for_center_mark():
+    ops = make_ops()
+    field = FakeFieldBlock()
+    bubbles = make_bubbles()
+    image = np.full((30, 140), 240, dtype=np.uint8)
+    image[5:13, 8:22] = 180
+
+    features = ops.get_multiscale_roi_features(
+        image,
+        field,
+        bubbles,
+        blank_baseline=240,
+    )
+
+    assert features["multiscale_vote_count"] >= 2
+    assert features["multiscale_vote_total"] >= 3
+    assert features["multiscale_stability"] > 0.5
+    assert len(features["multiscale_center_densities"]) == features["multiscale_vote_total"]
+    assert len(features["multiscale_density_gaps"]) == features["multiscale_vote_total"]
+    assert features["multiscale_density_gaps"][0] > 0
+
+
+def test_blank_single_choice_review_log_includes_multiscale_features(caplog):
+    ops = make_ops(
+        adaptive_min_delta_from_blank=40,
+        weak_fill_score_enabled=True,
+        weak_fill_min_score=3.0,
+        weak_fill_review_min_score=2.0,
+    )
+
+    result = ops.get_weak_marked_bubble(
+        FakeFieldBlock(),
+        make_bubbles(),
+        [202.7, 208.6, 217.0, 219.0],
+        make_image(fill_value=180),
+        {"mean": 223.6, "std": 1.4},
+    )
+
+    assert result is None
+    assert "Weak mark candidate review" in caplog.text
+    assert "multiscale_vote_count=" in caplog.text
+    assert "multiscale_stability=" in caplog.text

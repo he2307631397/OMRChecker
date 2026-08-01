@@ -20,6 +20,7 @@ class FakeFieldBlock:
     multi_select: bool = False
     bubble_dimensions: tuple[int, int] = (30, 18)
     shift: int = 0
+    direction: str = "horizontal"
 
 
 def make_ops(**weak_overrides):
@@ -47,7 +48,30 @@ def make_ops(**weak_overrides):
         "weak_fill_max_ambiguity": 1.25,
     }
     params.update(weak_overrides)
-    return ImageInstanceOps(DotMap({"outputs": {"save_image_level": 0}, "weak_mark_params": params}))
+    weak_identifier_params = {
+        "enabled": False,
+        "labels": [],
+        "exclude_labels": [],
+        "min_gap": 8,
+        "min_delta_from_blank": 15,
+        "adaptive_min_gap": 8,
+        "adaptive_min_delta_from_blank": 15,
+        "min_page_z_score": 2.0,
+        "min_dark_pixel_ratio": 0.08,
+        "min_density_gap": 0.03,
+        "max_mean": 215,
+        "adaptive_max_mean": 230,
+        "supported_field_types": ["QTYPE_INT"],
+    }
+    return ImageInstanceOps(
+        DotMap(
+            {
+                "outputs": {"save_image_level": 0},
+                "weak_mark_params": params,
+                "weak_identifier_params": weak_identifier_params,
+            }
+        )
+    )
 
 
 def make_bubbles():
@@ -437,3 +461,42 @@ def test_multi_select_conflict_does_not_record_single_choice_review():
 
     assert result == detected
     assert ops.last_weak_fill_reviews == []
+
+
+def test_weak_identifier_candidate_records_id_review():
+    ops = make_ops()
+    ops.tuning_config.weak_identifier_params.enabled = True
+    ops.tuning_config.weak_identifier_params.labels = []
+    ops.tuning_config.weak_identifier_params.exclude_labels = []
+    ops.tuning_config.weak_identifier_params.min_gap = 8
+    ops.tuning_config.weak_identifier_params.min_delta_from_blank = 15
+    ops.tuning_config.weak_identifier_params.max_mean = 220
+    ops.tuning_config.weak_identifier_params.adaptive_max_mean = 230
+    ops.tuning_config.weak_identifier_params.supported_field_types = ["QTYPE_INT"]
+
+    field_block = FakeFieldBlock(field_type="QTYPE_INT", direction="vertical")
+    bubbles = [FakeBubble("id7", str(i), x=10, y=10 + i * 6) for i in range(10)]
+
+    image = np.full((90, 50), 240, dtype=np.uint8)
+    image[54:64, 18:32] = 170
+
+    result = ops.get_weak_identifier_bubble(
+        field_block,
+        bubbles,
+        [222, 221, 220, 219, 218, 217, 216, 180, 215, 214],
+        [],
+        image,
+        {"mean": 225.0, "std": 2.0},
+    )
+
+    assert result is not None
+    assert result.field_value == "7"
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "ID_REVIEW"
+    assert review["field"] == "id7"
+    assert review["original_value"] == ""
+    assert review["candidate"] == "7"
+    assert review["status"] == "RESOLVED_CANDIDATE"
+    assert review["reason"] == "weak_identifier_candidate"
+    assert 0.0 <= review["confidence"] <= 1.0

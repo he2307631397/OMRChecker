@@ -472,6 +472,25 @@ class ImageInstanceOps:
         confidence = gap_component * 0.55 + delta_component * 0.45
         return max(0.0, min(confidence, 1.0))
 
+    @staticmethod
+    def get_identifier_review_confidence(diagnostics):
+        """Convert weak identifier evidence into a bounded review confidence."""
+        gap_component = min(max(diagnostics.get("gap", 0.0), 0.0) / 25.0, 1.0)
+        delta_component = min(
+            max(diagnostics.get("delta_from_blank", 0.0), 0.0) / 45.0, 1.0
+        )
+        page_component = min(max(diagnostics.get("page_z_score", 0.0), 0.0) / 10.0, 1.0)
+        density_component = min(
+            max(diagnostics.get("density_gap", 0.0), 0.0) / 0.25, 1.0
+        )
+        confidence = (
+            gap_component * 0.30
+            + delta_component * 0.30
+            + page_component * 0.20
+            + density_component * 0.20
+        )
+        return max(0.0, min(confidence, 1.0))
+
     def append_weak_fill_review(
         self, field_label, candidate, score_decision, diagnostics, legacy_rejection
     ):
@@ -517,6 +536,30 @@ class ImageInstanceOps:
                 "density_gap": 0.0,
                 "center_density": 0.0,
                 "center_edge_ratio": 0.0,
+                "threshold_vote_ratio": 0.0,
+                "multiscale_stability": 0.0,
+            }
+        )
+
+    def append_identifier_review(self, field_label, candidate, diagnostics, status):
+        """Store one weak identifier candidate for auxiliary review outputs."""
+        confidence = self.get_identifier_review_confidence(diagnostics)
+        self.last_weak_fill_reviews.append(
+            {
+                "review_type": "ID_REVIEW",
+                "field": field_label,
+                "original_value": "",
+                "candidate": candidate,
+                "status": status,
+                "confidence": confidence,
+                "score": confidence * 5.0,
+                "reason": "weak_identifier_candidate",
+                "legacy_rejection": "",
+                "evidence": "gap,delta_from_blank,page_z,density_gap",
+                "ambiguity": 1.0 - confidence,
+                "density_gap": diagnostics.get("density_gap", 0.0),
+                "center_density": diagnostics.get("darkest_center_density", 0.0),
+                "center_edge_ratio": diagnostics.get("darkest_center_edge_ratio", 0.0),
                 "threshold_vote_ratio": 0.0,
                 "multiscale_stability": 0.0,
             }
@@ -819,6 +862,12 @@ class ImageInstanceOps:
             return None
 
         weak_bubble = field_block_bubbles[darkest_index]
+        self.append_identifier_review(
+            field_label,
+            weak_bubble.field_value,
+            diagnostics,
+            "RESOLVED_CANDIDATE",
+        )
         logger.warning(
             f"Weak identifier fallback: field '{field_label}' -> "
             f"'{weak_bubble.field_value}' "

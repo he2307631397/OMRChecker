@@ -462,6 +462,16 @@ class ImageInstanceOps:
         )
         return max(0.0, min(confidence, 1.0))
 
+    @staticmethod
+    def get_single_choice_conflict_confidence(diagnostics):
+        """Convert single-choice conflict separation into a bounded confidence."""
+        gap_component = min(max(diagnostics.get("gap", 0.0), 0.0) / 20.0, 1.0)
+        delta_component = min(
+            max(diagnostics.get("delta_from_blank", 0.0), 0.0) / 40.0, 1.0
+        )
+        confidence = gap_component * 0.55 + delta_component * 0.45
+        return max(0.0, min(confidence, 1.0))
+
     def append_weak_fill_review(
         self, field_label, candidate, score_decision, diagnostics, legacy_rejection
     ):
@@ -483,6 +493,32 @@ class ImageInstanceOps:
                 "center_edge_ratio": diagnostics.get("darkest_center_edge_ratio", 0.0),
                 "threshold_vote_ratio": diagnostics.get("threshold_vote_ratio", 0.0),
                 "multiscale_stability": diagnostics.get("multiscale_stability", 0.0),
+            }
+        )
+
+    def append_single_choice_conflict_review(
+        self, field_label, original_value, candidate, diagnostics, status
+    ):
+        """Store one single-choice conflict candidate for auxiliary review outputs."""
+        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        self.last_weak_fill_reviews.append(
+            {
+                "review_type": "SINGLE_CHOICE_CONFLICT_REVIEW",
+                "field": field_label,
+                "original_value": original_value,
+                "candidate": candidate,
+                "status": status,
+                "confidence": confidence,
+                "score": confidence * 5.0,
+                "reason": "single_choice_conflict",
+                "legacy_rejection": "",
+                "evidence": "gap,delta_from_blank",
+                "ambiguity": 1.0 - confidence,
+                "density_gap": 0.0,
+                "center_density": 0.0,
+                "center_edge_ratio": 0.0,
+                "threshold_vote_ratio": 0.0,
+                "multiscale_stability": 0.0,
             }
         )
 
@@ -659,7 +695,14 @@ class ImageInstanceOps:
                 f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
                 f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
                 f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                f"delta={delta_from_blank:.2f})"
+                    f"delta={delta_from_blank:.2f})"
+            )
+            self.append_single_choice_conflict_review(
+                field_label,
+                "".join(b.field_value for b in detected_bubbles),
+                darkest_bubble.field_value,
+                diagnostics,
+                "RESOLVED_CANDIDATE",
             )
             return [darkest_bubble]
 
@@ -669,7 +712,14 @@ class ImageInstanceOps:
             f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
             f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
             f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-            f"delta={delta_from_blank:.2f})"
+                f"delta={delta_from_blank:.2f})"
+        )
+        self.append_single_choice_conflict_review(
+            field_label,
+            "".join(b.field_value for b in detected_bubbles),
+            darkest_bubble.field_value,
+            diagnostics,
+            "LOW_CONFIDENCE",
         )
         return []
 

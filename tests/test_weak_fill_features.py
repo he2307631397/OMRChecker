@@ -395,3 +395,45 @@ def test_append_review_rows_writes_review_type_and_original_value(tmp_path):
         '"gap,delta_from_blank,center_density","4.20","",'
         '"0.080","0.250","0.620","6.000","0.750","1.000"'
     ]
+
+
+def test_single_choice_conflict_records_review_candidate_without_changing_result():
+    ops = make_ops(resolve_single_choice_conflicts=True)
+    field_block = FakeFieldBlock()
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    result = ops.resolve_single_choice_conflict(
+        field_block,
+        bubbles,
+        [200.0, 212.0, 178.0, 215.0],
+        detected,
+    )
+
+    assert result == [bubbles[2]]
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert review["field"] == "q1"
+    assert review["original_value"] == "ABCD"
+    assert review["candidate"] == "C"
+    assert review["status"] == "RESOLVED_CANDIDATE"
+    assert review["reason"] == "single_choice_conflict"
+    assert 0.0 <= review["confidence"] <= 1.0
+
+
+def test_multi_select_conflict_does_not_record_single_choice_review():
+    ops = make_ops(resolve_single_choice_conflicts=True)
+    field_block = FakeFieldBlock(multi_select=True)
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1]]
+
+    result = ops.resolve_single_choice_conflict(
+        field_block,
+        bubbles,
+        [180.0, 181.0, 220.0, 225.0],
+        detected,
+    )
+
+    assert result == detected
+    assert ops.last_weak_fill_reviews == []

@@ -498,25 +498,110 @@ git commit -m "feat: record weak identifier reviews"
 
 ---
 
-### Task 4: Enable observation-only single-choice conflict review in config
+### Task 4: Keep single-choice conflict review observation-only
 
 **Files:**
-- Modify: `inputs/config.json`
-- Test: regression command output
+- Modify: `src/core.py`
+- Test: `tests/test_weak_fill_features.py`
 
-- [ ] **Step 1: Add conflict config keys without changing global thresholds**
+- [ ] **Step 1: Write a failing observation-only regression unit test**
 
-Update `inputs/config.json` under `weak_mark_params` to include:
+Add this test to `tests/test_weak_fill_features.py`:
 
-```json
-    "resolve_single_choice_conflicts": true,
-    "conflict_min_gap": 5,
-    "conflict_min_delta_from_blank": 20,
+```python
+def test_single_choice_conflict_review_can_be_observed_without_resolving_answer():
+    ops = make_ops(resolve_single_choice_conflicts=False)
+    field_block = FakeFieldBlock()
+    bubbles = make_bubbles()
+    detected = [bubbles[0], bubbles[1], bubbles[2], bubbles[3]]
+
+    result = ops.observe_single_choice_conflict_review(
+        field_block,
+        bubbles,
+        [200.0, 212.0, 178.0, 215.0],
+        detected,
+    )
+
+    assert result == detected
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "SINGLE_CHOICE_CONFLICT_REVIEW"
+    assert review["field"] == "q1"
+    assert review["original_value"] == "ABCD"
+    assert review["candidate"] == "C"
+    assert review["status"] == "REVIEW"
 ```
 
-Do not change `threshold_params`. Do not modify multi-select settings.
+- [ ] **Step 2: Run test and verify it fails**
 
-- [ ] **Step 2: Run weak scenario regression only**
+Run:
+
+```bash
+cd /Volumes/wdata/work/tech/OMRChecker
+. .venv/bin/activate
+PYTHONPATH=. python -m pytest \
+  tests/test_weak_fill_features.py::test_single_choice_conflict_review_can_be_observed_without_resolving_answer -q
+```
+
+Expected: fails because `observe_single_choice_conflict_review` does not exist.
+
+- [ ] **Step 3: Add observation-only method in `src/core.py`**
+
+Add this method inside `ImageInstanceOps`, near `resolve_single_choice_conflict`:
+
+```python
+    def observe_single_choice_conflict_review(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Record a single-choice conflict review without changing detected bubbles."""
+        if field_block.multi_select:
+            return detected_bubbles
+
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if field_block.field_type not in weak_mark_params.supported_field_types:
+            return detected_bubbles
+
+        if len(detected_bubbles) <= 1:
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        if field_label in weak_mark_params.exclude_labels:
+            return detected_bubbles
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        darkest_bubble = field_block_bubbles[diagnostics["darkest_index"]]
+        self.append_single_choice_conflict_review(
+            field_label,
+            "".join(b.field_value for b in detected_bubbles),
+            darkest_bubble.field_value,
+            diagnostics,
+            "REVIEW",
+        )
+        return detected_bubbles
+```
+
+- [ ] **Step 4: Integrate observation call in the OMR loop without enabling answer correction**
+
+In `read_omr_response`, immediately before the existing call to `resolve_single_choice_conflict`, add:
+
+```python
+                    detected_bubbles = self.observe_single_choice_conflict_review(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
+```
+
+Keep `inputs/config.json` unchanged. Do not set `resolve_single_choice_conflicts=true` in this task. The existing `resolve_single_choice_conflict` call remains gated by config and should return unchanged results when the config is false.
+
+- [ ] **Step 5: Run observation-only test and verify it passes**
+
+Run the same command from Step 2.
+
+Expected: pass.
+
+- [ ] **Step 6: Run weak scenario and verify Results stay unchanged for the known sample**
 
 Run:
 
@@ -524,41 +609,27 @@ Run:
 cd /Volumes/wdata/work/tech/OMRChecker
 . .venv/bin/activate
 PYTHONPATH=. python scripts/run_omr_regression.py --scenario weak | tee jcode_regression_summary_after_review_extension_weak.txt
-```
-
-Expected: command completes. Inspect `outputs_jcode_regression_weak/Results/WeakFillReview.csv` and confirm it has rows with `review_type=SINGLE_CHOICE_CONFLICT_REVIEW`.
-
-- [ ] **Step 3: Decide if observation-only mode changed Results**
-
-Run:
-
-```bash
-cd /Volumes/wdata/work/tech/OMRChecker
-. .venv/bin/activate
 python - <<'PY'
 import csv, glob
 p = sorted(glob.glob('outputs_jcode_regression_weak/Results/Results_*.csv'))[-1]
 with open(p, newline='') as handle:
     for row in csv.DictReader(handle):
         if row['file_id'] == 'MX-M3658N_20260731_162311_001.png':
-            print('q1=', row.get('q1'))
-            print('q2=', row.get('q2'))
-            print('q5=', row.get('q5'))
+            assert row.get('q1') == 'ABCD', row.get('q1')
+            assert row.get('q2') == 'ABD', row.get('q2')
+            assert row.get('q5') == '', row.get('q5')
+            print('known sample unchanged')
 PY
 ```
 
-Expected for this task: record the observed values. If `q1/q2` change to single candidates, note that existing `resolve_single_choice_conflict` is not observation-only and this must be documented. If strict Results stability is required, stop and revise the implementation so review record creation is decoupled from answer correction.
+Expected: `known sample unchanged`. The auxiliary CSV should contain conflict review rows for q1/q2 and weak review for q5.
 
-- [ ] **Step 4: Commit config only if behavior matches approved scope**
-
-If Results stability remains acceptable under the approved design, run:
+- [ ] **Step 7: Commit Task 4**
 
 ```bash
-git add inputs/config.json
-git commit -m "config: enable single-choice conflict review"
+git add src/core.py tests/test_weak_fill_features.py
+git commit -m "feat: observe single-choice conflict reviews"
 ```
-
-If Results changed and the approved scope requires observation-only behavior, do not commit. Instead add a follow-up Task 4b to split review observation from conflict answer resolution.
 
 ---
 

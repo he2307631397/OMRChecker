@@ -34,6 +34,48 @@ from src.utils.parsing import get_concatenated_response, open_config_with_defaul
 STATS = Stats()
 
 
+def _format_review_float(value, digits):
+    return f"{float(value):.{digits}f}"
+
+
+def append_weak_fill_review_rows(
+    img_name, file_path, output_path, weak_fill_reviews, outputs_namespace
+):
+    """Append auxiliary weak-fill candidate review rows without changing Results CSV."""
+    if not weak_fill_reviews:
+        return
+    rows = []
+    for review in weak_fill_reviews:
+        rows.append(
+            [
+                img_name,
+                file_path,
+                output_path,
+                review.get("field", ""),
+                review.get("candidate", ""),
+                _format_review_float(review.get("confidence", 0.0), 3),
+                review.get("status", ""),
+                review.get("reason", ""),
+                review.get("evidence", ""),
+                _format_review_float(review.get("score", 0.0), 2),
+                review.get("legacy_rejection", ""),
+                _format_review_float(review.get("ambiguity", 0.0), 3),
+                _format_review_float(review.get("density_gap", 0.0), 3),
+                _format_review_float(review.get("center_density", 0.0), 3),
+                _format_review_float(review.get("center_edge_ratio", 0.0), 3),
+                _format_review_float(review.get("threshold_vote_ratio", 0.0), 3),
+                _format_review_float(review.get("multiscale_stability", 0.0), 3),
+            ]
+        )
+    pd.DataFrame(rows, dtype=str).to_csv(
+        outputs_namespace.files_obj["WeakFillReview"],
+        mode="a",
+        quoting=QUOTE_NONNUMERIC,
+        header=False,
+        index=False,
+    )
+
+
 def entry_point(input_dir, args):
     if not os.path.exists(input_dir):
         raise Exception(f"Given input directory does not exist: '{input_dir}'")
@@ -332,6 +374,13 @@ def _process_single_image(
             header=False,
             index=False,
         )
+        append_weak_fill_review_rows(
+            img_name,
+            file_path,
+            new_file_path,
+            template.image_instance_ops.last_weak_fill_reviews,
+            outputs_namespace,
+        )
     else:
         # multi_marked file
         logger.info(f"[{files_counter}] Found multi-marked file: '{file_id}'")
@@ -344,6 +393,13 @@ def _process_single_image(
                 quoting=QUOTE_NONNUMERIC,
                 header=False,
                 index=False,
+            )
+            append_weak_fill_review_rows(
+                img_name,
+                file_path,
+                new_file_path,
+                template.image_instance_ops.last_weak_fill_reviews,
+                outputs_namespace,
             )
 
     return multi_marked

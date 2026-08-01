@@ -28,6 +28,7 @@ class ImageInstanceOps:
         super().__init__()
         self.tuning_config = tuning_config
         self.save_image_level = tuning_config.outputs.save_image_level
+        self.last_weak_fill_reviews = []
 
     def apply_preprocessors(self, file_path, in_omr, template):
         tuning_config = self.tuning_config
@@ -444,6 +445,47 @@ class ImageInstanceOps:
             "ambiguity": ambiguity,
         }
 
+    @staticmethod
+    def get_weak_fill_confidence(score_decision, diagnostics):
+        """Convert weak-fill evidence into a bounded review confidence."""
+        score_component = min(float(score_decision.get("score", 0.0)) / 6.0, 1.0)
+        density_component = min(max(diagnostics.get("density_gap", 0.0), 0.0) / 0.25, 1.0)
+        center_component = min(diagnostics.get("darkest_center_density", 0.0) / 0.6, 1.0)
+        threshold_component = diagnostics.get("threshold_vote_ratio", 0.0)
+        multiscale_component = diagnostics.get("multiscale_stability", 0.0)
+        confidence = (
+            score_component * 0.30
+            + density_component * 0.25
+            + center_component * 0.20
+            + threshold_component * 0.10
+            + multiscale_component * 0.15
+        )
+        return max(0.0, min(confidence, 1.0))
+
+    def append_weak_fill_review(
+        self, field_label, candidate, score_decision, diagnostics, legacy_rejection
+    ):
+        """Store one review candidate for auxiliary CSV/report outputs."""
+        confidence = self.get_weak_fill_confidence(score_decision, diagnostics)
+        self.last_weak_fill_reviews.append(
+            {
+                "field": field_label,
+                "candidate": candidate,
+                "status": score_decision["status"],
+                "confidence": confidence,
+                "score": score_decision.get("score", 0.0),
+                "reason": score_decision.get("reason", ""),
+                "legacy_rejection": legacy_rejection,
+                "evidence": ",".join(score_decision.get("evidence", [])),
+                "ambiguity": score_decision.get("ambiguity", 0.0),
+                "density_gap": diagnostics.get("density_gap", 0.0),
+                "center_density": diagnostics.get("darkest_center_density", 0.0),
+                "center_edge_ratio": diagnostics.get("darkest_center_edge_ratio", 0.0),
+                "threshold_vote_ratio": diagnostics.get("threshold_vote_ratio", 0.0),
+                "multiscale_stability": diagnostics.get("multiscale_stability", 0.0),
+            }
+        )
+
     def get_weak_marked_bubble(
         self, field_block, field_block_bubbles, q_strip_vals, image, page_blank_model
     ):
@@ -509,6 +551,13 @@ class ImageInstanceOps:
         if rejection_reason is not None:
             score_decision = self.get_single_choice_weak_fill_decision(diagnostics)
             if score_decision["status"] != "EMPTY":
+                self.append_weak_fill_review(
+                    field_label,
+                    field_block_bubbles[darkest_index].field_value,
+                    score_decision,
+                    diagnostics,
+                    rejection_reason,
+                )
                 logger.warning(
                     f"Weak mark candidate review: field '{field_label}' "
                     f"candidate='{field_block_bubbles[darkest_index].field_value}' "
@@ -879,6 +928,7 @@ class ImageInstanceOps:
             # Overlay Transparencies
             alpha = 0.65
             omr_response = {}
+            self.last_weak_fill_reviews = []
             multi_marked, multi_roll = 0, 0
 
             # TODO Make this part useful for visualizing status checks

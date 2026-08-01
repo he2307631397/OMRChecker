@@ -66,11 +66,31 @@ def setup_outputs_for_template(paths, template):
         "output_path",
         "score",
     ] + template.output_columns
+    ns.weakFillReviewCols = [
+        "file_id",
+        "input_path",
+        "output_path",
+        "field",
+        "candidate",
+        "confidence",
+        "status",
+        "reason",
+        "evidence",
+        "score",
+        "legacy_rejection",
+        "ambiguity",
+        "density_gap",
+        "center_density",
+        "center_edge_ratio",
+        "threshold_vote_ratio",
+        "multiscale_stability",
+    ]
     ns.OUTPUT_SET = []
     ns.files_obj = {}
     TIME_NOW_HRS = strftime("%I%p", localtime())
     ns.filesMap = {
         "Results": os.path.join(paths.results_dir, f"Results_{TIME_NOW_HRS}.csv"),
+        "WeakFillReview": os.path.join(paths.results_dir, "WeakFillReview.csv"),
         "MultiMarked": os.path.join(paths.manual_dir, "MultiMarkedFiles.csv"),
         "Errors": os.path.join(paths.manual_dir, "ErrorFiles.csv"),
     }
@@ -81,7 +101,12 @@ def setup_outputs_for_template(paths, template):
             # moved handling of files to pandas csv writer
             ns.files_obj[file_key] = file_name
             # Create Header Columns
-            pd.DataFrame([ns.sheetCols], dtype=str).to_csv(
+            sheet_cols = (
+                ns.weakFillReviewCols
+                if file_key == "WeakFillReview"
+                else ns.sheetCols
+            )
+            pd.DataFrame([sheet_cols], dtype=str).to_csv(
                 ns.files_obj[file_key],
                 mode="a",
                 quoting=QUOTE_NONNUMERIC,

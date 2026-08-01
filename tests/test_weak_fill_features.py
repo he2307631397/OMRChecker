@@ -224,3 +224,108 @@ def test_blank_single_choice_review_log_includes_multiscale_features(caplog):
     assert "Weak mark candidate review" in caplog.text
     assert "multiscale_vote_count=" in caplog.text
     assert "multiscale_stability=" in caplog.text
+
+
+def test_blank_single_choice_review_records_candidate_confidence_metadata():
+    ops = make_ops(
+        adaptive_min_delta_from_blank=40,
+        weak_fill_score_enabled=True,
+        weak_fill_min_score=3.0,
+        weak_fill_review_min_score=2.0,
+    )
+
+    result = ops.get_weak_marked_bubble(
+        FakeFieldBlock(),
+        make_bubbles(),
+        [202.7, 208.6, 217.0, 219.0],
+        make_image(fill_value=180),
+        {"mean": 223.6, "std": 1.4},
+    )
+
+    assert result is None
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["field"] == "q1"
+    assert review["candidate"] == "A"
+    assert review["status"] == "WEAK_MARK"
+    assert 0.0 <= review["confidence"] <= 1.0
+    assert review["confidence"] > 0.5
+    assert review["reason"] == "feature_score"
+    assert "center_density" in review["evidence"]
+
+
+def test_setup_outputs_adds_independent_weak_fill_review_csv_without_changing_results(
+    tmp_path,
+):
+    from types import SimpleNamespace
+
+    from src.utils.file import setup_outputs_for_template
+
+    paths = SimpleNamespace(
+        results_dir=tmp_path / "Results",
+        manual_dir=tmp_path / "Manual",
+    )
+    paths.results_dir.mkdir()
+    paths.manual_dir.mkdir()
+    template = SimpleNamespace(output_columns=["q1", "q2"])
+
+    outputs = setup_outputs_for_template(paths, template)
+
+    results_header = (
+        (tmp_path / "Results")
+        .glob("Results_*.csv")
+        .__next__()
+        .read_text()
+        .splitlines()[0]
+    )
+    review_header = (
+        (tmp_path / "Results" / "WeakFillReview.csv")
+        .read_text()
+        .splitlines()[0]
+    )
+
+    assert results_header == '"file_id","input_path","output_path","score","q1","q2"'
+    assert review_header.startswith(
+        '"file_id","input_path","output_path","field","candidate","confidence","status"'
+    )
+    assert "WeakFillReview" in outputs.files_obj
+
+
+def test_append_weak_fill_reviews_writes_one_row_per_candidate(tmp_path):
+    from types import SimpleNamespace
+
+    from src.entry import append_weak_fill_review_rows
+
+    csv_path = tmp_path / "WeakFillReview.csv"
+    review = {
+        "field": "q5",
+        "candidate": "D",
+        "confidence": 0.73,
+        "status": "WEAK_MARK",
+        "reason": "feature_score",
+        "evidence": "page_delta,density_gap",
+        "score": 5.0,
+        "legacy_rejection": "adaptive_min_delta_from_blank",
+        "ambiguity": 0.1,
+        "density_gap": 0.2,
+        "center_density": 0.4,
+        "center_edge_ratio": 4.0,
+        "threshold_vote_ratio": 0.5,
+        "multiscale_stability": 1.0,
+    }
+    outputs = SimpleNamespace(files_obj={"WeakFillReview": str(csv_path)})
+
+    append_weak_fill_review_rows(
+        "sheet.png",
+        "/in/sheet.png",
+        "/out/sheet.png",
+        [review],
+        outputs,
+    )
+
+    assert csv_path.read_text().splitlines() == [
+        '"sheet.png","/in/sheet.png","/out/sheet.png","q5","D","0.730",'
+        '"WEAK_MARK","feature_score","page_delta,density_gap","5.00",'
+        '"adaptive_min_delta_from_blank","0.100","0.200","0.400",'
+        '"4.000","0.500","1.000"'
+    ]

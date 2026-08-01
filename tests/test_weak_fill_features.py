@@ -48,6 +48,9 @@ def make_ops(**weak_overrides):
         "weak_fill_min_center_density": 0.12,
         "weak_fill_min_dark_ratio": 0.12,
         "weak_fill_max_ambiguity": 1.25,
+        "weak_fill_auto_resolve_min_confidence": 0.8,
+        "weak_fill_review_min_confidence": 0.65,
+        "threshold_vote_offsets": [10, 15, 20, 25],
     }
     params.update(weak_overrides)
     weak_identifier_params = {
@@ -132,12 +135,80 @@ def test_feature_decision_rejects_ambiguous_density_even_with_page_support():
     assert decision["status"] != "WEAK_MARK"
 
 
+def test_weak_mark_review_confidence_restores_candidate_with_review_status():
+    ops = make_ops(
+        weak_fill_score_enabled=False,
+        weak_fill_auto_resolve_min_confidence=0.8,
+        weak_fill_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=False)
+    bubbles = make_bubbles()
+
+    result = ops.get_weak_marked_bubble(
+        field,
+        bubbles,
+        [214.0, 224.0, 225.0, 226.0],
+        make_image(fill_value=180),
+        {"mean": 230.0, "std": 2.0},
+    )
+
+    assert result == bubbles[0]
+    assert ops.last_weak_fill_reviews[-1]["candidate"] == "A"
+    assert ops.last_weak_fill_reviews[-1]["status"] == "NEEDS_REVIEW"
+    assert 0.65 <= ops.last_weak_fill_reviews[-1]["confidence"] < 0.8
+    assert ops.last_weak_fill_reviews[-1]["legacy_rejection"] == "adaptive_min_delta_from_blank"
+
+
+def test_weak_mark_review_below_confidence_stays_blank_but_reviewed():
+    ops = make_ops(
+        weak_fill_score_enabled=False,
+        weak_fill_auto_resolve_min_confidence=0.8,
+        weak_fill_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=False)
+    bubbles = make_bubbles()
+
+    result = ops.get_weak_marked_bubble(
+        field,
+        bubbles,
+        [214.0, 224.0, 225.0, 226.0],
+        make_image(fill_value=230),
+        {"mean": 230.0, "std": 2.0},
+    )
+
+    assert result is None
+    assert ops.last_weak_fill_reviews[-1]["candidate"] == "A"
+    assert ops.last_weak_fill_reviews[-1]["status"] == "LEGACY"
+    assert ops.last_weak_fill_reviews[-1]["confidence"] < 0.65
+
+
+def test_weak_mark_review_confidence_does_not_restore_multi_select():
+    ops = make_ops(
+        weak_fill_score_enabled=False,
+        weak_fill_auto_resolve_min_confidence=0.8,
+        weak_fill_review_min_confidence=0.65,
+    )
+    field = FakeFieldBlock(multi_select=True)
+    bubbles = make_bubbles()
+
+    result = ops.get_weak_marked_bubble(
+        field,
+        bubbles,
+        [214.0, 224.0, 225.0, 226.0],
+        make_image(fill_value=180),
+        {"mean": 230.0, "std": 2.0},
+    )
+
+    assert result is None
+    assert ops.last_weak_fill_reviews == []
+
+
 def test_existing_disabled_config_keeps_fallback_off():
     ops = make_ops(enabled=False)
     assert not ops.tuning_config.weak_mark_params.enabled
 
 
-def test_blank_single_choice_review_logging_does_not_auto_fill_when_score_supported(caplog):
+def test_blank_single_choice_review_logging_restores_when_score_confident(caplog):
     ops = make_ops(
         adaptive_min_delta_from_blank=40,
         weak_fill_score_enabled=True,
@@ -156,9 +227,9 @@ def test_blank_single_choice_review_logging_does_not_auto_fill_when_score_suppor
         {"mean": 223.6, "std": 1.4},
     )
 
-    assert result is None
+    assert result == bubbles[0]
     assert "Weak mark candidate review" in caplog.text
-    assert "status=WEAK_MARK" in caplog.text
+    assert "status=RESOLVED_CANDIDATE" in caplog.text
     assert "score=" in caplog.text
 
 
@@ -202,7 +273,7 @@ def test_blank_single_choice_review_log_includes_threshold_votes(caplog):
         {"mean": 223.6, "std": 1.4},
     )
 
-    assert result is None
+    assert result is not None
     assert "Weak mark candidate review" in caplog.text
     assert "threshold_vote_count=" in caplog.text
     assert "threshold_vote_ratio=" in caplog.text
@@ -246,7 +317,7 @@ def test_blank_single_choice_review_log_includes_multiscale_features(caplog):
         {"mean": 223.6, "std": 1.4},
     )
 
-    assert result is None
+    assert result is not None
     assert "Weak mark candidate review" in caplog.text
     assert "multiscale_vote_count=" in caplog.text
     assert "multiscale_stability=" in caplog.text
@@ -268,12 +339,12 @@ def test_blank_single_choice_review_records_candidate_confidence_metadata():
         {"mean": 223.6, "std": 1.4},
     )
 
-    assert result is None
+    assert result is not None
     assert len(ops.last_weak_fill_reviews) == 1
     review = ops.last_weak_fill_reviews[0]
     assert review["field"] == "q1"
     assert review["candidate"] == "A"
-    assert review["status"] == "WEAK_MARK"
+    assert review["status"] == "RESOLVED_CANDIDATE"
     assert 0.0 <= review["confidence"] <= 1.0
     assert review["confidence"] > 0.5
     assert review["reason"] == "feature_score"

@@ -515,6 +515,23 @@ class ImageInstanceOps:
             }
         )
 
+    def get_weak_fill_review_restore_status(self, score_decision, diagnostics):
+        """Return confidence-based restore status for a reviewed weak-fill candidate."""
+        confidence = self.get_weak_fill_confidence(score_decision, diagnostics)
+        weak_mark_params = self.tuning_config.weak_mark_params
+        auto_min_confidence = getattr(
+            weak_mark_params, "weak_fill_auto_resolve_min_confidence", 0.8
+        )
+        review_min_confidence = getattr(
+            weak_mark_params, "weak_fill_review_min_confidence", 0.65
+        )
+
+        if confidence >= auto_min_confidence:
+            return "RESOLVED_CANDIDATE"
+        if confidence >= review_min_confidence:
+            return "NEEDS_REVIEW"
+        return None
+
     def append_single_choice_conflict_review(
         self, field_label, original_value, candidate, diagnostics, status
     ):
@@ -664,17 +681,23 @@ class ImageInstanceOps:
         if rejection_reason is not None:
             score_decision = self.get_single_choice_weak_fill_decision(diagnostics)
             if score_decision["status"] != "EMPTY":
+                restore_status = self.get_weak_fill_review_restore_status(
+                    score_decision, diagnostics
+                )
+                review_decision = score_decision
+                if restore_status is not None:
+                    review_decision = {**score_decision, "status": restore_status}
                 self.append_weak_fill_review(
                     field_label,
                     field_block_bubbles[darkest_index].field_value,
-                    score_decision,
+                    review_decision,
                     diagnostics,
                     rejection_reason,
                 )
                 logger.warning(
                     f"Weak mark candidate review: field '{field_label}' "
                     f"candidate='{field_block_bubbles[darkest_index].field_value}' "
-                    f"status={score_decision['status']} "
+                    f"status={review_decision['status']} "
                     f"score={score_decision['score']:.2f} "
                     f"reason={score_decision['reason']} "
                     f"legacy_rejection={rejection_reason} "
@@ -700,6 +723,9 @@ class ImageInstanceOps:
                     f"multiscale_density_gaps="
                     f"{','.join(f'{gap:.3f}' for gap in diagnostics['multiscale_density_gaps'])}"
                 )
+                if restore_status is not None:
+                    return field_block_bubbles[darkest_index]
+
             logger.info(
                 f"Weak mark candidate rejected: field '{field_label}' "
                 f"reason={rejection_reason} darkest_mean={darkest_mean:.2f}, "

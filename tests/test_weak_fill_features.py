@@ -502,6 +502,41 @@ def test_weak_identifier_candidate_records_id_review():
     assert 0.0 <= review["confidence"] <= 1.0
 
 
+def test_rejected_weak_identifier_candidate_records_low_confidence_review():
+    ops = make_ops()
+    ops.tuning_config.weak_identifier_params.enabled = True
+    ops.tuning_config.weak_identifier_params.labels = []
+    ops.tuning_config.weak_identifier_params.exclude_labels = []
+    ops.tuning_config.weak_identifier_params.min_gap = 8
+    ops.tuning_config.weak_identifier_params.min_delta_from_blank = 15
+    ops.tuning_config.weak_identifier_params.max_mean = 220
+    ops.tuning_config.weak_identifier_params.adaptive_max_mean = 230
+    ops.tuning_config.weak_identifier_params.supported_field_types = ["QTYPE_INT"]
+
+    field_block = FakeFieldBlock(field_type="QTYPE_INT", direction="vertical")
+    bubbles = [FakeBubble("id7", str(i), x=10, y=10 + i * 6) for i in range(10)]
+    image = np.full((90, 50), 240, dtype=np.uint8)
+    image[54:64, 18:32] = 210
+
+    result = ops.get_weak_identifier_bubble(
+        field_block,
+        bubbles,
+        [222, 221, 220, 219, 218, 217, 216, 210, 215, 214],
+        [],
+        image,
+        {"mean": 225.0, "std": 2.0},
+    )
+
+    assert result is None
+    assert len(ops.last_weak_fill_reviews) == 1
+    review = ops.last_weak_fill_reviews[0]
+    assert review["review_type"] == "ID_REVIEW"
+    assert review["field"] == "id7"
+    assert review["candidate"] == "7"
+    assert review["status"] == "LOW_CONFIDENCE"
+    assert review["legacy_rejection"] == "support"
+
+
 def test_single_choice_conflict_review_can_be_observed_without_resolving_answer():
     ops = make_ops(resolve_single_choice_conflicts=False)
     field_block = FakeFieldBlock()

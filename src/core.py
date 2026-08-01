@@ -541,7 +541,9 @@ class ImageInstanceOps:
             }
         )
 
-    def append_identifier_review(self, field_label, candidate, diagnostics, status):
+    def append_identifier_review(
+        self, field_label, candidate, diagnostics, status, legacy_rejection=""
+    ):
         """Store one weak identifier candidate for auxiliary review outputs."""
         confidence = self.get_identifier_review_confidence(diagnostics)
         self.last_weak_fill_reviews.append(
@@ -554,7 +556,7 @@ class ImageInstanceOps:
                 "confidence": confidence,
                 "score": confidence * 5.0,
                 "reason": "weak_identifier_candidate",
-                "legacy_rejection": "",
+                "legacy_rejection": legacy_rejection,
                 "evidence": "gap,delta_from_blank,page_z,density_gap",
                 "ambiguity": 1.0 - confidence,
                 "density_gap": diagnostics.get("density_gap", 0.0),
@@ -855,6 +857,13 @@ class ImageInstanceOps:
             and diagnostics["density_gap"] >= weak_identifier_params.min_density_gap
         )
         if darkest_mean > weak_identifier_params.adaptive_max_mean:
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "adaptive_max_mean",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=adaptive_max_mean darkest_mean={darkest_mean:.2f}, "
@@ -868,6 +877,13 @@ class ImageInstanceOps:
             return None
 
         if darkest_mean > weak_identifier_params.max_mean and not adaptive_rule:
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "max_mean_without_adaptive_support",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=max_mean_without_adaptive_support darkest_mean={darkest_mean:.2f}, "
@@ -881,6 +897,13 @@ class ImageInstanceOps:
             return None
 
         if not (strict_mean_rule or adaptive_rule):
+            self.append_identifier_review(
+                field_label,
+                field_block_bubbles[darkest_index].field_value,
+                diagnostics,
+                "LOW_CONFIDENCE",
+                "support",
+            )
             logger.info(
                 f"Weak identifier candidate rejected: field '{field_label}' "
                 f"reason=support darkest_mean={darkest_mean:.2f}, "

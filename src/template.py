@@ -225,6 +225,7 @@ class FieldBlock:
             field_labels,
             field_type,
             labels_gap,
+            multi_select,
             origin,
             self.empty_val,
         ) = map(
@@ -237,6 +238,7 @@ class FieldBlock:
                 "fieldLabels",
                 "fieldType",
                 "labelsGap",
+                "multiSelect",
                 "origin",
                 "emptyValue",
             ],
@@ -246,6 +248,9 @@ class FieldBlock:
         )
         self.origin = origin
         self.bubble_dimensions = bubble_dimensions
+        self.field_type = field_type
+        self.direction = direction
+        self.multi_select = bool(multi_select)
         self.calculate_block_dimensions(
             bubble_dimensions,
             bubble_values,
@@ -300,7 +305,13 @@ class FieldBlock:
             field_bubbles = []
             for bubble_value in bubble_values:
                 field_bubbles.append(
-                    Bubble(bubble_point.copy(), field_label, field_type, bubble_value)
+                    Bubble(
+                        bubble_point.copy(),
+                        field_label,
+                        field_type,
+                        bubble_value,
+                        self.multi_select,
+                    )
                 )
                 bubble_point[_h] += bubbles_gap
             self.traverse_bubbles.append(field_bubbles)
@@ -316,12 +327,13 @@ class Bubble:
     It can also correspond to a single digit of integer type Q (eg q5d1)
     """
 
-    def __init__(self, pt, field_label, field_type, field_value):
+    def __init__(self, pt, field_label, field_type, field_value, multi_select=False):
         self.x = round(pt[0])
         self.y = round(pt[1])
         self.field_label = field_label
         self.field_type = field_type
         self.field_value = field_value
+        self.multi_select = multi_select
 
     def __str__(self):
         return str([self.x, self.y])

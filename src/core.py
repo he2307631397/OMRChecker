@@ -45,6 +45,455 @@ class ImageInstanceOps:
                 break
         return in_omr
 
+    @staticmethod
+    def get_page_blank_model(q_vals):
+        """Estimate page-level blank bubble appearance using robust light samples."""
+        if not q_vals:
+            return {"mean": 255.0, "std": 1.0, "count": 0}
+
+        sorted_vals = sorted(float(v) for v in q_vals)
+        blank_start = int(len(sorted_vals) * 0.75)
+        blank_vals = sorted_vals[blank_start:] or sorted_vals
+        blank_mean = float(np.mean(blank_vals))
+        blank_std = float(np.std(blank_vals))
+        # Keep z-score usable on very uniform pages.
+        return {"mean": blank_mean, "std": max(blank_std, 1.0), "count": len(blank_vals)}
+
+    @staticmethod
+    def get_field_diagnostics(q_strip_vals):
+        """Return local relative statistics for candidates in one field."""
+        sorted_candidates = sorted(
+            enumerate(float(v) for v in q_strip_vals), key=lambda item: item[1]
+        )
+        darkest_index, darkest_mean = sorted_candidates[0]
+        second_darkest_mean = sorted_candidates[1][1] if len(sorted_candidates) > 1 else 255.0
+        sorted_vals = sorted(float(v) for v in q_strip_vals)
+        lighter_half = sorted_vals[len(sorted_vals) // 2 :] or sorted_vals
+        blank_baseline = float(np.mean(lighter_half))
+        blank_std = max(float(np.std(lighter_half)), 1.0)
+        delta_from_blank = blank_baseline - darkest_mean
+        gap = second_darkest_mean - darkest_mean
+        return {
+            "darkest_index": darkest_index,
+            "darkest_mean": darkest_mean,
+            "second_darkest_mean": second_darkest_mean,
+            "gap": gap,
+            "blank_baseline": blank_baseline,
+            "blank_std": blank_std,
+            "delta_from_blank": delta_from_blank,
+            "local_z_score": delta_from_blank / blank_std,
+        }
+
+    @staticmethod
+    def get_candidate_density(image, field_block, bubble, blank_baseline):
+        """Measure dark-pixel density in an inner bubble ROI.
+
+        The inner ROI reduces printed border influence. The threshold is relative
+        to the field/page blank baseline so the feature follows scan brightness.
+        """
+        box_w, box_h = field_block.bubble_dimensions
+        x, y = (bubble.x + field_block.shift, bubble.y)
+        pad_x = max(1, int(box_w / 6))
+        pad_y = max(1, int(box_h / 6))
+        roi = image[y + pad_y : y + box_h - pad_y, x + pad_x : x + box_w - pad_x]
+        if roi.size == 0:
+            return 0.0
+        threshold = max(0, blank_baseline - 20)
+        return float(np.mean(roi < threshold))
+
+    def enrich_diagnostics_with_density(
+        self, image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
+    ):
+        densities = []
+        for bubble in field_block_bubbles:
+            densities.append(
+                self.get_candidate_density(
+                    image, field_block, bubble, diagnostics["blank_baseline"]
+                )
+            )
+        darkest_index = diagnostics["darkest_index"]
+        sorted_densities = sorted(densities, reverse=True)
+        darkest_density = densities[darkest_index] if densities else 0.0
+        second_density = sorted_densities[1] if len(sorted_densities) > 1 else 0.0
+        diagnostics.update(
+            {
+                "densities": densities,
+                "darkest_density": darkest_density,
+                "second_density": second_density,
+                "density_gap": darkest_density - second_density,
+                "page_blank_mean": page_blank_model["mean"],
+                "page_blank_std": page_blank_model["std"],
+                "delta_from_page_blank": page_blank_model["mean"]
+                - diagnostics["darkest_mean"],
+                "page_z_score": (page_blank_model["mean"] - diagnostics["darkest_mean"])
+                / page_blank_model["std"],
+            }
+        )
+        return diagnostics
+
+    def get_weak_marked_bubble(
+        self, field_block, field_block_bubbles, q_strip_vals, image, page_blank_model
+    ):
+        """Return a conservative weak-mark fallback bubble, or None.
+
+        The normal thresholding pass is the source of truth. This fallback is
+        only meant for blank single-choice responses where one option is still
+        noticeably darker than the rest, but not dark enough to cross the
+        regular local/global threshold.
+        """
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if not weak_mark_params.enabled:
+            return None
+
+        if field_block.field_type not in weak_mark_params.supported_field_types:
+            return None
+
+        if len(field_block_bubbles) < 2:
+            return None
+
+        # Avoid applying single-choice fallback to configured multi-select or
+        # other known-sensitive fields.
+        field_label = field_block_bubbles[0].field_label
+        if field_block.multi_select:
+            return None
+
+        if field_label in weak_mark_params.exclude_labels:
+            return None
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        diagnostics = self.enrich_diagnostics_with_density(
+            image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
+        )
+        darkest_index = diagnostics["darkest_index"]
+        darkest_mean = diagnostics["darkest_mean"]
+        second_darkest_mean = diagnostics["second_darkest_mean"]
+        gap = diagnostics["gap"]
+        blank_baseline = diagnostics["blank_baseline"]
+        delta_from_blank = diagnostics["delta_from_blank"]
+
+        rejection_reason = None
+        if darkest_mean > weak_mark_params.max_mean:
+            rejection_reason = "max_mean"
+        elif delta_from_blank < weak_mark_params.adaptive_min_delta_from_blank:
+            rejection_reason = "adaptive_min_delta_from_blank"
+        else:
+            density_supported = (
+                diagnostics["darkest_density"] >= weak_mark_params.min_dark_pixel_ratio
+                and diagnostics["density_gap"] >= weak_mark_params.min_density_gap
+            )
+            strong_mean_supported = gap >= weak_mark_params.min_gap * 1.5
+            page_supported = diagnostics["page_z_score"] >= weak_mark_params.min_page_z_score
+            gap_supported = gap >= weak_mark_params.min_gap
+            strict_delta_supported = delta_from_blank >= weak_mark_params.min_delta_from_blank
+            if not (
+                (strict_delta_supported and gap_supported)
+                or density_supported
+                or strong_mean_supported
+                or page_supported
+            ):
+                rejection_reason = "support"
+
+        if rejection_reason is not None:
+            logger.info(
+                f"Weak mark candidate rejected: field '{field_label}' "
+                f"reason={rejection_reason} darkest_mean={darkest_mean:.2f}, "
+                f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+                f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+                f"page_z={diagnostics['page_z_score']:.2f}, "
+                f"density={diagnostics['darkest_density']:.3f}, "
+                f"density_gap={diagnostics['density_gap']:.3f}"
+            )
+            return None
+
+        weak_bubble = field_block_bubbles[darkest_index]
+        logger.warning(
+            f"Weak mark fallback: field '{field_label}' -> "
+            f"'{weak_bubble.field_value}' "
+            f"(darkest_mean={darkest_mean:.2f}, "
+            f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+            f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+            f"page_blank_mean={diagnostics['page_blank_mean']:.2f}, "
+            f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
+            f"page_z={diagnostics['page_z_score']:.2f}, "
+            f"density={diagnostics['darkest_density']:.3f}, "
+            f"density_gap={diagnostics['density_gap']:.3f})"
+        )
+        return weak_bubble
+
+    def resolve_single_choice_conflict(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Resolve impossible multi-mark output for non-multiSelect single-choice fields.
+
+        Multi-select questions are intentionally excluded. For normal single-choice
+        fields, outputting ABCD is structurally invalid. When the main threshold
+        marks multiple options, keep the darkest candidate only if it is at least
+        directionally darker than the rest; otherwise keep the field blank for
+        review instead of returning a false multi-select answer.
+        """
+        weak_mark_params = self.tuning_config.weak_mark_params
+        if not getattr(weak_mark_params, "resolve_single_choice_conflicts", False):
+            return detected_bubbles
+
+        if field_block.multi_select:
+            return detected_bubbles
+
+        if field_block.field_type not in weak_mark_params.supported_field_types:
+            return detected_bubbles
+
+        if len(detected_bubbles) <= 1:
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        if field_label in weak_mark_params.exclude_labels:
+            return detected_bubbles
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        darkest_index = diagnostics["darkest_index"]
+        darkest_bubble = field_block_bubbles[darkest_index]
+        gap = diagnostics["gap"]
+        delta_from_blank = diagnostics["delta_from_blank"]
+
+        if gap >= weak_mark_params.conflict_min_gap or delta_from_blank >= weak_mark_params.conflict_min_delta_from_blank:
+            logger.warning(
+                f"Single-choice conflict resolved: field '{field_label}' "
+                f"{''.join(b.field_value for b in detected_bubbles)} -> "
+                f"'{darkest_bubble.field_value}' "
+                f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
+                f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
+                f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
+                f"delta={delta_from_blank:.2f})"
+            )
+            return [darkest_bubble]
+
+        logger.warning(
+            f"Single-choice conflict unresolved: field '{field_label}' "
+            f"{''.join(b.field_value for b in detected_bubbles)} -> blank "
+            f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
+            f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
+            f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
+            f"delta={delta_from_blank:.2f})"
+        )
+        return []
+
+    def get_weak_identifier_bubble(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles, image, page_blank_model
+    ):
+        """Return a conservative weak identifier fallback bubble, or None.
+
+        Identifier digits have ten candidates and are more sensitive than answer
+        fields because a false positive changes the student's identity. Keep this
+        separate from the answer weak-mark fallback and require both a local
+        blank-baseline gap and a second-darkest gap.
+        """
+        weak_identifier_params = self.tuning_config.weak_identifier_params
+        if not weak_identifier_params.enabled:
+            return None
+
+        if field_block.field_type not in weak_identifier_params.supported_field_types:
+            return None
+
+        if field_block.direction != "vertical":
+            return None
+
+        if detected_bubbles:
+            return None
+
+        if not field_block_bubbles or len(field_block_bubbles) < 3:
+            return None
+
+        field_label = field_block_bubbles[0].field_label
+        configured_labels = weak_identifier_params.labels
+        if configured_labels and field_label not in configured_labels:
+            return None
+
+        if field_label in weak_identifier_params.exclude_labels:
+            return None
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        diagnostics = self.enrich_diagnostics_with_density(
+            image, field_block, field_block_bubbles, q_strip_vals, diagnostics, page_blank_model
+        )
+        darkest_index = diagnostics["darkest_index"]
+        darkest_mean = diagnostics["darkest_mean"]
+        second_darkest_mean = diagnostics["second_darkest_mean"]
+        gap = diagnostics["gap"]
+        blank_baseline = diagnostics["blank_baseline"]
+        delta_from_blank = diagnostics["delta_from_blank"]
+
+        strict_mean_rule = (
+            gap >= weak_identifier_params.min_gap
+            and delta_from_blank >= weak_identifier_params.min_delta_from_blank
+        )
+        adaptive_rule = (
+            gap >= weak_identifier_params.adaptive_min_gap
+            and delta_from_blank >= weak_identifier_params.adaptive_min_delta_from_blank
+            and diagnostics["page_z_score"] >= weak_identifier_params.min_page_z_score
+            and diagnostics["darkest_density"] >= weak_identifier_params.min_dark_pixel_ratio
+            and diagnostics["density_gap"] >= weak_identifier_params.min_density_gap
+        )
+        if darkest_mean > weak_identifier_params.adaptive_max_mean:
+            logger.info(
+                f"Weak identifier candidate rejected: field '{field_label}' "
+                f"reason=adaptive_max_mean darkest_mean={darkest_mean:.2f}, "
+                f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+                f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+                f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
+                f"page_z={diagnostics['page_z_score']:.2f}, "
+                f"density={diagnostics['darkest_density']:.3f}, "
+                f"density_gap={diagnostics['density_gap']:.3f}"
+            )
+            return None
+
+        if darkest_mean > weak_identifier_params.max_mean and not adaptive_rule:
+            logger.info(
+                f"Weak identifier candidate rejected: field '{field_label}' "
+                f"reason=max_mean_without_adaptive_support darkest_mean={darkest_mean:.2f}, "
+                f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+                f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+                f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
+                f"page_z={diagnostics['page_z_score']:.2f}, "
+                f"density={diagnostics['darkest_density']:.3f}, "
+                f"density_gap={diagnostics['density_gap']:.3f}"
+            )
+            return None
+
+        if not (strict_mean_rule or adaptive_rule):
+            logger.info(
+                f"Weak identifier candidate rejected: field '{field_label}' "
+                f"reason=support darkest_mean={darkest_mean:.2f}, "
+                f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+                f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+                f"page_delta={diagnostics['delta_from_page_blank']:.2f}, "
+                f"page_z={diagnostics['page_z_score']:.2f}, "
+                f"density={diagnostics['darkest_density']:.3f}, "
+                f"density_gap={diagnostics['density_gap']:.3f}"
+            )
+            return None
+
+        weak_bubble = field_block_bubbles[darkest_index]
+        logger.warning(
+            f"Weak identifier fallback: field '{field_label}' -> "
+            f"'{weak_bubble.field_value}' "
+            f"(darkest_mean={darkest_mean:.2f}, "
+            f"second_darkest_mean={second_darkest_mean:.2f}, gap={gap:.2f}, "
+            f"blank_baseline={blank_baseline:.2f}, delta={delta_from_blank:.2f}, "
+            f"page_blank_mean={diagnostics['page_blank_mean']:.2f}, "
+            f"page_z={diagnostics['page_z_score']:.2f}, "
+            f"density={diagnostics['darkest_density']:.3f}, "
+            f"density_gap={diagnostics['density_gap']:.3f}, "
+            f"rule={'strict' if strict_mean_rule else 'adaptive'})"
+        )
+        return weak_bubble
+
+    def get_weak_multi_marked_bubbles(
+        self, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Return conservative weak multi-select candidates to append."""
+        weak_multi_params = self.tuning_config.weak_multi_mark_params
+        if not weak_multi_params.enabled:
+            return []
+
+        if not field_block_bubbles:
+            return []
+
+        field_label = field_block_bubbles[0].field_label
+        if not self.is_weak_multi_label_allowed(field_block_bubbles):
+            return []
+
+        detected_values = {bubble.field_value for bubble in detected_bubbles}
+        if weak_multi_params.only_when_blank and detected_values:
+            return []
+
+        if len(detected_values) >= weak_multi_params.max_marks:
+            return []
+
+        # Estimate blank background from the lighter half of the options. This
+        # keeps the baseline local to the question and avoids global threshold
+        # drift on lightly filled rows.
+        sorted_vals = sorted(q_strip_vals)
+        lighter_half = sorted_vals[len(sorted_vals) // 2 :]
+        blank_baseline = float(np.mean(lighter_half))
+
+        weak_bubbles = []
+        for bubble, mean_value in zip(field_block_bubbles, q_strip_vals):
+            if bubble.field_value in detected_values:
+                continue
+            if len(detected_values) + len(weak_bubbles) >= weak_multi_params.max_marks:
+                break
+            delta_from_blank = blank_baseline - mean_value
+            if mean_value > weak_multi_params.max_mean:
+                continue
+            if delta_from_blank < weak_multi_params.min_delta_from_blank:
+                continue
+            weak_bubbles.append(bubble)
+            logger.warning(
+                f"Weak multi-mark fallback: field '{field_label}' -> "
+                f"append '{bubble.field_value}' "
+                f"(mean={mean_value:.2f}, blank_baseline={blank_baseline:.2f}, "
+                f"delta={delta_from_blank:.2f})"
+            )
+
+        return weak_bubbles
+
+    def is_weak_multi_label_allowed(self, field_block_bubbles):
+        weak_multi_params = self.tuning_config.weak_multi_mark_params
+        field_label = field_block_bubbles[0].field_label
+        configured_labels = weak_multi_params.labels
+        return field_label in configured_labels or (
+            len(configured_labels) == 0 and field_block_bubbles[0].multi_select
+        )
+
+    def get_weak_multi_full_select_bubbles(
+        self, field_block_bubbles, q_strip_vals, detected_bubbles, page_blank_baseline
+    ):
+        """Return all options for weakly filled full-select multi-choice rows.
+
+        This fallback handles valid multi-select questions where every option is
+        filled. In that case the lighter-half blank baseline used by
+        get_weak_multi_marked_bubbles is not reliable because there may be no
+        blank option in the row.
+        """
+        weak_multi_params = self.tuning_config.weak_multi_mark_params
+        if not weak_multi_params.enabled:
+            return []
+
+        if not weak_multi_params.full_select_fallback_enabled:
+            return []
+
+        if not field_block_bubbles:
+            return []
+
+        field_label = field_block_bubbles[0].field_label
+        if not self.is_weak_multi_label_allowed(field_block_bubbles):
+            return []
+
+        if detected_bubbles:
+            return []
+
+        if len(field_block_bubbles) > weak_multi_params.max_marks:
+            return []
+
+        max_mean = max(q_strip_vals)
+        spread = max(q_strip_vals) - min(q_strip_vals)
+        delta_from_page_blank = page_blank_baseline - max_mean
+        if max_mean > weak_multi_params.full_select_max_mean:
+            return []
+
+        if delta_from_page_blank < weak_multi_params.full_select_min_delta_from_blank:
+            return []
+
+        if spread > weak_multi_params.full_select_max_spread:
+            return []
+
+        logger.warning(
+            f"Weak multi full-select fallback: field '{field_label}' -> "
+            f"'{''.join(bubble.field_value for bubble in field_block_bubbles)}' "
+            f"(max_mean={max_mean:.2f}, page_blank_baseline={page_blank_baseline:.2f}, "
+            f"delta_from_page_blank={delta_from_page_blank:.2f}, spread={spread:.2f})"
+        )
+        return list(field_block_bubbles)
+
     def read_omr_response(self, template, image, name, save_dir=None):
         config = self.tuning_config
         auto_align = config.alignment_params.auto_align
@@ -250,6 +699,8 @@ class ImageInstanceOps:
             # to support show_image_level
             # , "Mean Intensity Histogram",plot_show=True, sort_in_plot=True)
             global_thr, _, _ = self.get_global_threshold(all_q_vals, looseness=4)
+            page_blank_model = self.get_page_blank_model(all_q_vals)
+            page_blank_baseline = page_blank_model["mean"]
 
             logger.info(
                 f"Thresholding: \tglobal_thr: {round(global_thr, 2)} \tglobal_std_THR: {round(global_std_thresh, 2)}\t{'(Looks like a Xeroxed OMR)' if (global_thr == 255) else ''}"
@@ -346,6 +797,13 @@ class ImageInstanceOps:
                                 -1,
                             )
 
+                    detected_bubbles = self.resolve_single_choice_conflict(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
+
                     for bubble in detected_bubbles:
                         field_label, field_value = (
                             bubble.field_label,
@@ -362,9 +820,173 @@ class ImageInstanceOps:
                         # multi_roll = multi_marked_local and "Roll" in str(q)
                         multi_marked = multi_marked or multi_marked_local
 
-                    if len(detected_bubbles) == 0:
-                        field_label = field_block_bubbles[0].field_label
-                        omr_response[field_label] = field_block.empty_val
+                    weak_multi_bubbles = self.get_weak_multi_marked_bubbles(
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
+                    for weak_bubble in weak_multi_bubbles:
+                        field_label, field_value = (
+                            weak_bubble.field_label,
+                            weak_bubble.field_value,
+                        )
+                        omr_response[field_label] = (
+                            omr_response[field_label] + field_value
+                            if field_label in omr_response
+                            else field_value
+                        )
+                        multi_marked = True
+                        x, y = (
+                            weak_bubble.x + field_block.shift,
+                            weak_bubble.y,
+                        )
+                        cv2.rectangle(
+                            final_marked,
+                            (int(x + box_w / 12), int(y + box_h / 12)),
+                            (
+                                int(x + box_w - box_w / 12),
+                                int(y + box_h - box_h / 12),
+                            ),
+                            CLR_DARK_GRAY,
+                            3,
+                        )
+                        cv2.putText(
+                            final_marked,
+                            str(field_value),
+                            (x, y),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            TEXT_SIZE,
+                            (20, 20, 10),
+                            int(1 + 3.5 * TEXT_SIZE),
+                        )
+
+                    weak_multi_full_select_bubbles = []
+                    if len(detected_bubbles) == 0 and len(weak_multi_bubbles) == 0:
+                        weak_multi_full_select_bubbles = (
+                            self.get_weak_multi_full_select_bubbles(
+                                field_block_bubbles,
+                                all_q_strip_arrs[total_q_strip_no],
+                                detected_bubbles,
+                                page_blank_baseline,
+                            )
+                        )
+                        for weak_bubble in weak_multi_full_select_bubbles:
+                            field_label, field_value = (
+                                weak_bubble.field_label,
+                                weak_bubble.field_value,
+                            )
+                            omr_response[field_label] = (
+                                omr_response[field_label] + field_value
+                                if field_label in omr_response
+                                else field_value
+                            )
+                            multi_marked = True
+                            x, y = (
+                                weak_bubble.x + field_block.shift,
+                                weak_bubble.y,
+                            )
+                            cv2.rectangle(
+                                final_marked,
+                                (int(x + box_w / 12), int(y + box_h / 12)),
+                                (
+                                    int(x + box_w - box_w / 12),
+                                    int(y + box_h - box_h / 12),
+                                ),
+                                CLR_DARK_GRAY,
+                                3,
+                            )
+                            cv2.putText(
+                                final_marked,
+                                str(field_value),
+                                (x, y),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                TEXT_SIZE,
+                                (20, 20, 10),
+                                int(1 + 3.5 * TEXT_SIZE),
+                            )
+
+                    if (
+                        len(detected_bubbles) == 0
+                        and len(weak_multi_bubbles) == 0
+                        and len(weak_multi_full_select_bubbles) == 0
+                    ):
+                        weak_bubble = self.get_weak_marked_bubble(
+                            field_block,
+                            field_block_bubbles,
+                            all_q_strip_arrs[total_q_strip_no],
+                            img,
+                            page_blank_model,
+                        )
+                        if weak_bubble is not None:
+                            field_label, field_value = (
+                                weak_bubble.field_label,
+                                weak_bubble.field_value,
+                            )
+                            omr_response[field_label] = field_value
+                            x, y = (
+                                weak_bubble.x + field_block.shift,
+                                weak_bubble.y,
+                            )
+                            cv2.rectangle(
+                                final_marked,
+                                (int(x + box_w / 12), int(y + box_h / 12)),
+                                (
+                                    int(x + box_w - box_w / 12),
+                                    int(y + box_h - box_h / 12),
+                                ),
+                                CLR_DARK_GRAY,
+                                3,
+                            )
+                            cv2.putText(
+                                final_marked,
+                                str(field_value),
+                                (x, y),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                TEXT_SIZE,
+                                (20, 20, 10),
+                                int(1 + 3.5 * TEXT_SIZE),
+                            )
+                        else:
+                            weak_identifier_bubble = self.get_weak_identifier_bubble(
+                                field_block,
+                                field_block_bubbles,
+                                all_q_strip_arrs[total_q_strip_no],
+                                detected_bubbles,
+                                img,
+                                page_blank_model,
+                            )
+                            if weak_identifier_bubble is not None:
+                                field_label, field_value = (
+                                    weak_identifier_bubble.field_label,
+                                    weak_identifier_bubble.field_value,
+                                )
+                                omr_response[field_label] = field_value
+                                x, y = (
+                                    weak_identifier_bubble.x + field_block.shift,
+                                    weak_identifier_bubble.y,
+                                )
+                                cv2.rectangle(
+                                    final_marked,
+                                    (int(x + box_w / 12), int(y + box_h / 12)),
+                                    (
+                                        int(x + box_w - box_w / 12),
+                                        int(y + box_h - box_h / 12),
+                                    ),
+                                    CLR_DARK_GRAY,
+                                    3,
+                                )
+                                cv2.putText(
+                                    final_marked,
+                                    str(field_value),
+                                    (x, y),
+                                    cv2.FONT_HERSHEY_SIMPLEX,
+                                    TEXT_SIZE,
+                                    (20, 20, 10),
+                                    int(1 + 3.5 * TEXT_SIZE),
+                                )
+                            else:
+                                field_label = field_block_bubbles[0].field_label
+                                omr_response[field_label] = field_block.empty_val
 
                     if config.outputs.show_image_level >= 5:
                         if key in all_c_box_vals:

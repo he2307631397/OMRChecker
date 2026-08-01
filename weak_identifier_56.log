@@ -1,0 +1,1214 @@
+[15:09:14] INFO     Loading OMRChecker modules...                 __init__.py:5
+[15:09:15] INFO     Loading processors from "src.processors"...   manager.py:53
+           INFO     Loaded processors: ['CropOnMarkers',          manager.py:76
+                    'CropPage', 'FeatureBasedAlignment',                       
+                    'GaussianBlur', 'Levels', 'MedianBlur']                    
+           INFO     Loading config.json: inputs\config.json   validations.py:84
+           INFO     Loading template.json:                    validations.py:49
+                    inputs\template.json                                       
+           INFO     Checking Directories...                          file.py:34
+           INFO     Created :                                        file.py:37
+                    outputs_inputs_56_weak_identifier\CheckedOMRs              
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_56_weak_identifier\Manual                   
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_56_weak_identifier\Results                  
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_56_weak_identifier\Evaluation               
+           INFO     Created :                                        file.py:50
+                    outputs_inputs_56_weak_identifier\Manual\MultiMa           
+                    rkedFiles                                                  
+           INFO     Created :                                        file.py:50
+                    outputs_inputs_56_weak_identifier\Manual\ErrorFi           
+                    les                                                        
+           INFO     Checking Files...                                file.py:57
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_56_weak_identifier\Results\Resul           
+                    ts_03PM.csv'                                               
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_56_weak_identifier\Manual\MultiM           
+                    arkedFiles.csv'                                            
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_56_weak_identifier\Manual\ErrorF           
+                    iles.csv'                                                  
+           INFO                                                     entry.py:53
+                            Current Configurations                             
+              +-------------------------------------------------+              
+              | Directory Path          | inputs                |              
+              | Count of Images         | 56                    |              
+              | Set Layout Mode         | OFF                   |              
+              | Markers Detection       | OFF                   |              
+              | Auto Alignment          | False                 |              
+              | Detected Template Path  | inputs\template.json  |              
+              | Detected Local Config   | inputs\config.json    |              
+              | Detected pre-processors | FeatureBasedAlignment |              
+              +-------------------------------------------------+              
+[15:09:16] INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_001.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (1) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_001.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_001.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'A', 'q11': 'AB', 'id7':                
+                    '6', 'id8': '4', 'q2': 'B', 'q3': 'C', 'q9':               
+                    'AC', 'q6': 'C', 'id6': '5', 'id4': '2',                   
+                    'id3': '4', 'q10': 'BD', 'q4': 'A', 'q7': 'B',             
+                    'id1': '2', 'q8': 'D', 'q5': 'B', 'id2': '7'}              
+           INFO     (/1) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_001.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_002.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (2) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_002.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_002.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '1', 'q1': 'D', 'q11': 'BC', 'id7':                
+                    '2', 'id8': '4', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'BD', 'q6': 'B', 'id6': '2', 'id4': '6',                   
+                    'id3': '2', 'q10': 'AD', 'q4': 'B', 'q7': 'A',             
+                    'id1': '2', 'q8': 'D', 'q5': 'C', 'id2': '0'}              
+           INFO     (/2) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_002.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_003.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (3) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_003.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_003.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'C', 'q11': 'AD', 'id7':                
+                    '1', 'id8': '1', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'BC', 'q6': 'B', 'id6': '3', 'id4': '4',                   
+                    'id3': '0', 'q10': 'AD', 'q4': 'A', 'q7': 'D',             
+                    'id1': '2', 'q8': 'D', 'q5': 'B', 'id2': '5'}              
+           INFO     (/3) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_003.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_004.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (4) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_004.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_004.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '6', 'q1': 'A', 'q11': 'AD', 'id7':                
+                    '2', 'id8': '1', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'AB', 'q6': 'B', 'id6': '4', 'id4': '3',                   
+                    'id3': '2', 'q10': 'BC', 'q4': 'A', 'q7': 'D',             
+                    'id1': '0', 'q8': 'D', 'q5': 'C', 'id2': '4'}              
+           INFO     (/4) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_004.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_005.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (5) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_005.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 151.72              core.py:484
+                    global_std_THR: 200                                        
+           WARNING  Weak identifier fallback: field 'id8' -> '6'    core.py:156
+                    (darkest_mean=191.56,                                      
+                    second_darkest_mean=217.08, gap=25.52,                     
+                    blank_baseline=221.87, delta=30.30)                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_005.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'C', 'q11': 'AC', 'id7':                
+                    '1', 'id8': '6', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'AC', 'q6': 'A', 'id6': '7', 'id4': '0',                   
+                    'id3': '8', 'q10': 'BCD', 'q4': 'C', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'B', 'q5': 'A', 'id2':              
+                    '5'}                                                       
+           INFO     (/5) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_005.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_006.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (6) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_006.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 183.75              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_006.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'ABCD', 'id7':              
+                    '1', 'id8': '7', 'q2': 'B', 'q3': 'C', 'q9':               
+                    'AB', 'q6': 'B', 'id6': '4', 'id4': '6',                   
+                    'id3': '2', 'q10': 'BCD', 'q4': 'A', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'D', 'q5': 'B', 'id2':              
+                    '0'}                                                       
+           INFO     (/6) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_006.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_007.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (7) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_007.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 121.87              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_007.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '2', 'q1': 'C', 'q11': 'AB', 'id7':                
+                    '4', 'id8': '1', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'ABD', 'q6': 'D', 'id6': '9', 'id4': '7',                  
+                    'id3': '5', 'q10': 'BCD', 'q4': 'C', 'q7':                 
+                    'B', 'id1': '3', 'q8': 'A', 'q5': 'A', 'id2':              
+                    '6'}                                                       
+           INFO     (/7) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_007.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_008.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (8) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_008.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 183.1               core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_008.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'A', 'q11': 'CD', 'id7':                
+                    '0', 'id8': '1', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'ACD', 'q6': 'A', 'id6': '6', 'id4': '3',                  
+                    'id3': '4', 'q10': 'BC', 'q4': 'D', 'q7': 'D',             
+                    'id1': '2', 'q8': 'B', 'q5': 'A', 'id2': '3'}              
+           INFO     (/8) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_008.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_009.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (9) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_160125_009.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 184.29              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_009.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '9', 'q1': 'C', 'q11': 'AB', 'id7':                
+                    '7', 'id8': '2', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'BD', 'q6': 'A', 'id6': '9', 'id4': '5',                   
+                    'id3': '3', 'q10': 'AD', 'q4': 'A', 'q7': 'C',             
+                    'id1': '1', 'q8': 'B', 'q5': 'D', 'id2': '4'}              
+           INFO     (/9) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_160125_009.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_010.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (10) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_010.png'                        
+                    Resolution: (1682, 1190)                                   
+[15:09:17] INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_010.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'B', 'q11': 'ABCD', 'id7':              
+                    '4', 'id8': '0', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'AC', 'q6': 'C', 'id6': '9', 'id4': '5',                   
+                    'id3': '4', 'q10': 'ABC', 'q4': 'A', 'q7':                 
+                    'B', 'id1': '2', 'q8': 'B', 'q5': 'D', 'id2':              
+                    '3'}                                                       
+           INFO     (/10) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_010.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_011.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (11) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_011.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.85              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_011.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'B', 'q11': 'CD', 'id7':                
+                    '0', 'id8': '9', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'BD', 'q6': 'C', 'id6': '6', 'id4': '3',                   
+                    'id3': '1', 'q10': 'ABC', 'q4': 'B', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'B', 'q5': 'A', 'id2':              
+                    '4'}                                                       
+           INFO     (/11) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_011.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_012.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (12) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_012.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 122.57              core.py:484
+                    global_std_THR: 200                                        
+           WARNING  Weak multi full-select fallback: field 'q10' -> core.py:265
+                    'ABCD' (max_mean=149.64,                                   
+                    page_blank_baseline=224.55,                                
+                    delta_from_page_blank=74.91, spread=7.05)                  
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_012.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'A', 'q11': 'ACD', 'id7':               
+                    '3', 'id8': '3', 'q2': 'C', 'q3': 'B', 'q9':               
+                    'ABC', 'q6': 'D', 'id6': '6', 'id4': '5',                  
+                    'id3': '2', 'q10': 'ABCD', 'q4': 'D', 'q7':                
+                    'C', 'id1': '1', 'q8': 'B', 'q5': 'C', 'id2':              
+                    '4'}                                                       
+           INFO     (/12) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_012.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_013.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (13) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_013.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.38              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_013.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '4', 'q1': 'B', 'q11': 'BCD', 'id7':               
+                    '0', 'id8': '6', 'q2': 'C', 'q3': 'B', 'q9':               
+                    'AC', 'q6': 'C', 'id6': '5', 'id4': '7',                   
+                    'id3': '3', 'q10': 'ABC', 'q4': 'C', 'q7':                 
+                    'A', 'id1': '2', 'q8': 'D', 'q5': 'A', 'id2':              
+                    '4'}                                                       
+           INFO     (/13) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_013.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_014.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (14) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_014.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_014.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '2', 'q1': 'A', 'q11': 'BD', 'id7':                
+                    '4', 'id8': '7', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'BD', 'q6': 'D', 'id6': '0', 'id4': '4',                   
+                    'id3': '3', 'q10': 'ABC', 'q4': 'C', 'q7':                 
+                    'C', 'id1': '0', 'q8': 'B', 'q5': 'C', 'id2':              
+                    '2'}                                                       
+           INFO     (/14) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_014.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_015.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (15) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_015.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_015.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'A', 'q11': 'BCD', 'id7':               
+                    '7', 'id8': '0', 'q2': 'B', 'q3': 'C', 'q9':               
+                    'BD', 'q6': 'C', 'id6': '1', 'id4': '3',                   
+                    'id3': '9', 'q10': 'AD', 'q4': 'A', 'q7': 'B',             
+                    'id1': '3', 'q8': 'D', 'q5': 'C', 'id2': '4'}              
+           INFO     (/15) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_015.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_016.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (16) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_016.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_016.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '6', 'q1': 'B', 'q11': 'BD', 'id7':                
+                    '6', 'id8': '8', 'q2': 'C', 'q3': 'D', 'q9':               
+                    'CD', 'q6': 'A', 'id6': '2', 'id4': '4',                   
+                    'id3': '0', 'q10': 'AC', 'q4': 'CD', 'q7':                 
+                    'B', 'id1': '6', 'q8': 'B', 'q5': 'B', 'id2':              
+                    '1'}                                                       
+           INFO     (/16) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_016.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_017.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (17) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_017.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_017.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'A', 'q11': 'ABD', 'id7':               
+                    '3', 'id8': '5', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'CD', 'q6': 'C', 'id6': '5', 'id4': '5',                   
+                    'id3': '3', 'q10': 'AC', 'q4': 'B', 'q7': 'B',             
+                    'id1': '4', 'q8': 'D', 'q5': 'C', 'id2': '0'}              
+           INFO     (/17) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_017.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_018.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (18) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_018.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 122.56              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_018.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'B', 'q11': 'ABC', 'id7':               
+                    '0', 'id8': '6', 'q2': 'C', 'q3': 'A', 'q9':               
+                    'BC', 'q6': 'C', 'id6': '9', 'id4': '5',                   
+                    'id3': '4', 'q10': 'BCD', 'q4': 'D', 'q7':                 
+                    'B', 'id1': '2', 'q8': 'D', 'q5': 'A', 'id2':              
+                    '1'}                                                       
+           INFO     (/18) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_018.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_019.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (19) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_019.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_019.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '9', 'q1': 'B', 'q11': 'ABCD', 'id7':              
+                    '2', 'id8': '5', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'ABC', 'q6': 'C', 'id6': '0', 'id4': '8',                  
+                    'id3': '7', 'q10': 'BCD', 'q4': 'A', 'q7':                 
+                    'C', 'id1': '3', 'q8': 'D', 'q5': 'B', 'id2':              
+                    '4'}                                                       
+           INFO     (/19) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_019.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_020.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+[15:09:18] INFO     (20) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_020.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_020.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '9', 'q1': 'C', 'q11': 'ABC', 'id7':               
+                    '3', 'id8': '5', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'ABC', 'q6': 'B', 'id6': '1', 'id4': '0',                  
+                    'id3': '8', 'q10': 'CD', 'q4': 'D', 'q7': 'C',             
+                    'id1': '4', 'q8': 'C', 'q5': 'A', 'id2': '7'}              
+           INFO     (/20) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_020.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_021.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (21) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_021.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 112.87              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_021.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'C', 'q11': 'BCD', 'id7':               
+                    '0', 'id8': '9', 'q2': 'AC', 'q3': 'A', 'q9':              
+                    'AD', 'q6': 'B', 'id6': '6', 'id4': '4',                   
+                    'id3': '7', 'q10': 'AB', 'q4': 'C', 'q7': 'D',             
+                    'id1': '2', 'q8': 'B', 'q5': 'A', 'id2': '3'}              
+           INFO     (/21) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_021.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_022.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (22) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_022.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 116.72              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_022.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'D', 'q11': 'ABC', 'id7':               
+                    '8', 'id8': '5', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'ABC', 'q6': 'C', 'id6': '6', 'id4': '7',                  
+                    'id3': '9', 'q10': 'BCD', 'q4': 'C', 'q7':                 
+                    'A', 'id1': '3', 'q8': 'D', 'q5': 'A', 'id2':              
+                    '3'}                                                       
+           INFO     (/22) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_022.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_023.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (23) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_023.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_023.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '4', 'q1': 'B', 'q11': 'ABC', 'id7':               
+                    '2', 'id8': '8', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'BC', 'q6': 'C', 'id6': '1', 'id4': '7',                   
+                    'id3': '3', 'q10': 'BCD', 'q4': 'B', 'q7':                 
+                    'B', 'id1': '0', 'q8': 'C', 'q5': 'D', 'id2':              
+                    '9'}                                                       
+           INFO     (/23) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_023.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_024.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (24) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_024.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.6               core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_024.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'C', 'q11': 'BCD', 'id7':               
+                    '2', 'id8': '8', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'CD', 'q6': 'D', 'id6': '7', 'id4': '6',                   
+                    'id3': '0', 'q10': 'ABC', 'q4': 'D', 'q7':                 
+                    'B', 'id1': '2', 'q8': 'A', 'q5': 'C', 'id2':              
+                    '4'}                                                       
+           INFO     (/24) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_024.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_025.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (25) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_025.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_025.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '6', 'q1': 'A', 'q11': 'BCD', 'id7':               
+                    '3', 'id8': '5', 'q2': 'D', 'q3': 'C', 'q9':               
+                    'AD', 'q6': 'B', 'id6': '7', 'id4': '4',                   
+                    'id3': '1', 'q10': 'BD', 'q4': 'B', 'q7': 'C',             
+                    'id1': '1', 'q8': 'A', 'q5': 'B', 'id2': '4'}              
+           INFO     (/25) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_025.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_026.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (26) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_026.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 184.03              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_026.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '6', 'q1': 'AC', 'q11': 'ACD', 'id7':              
+                    '7', 'id8': '3', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'BD', 'q6': 'C', 'id6': '3', 'id4': '5',                   
+                    'id3': '1', 'q10': 'AC', 'q4': 'B', 'q7': 'D',             
+                    'id1': '1', 'q8': 'B', 'q5': 'B', 'id2': '3'}              
+           INFO     (/26) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_026.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_027.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (27) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_027.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 181.56              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_027.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'A', 'q11': 'ABC', 'id7':               
+                    '1', 'id8': '1', 'q2': 'B', 'q3': 'C', 'q9':               
+                    'AC', 'q6': 'C', 'id6': '8', 'id4': '6',                   
+                    'id3': '2', 'q10': 'CD', 'q4': 'B', 'q7': 'C',             
+                    'id1': '2', 'q8': 'D', 'q5': 'D', 'id2': '0'}              
+           INFO     (/27) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_027.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_028.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (28) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_028.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_028.png'                         
+[15:09:19] INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'ABCD', 'id7':              
+                    '3', 'id8': '9', 'q2': 'C', 'q3': 'A', 'q9':               
+                    'BCD', 'q6': 'B', 'id6': '1', 'id4': '6',                  
+                    'id3': '2', 'q10': 'ABC', 'q4': 'B', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'A', 'q5': 'A', 'id2':              
+                    '0'}                                                       
+           INFO     (/28) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_028.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_029.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (29) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_029.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 178.1               core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_029.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'B', 'q11': 'CD', 'id7':                
+                    '3', 'id8': '8', 'q2': 'A', 'q3': 'A', 'q9':               
+                    'BCD', 'q6': 'C', 'id6': '1', 'id4': '6',                  
+                    'id3': '2', 'q10': 'ABC', 'q4': 'C', 'q7':                 
+                    'C', 'id1': '2', 'q8': 'D', 'q5': 'A', 'id2':              
+                    '0'}                                                       
+           INFO     (/29) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_029.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_030.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (30) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_030.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.45              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_030.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'D', 'q11': 'BCD', 'id7':               
+                    '8', 'id8': '8', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'ABCD', 'q6': 'C', 'id6': '9', 'id4': '4',                 
+                    'id3': '2', 'q10': 'AC', 'q4': 'A', 'q7': 'B',             
+                    'id1': '3', 'q8': 'D', 'q5': 'C', 'id2': '0'}              
+           INFO     (/30) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_030.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_031.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (31) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_031.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_031.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'C', 'q11': 'ABC', 'id7':               
+                    '9', 'id8': '8', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'BCD', 'q6': 'D', 'id6': '0', 'id4': '5',                  
+                    'id3': '3', 'q10': 'AB', 'q4': 'A', 'q7': 'B',             
+                    'id1': '2', 'q8': 'D', 'q5': 'D', 'id2': '4'}              
+           INFO     (/31) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_031.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_032.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (32) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_032.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.71              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_032.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'C', 'q11': 'CD', 'id7':                
+                    '7', 'id8': '7', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'BCD', 'q6': 'D', 'id6': '8', 'id4': '9',                  
+                    'id3': '4', 'q10': 'AB', 'q4': 'D', 'q7': 'C',             
+                    'id1': '3', 'q8': 'C', 'q5': 'A', 'id2': '0'}              
+           INFO     (/32) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_032.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_033.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (33) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_033.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 178.33              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_033.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '5', 'q1': 'B', 'q11': 'CD', 'id7':                
+                    '7', 'id8': '1', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'ABD', 'q6': 'C', 'id6': '8', 'id4': '9',                  
+                    'id3': '4', 'q10': 'AB', 'q4': 'C', 'q7': 'B',             
+                    'id1': '2', 'q8': 'C', 'q5': 'A', 'id2': '3'}              
+           INFO     (/33) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_033.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_034.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (34) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_034.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 113.18              core.py:484
+                    global_std_THR: 200                                        
+           WARNING  Weak multi full-select fallback: field 'q11' -> core.py:265
+                    'ABCD' (max_mean=148.05,                                   
+                    page_blank_baseline=223.10,                                
+                    delta_from_page_blank=75.05, spread=7.99)                  
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_034.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'D', 'q11': 'ABCD', 'id7':              
+                    '5', 'id8': '5', 'q2': 'B', 'q3': 'D', 'q9':               
+                    'CD', 'q6': 'C', 'id6': '4', 'id4': '7',                   
+                    'id3': '1', 'q10': 'AB', 'q4': 'B', 'q7': 'C',             
+                    'id1': '2', 'q8': 'C', 'q5': 'D', 'id2': '0'}              
+           INFO     (/34) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_034.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_035.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (35) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_035.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 180.81              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_035.png'                         
+[15:09:20] INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'B', 'q11': 'ABC', 'id7':               
+                    '5', 'id8': '8', 'q2': 'C', 'q3': 'A', 'q9':               
+                    'BC', 'q6': 'B', 'id6': '3', 'id4': '9',                   
+                    'id3': '0', 'q10': 'ACD', 'q4': 'C', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'D', 'q5': 'D', 'id2':              
+                    '4'}                                                       
+           INFO     (/35) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_035.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_036.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (36) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_036.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 185.66              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_036.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'B', 'q11': 'CD', 'id7':                
+                    '5', 'id8': '8', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'CD', 'q6': 'A', 'id6': '7', 'id4': '9',                   
+                    'id3': '4', 'q10': 'AD', 'q4': 'B', 'q7': 'D',             
+                    'id1': '2', 'q8': 'C', 'q5': 'D', 'id2': '0'}              
+           INFO     (/36) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_036.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_037.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (37) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_037.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.76              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_037.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '4', 'q1': 'C', 'q11': 'BC', 'id7':                
+                    '5', 'id8': '7', 'q2': 'B', 'q3': 'D', 'q9':               
+                    'AB', 'q6': 'D', 'id6': '3', 'id4': '6',                   
+                    'id3': '2', 'q10': 'BCD', 'q4': 'A', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'A', 'q5': 'C', 'id2':              
+                    '0'}                                                       
+           INFO     (/37) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_037.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_038.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (38) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_038.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 111.18              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_038.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'D', 'q11': 'BCD', 'id7':               
+                    '5', 'id8': '9', 'q2': 'B', 'q3': 'A', 'q9':               
+                    'BC', 'q6': 'C', 'id6': '4', 'id4': '7',                   
+                    'id3': '4', 'q10': 'ABC', 'q4': 'B', 'q7':                 
+                    'C', 'id1': '2', 'q8': 'D', 'q5': 'D', 'id2':              
+                    '0'}                                                       
+           INFO     (/38) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_038.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_039.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (39) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_039.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 184.42              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_039.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'B', 'q11': 'ABCD', 'id7':              
+                    '5', 'id8': '8', 'q2': 'A', 'q3': 'D', 'q9':               
+                    'BCD', 'q6': 'C', 'id6': '1', 'id4': '6',                  
+                    'id3': '2', 'q10': 'ABC', 'q4': 'A', 'q7':                 
+                    'B', 'id1': '2', 'q8': 'B', 'q5': 'D', 'id2':              
+                    '0'}                                                       
+           INFO     (/39) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_039.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_040.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (40) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_040.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 183.14              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_040.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'B', 'q11': 'BD', 'id7':                
+                    '4', 'id8': '1', 'q2': 'C', 'q3': 'D', 'q9':               
+                    'CD', 'q6': 'A', 'id6': '1', 'id4': '6',                   
+                    'id3': '2', 'q10': 'AD', 'q4': 'C', 'q7': 'B',             
+                    'id1': '2', 'q8': 'D', 'q5': 'B', 'id2': '0'}              
+           INFO     (/40) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_040.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_041.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (41) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_041.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_041.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'ABCD', 'id7':              
+                    '4', 'id8': '0', 'q2': 'C', 'q3': 'B', 'q9':               
+                    'AD', 'q6': 'C', 'id6': '1', 'id4': '6',                   
+                    'id3': '2', 'q10': 'BD', 'q4': 'B', 'q7': 'C',             
+                    'id1': '2', 'q8': 'D', 'q5': 'C', 'id2': '0'}              
+           INFO     (/41) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_041.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_042.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (42) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_042.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 179.9               core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_042.png'                         
+[15:09:21] INFO     Read Response:                                 entry.py:289
+                    {'id5': '3', 'q1': 'D', 'q11': 'AB', 'id7':                
+                    '6', 'id8': '9', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'AC', 'q6': 'D', 'id6': '1', 'id4': '0',                   
+                    'id3': '2', 'q10': 'BD', 'q4': 'B', 'q7': 'C',             
+                    'id1': '6', 'q8': 'C', 'q5': 'B', 'id2': '3'}              
+           INFO     (/42) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_042.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_043.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (43) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_043.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 177.62              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_043.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '9', 'q1': 'B', 'q11': 'AD', 'id7':                
+                    '0', 'id8': '5', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'ABCD', 'q6': 'D', 'id6': '3', 'id4': '3',                 
+                    'id3': '5', 'q10': 'CD', 'q4': 'B', 'q7': 'D',             
+                    'id1': '4', 'q8': 'B', 'q5': 'B', 'id2': '2'}              
+           INFO     (/43) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_043.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_044.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (44) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_044.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 184.57              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_044.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '2', 'q1': 'A', 'q11': 'CD', 'id7':                
+                    '6', 'id8': '4', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'ABCD', 'q6': 'C', 'id6': '4', 'id4': '4',                 
+                    'id3': '1', 'q10': 'ACD', 'q4': 'B', 'q7':                 
+                    'D', 'id1': '8', 'q8': 'D', 'q5': 'B', 'id2':              
+                    '6'}                                                       
+           INFO     (/44) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_044.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_045.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (45) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_045.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 177.44              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_045.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '4', 'q1': 'C', 'q11': 'ABD', 'id7':               
+                    '6', 'id8': '3', 'q2': 'B', 'q3': 'C', 'q9':               
+                    'BC', 'q6': 'D', 'id6': '1', 'id4': '7',                   
+                    'id3': '5', 'q10': 'BD', 'q4': 'D', 'q7': 'B',             
+                    'id1': '7', 'q8': 'B', 'q5': 'C', 'id2': '1'}              
+           INFO     (/45) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_045.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_046.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (46) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_046.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 178.71              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_046.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '4', 'q1': 'D', 'q11': 'AC', 'id7':                
+                    '5', 'id8': '6', 'q2': 'A', 'q3': 'B', 'q9':               
+                    'AD', 'q6': 'B', 'id6': '2', 'id4': '6',                   
+                    'id3': '1', 'q10': 'CD', 'q4': 'C', 'q7': 'C',             
+                    'id1': '7', 'q8': 'B', 'q5': 'A', 'id2': '3'}              
+           INFO     (/46) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_046.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_047.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (47) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_047.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_047.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '7', 'q1': 'A', 'q11': 'AC', 'id7':                
+                    '8', 'id8': '4', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'BD', 'q6': 'A', 'id6': '1', 'id4': '4',                   
+                    'id3': '1', 'q10': 'BC', 'q4': 'C', 'q7': 'D',             
+                    'id1': '3', 'q8': 'B', 'q5': 'D', 'id2': '5'}              
+           INFO     (/47) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_047.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_048.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (48) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_048.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 120.18              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_048.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '1', 'q1': 'B', 'q11': 'AC', 'id7':                
+                    '0', 'id8': '6', 'q2': 'B', 'q3': 'A', 'q9':               
+                    'CD', 'q6': 'A', 'id6': '0', 'id4': '4',                   
+                    'id3': '9', 'q10': 'BD', 'q4': 'C', 'q7': 'C',             
+                    'id1': '4', 'q8': 'D', 'q5': 'D', 'id2': '1'}              
+           INFO     (/48) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_048.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_049.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (49) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_049.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 182.72              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_049.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'CD', 'id7':                
+                    '1', 'id8': '7', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'AD', 'q6': 'C', 'id6': '3', 'id4': '5',                   
+                    'id3': '2', 'q10': 'AB', 'q4': 'C', 'q7': 'D',             
+                    'id1': '9', 'q8': 'B', 'q5': 'B', 'id2': '0'}              
+           INFO     (/49) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_049.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_050.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (50) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_050.png'                        
+                    Resolution: (1682, 1190)                                   
+[15:09:22] INFO     Thresholding:   global_thr: 177.48              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_050.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '1', 'q1': 'B', 'q11': 'ACD', 'id7':               
+                    '6', 'id8': '6', 'q2': 'C', 'q3': 'C', 'q9':               
+                    'AD', 'q6': 'A', 'id6': '6', 'id4': '6',                   
+                    'id3': '2', 'q10': 'BC', 'q4': 'B', 'q7': 'D',             
+                    'id1': '2', 'q8': 'A', 'q5': 'A', 'id2': '0'}              
+           INFO     (/50) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_050.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_051.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (51) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_051.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 174.34              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_051.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'BD', 'id7':                
+                    '3', 'id8': '4', 'q2': 'A', 'q3': 'C', 'q9':               
+                    'ABCD', 'q6': 'C', 'id6': '1', 'id4': '5',                 
+                    'id3': '2', 'q10': 'BC', 'q4': 'C', 'q7': 'B',             
+                    'id1': '2', 'q8': 'D', 'q5': 'D', 'id2': '0'}              
+           INFO     (/51) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_051.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_052.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (52) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_052.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 183.17              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_052.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'AD', 'id7':                
+                    '2', 'id8': '3', 'q2': 'C', 'q3': 'D', 'q9':               
+                    'ABCD', 'q6': 'B', 'id6': '1', 'id4': '5',                 
+                    'id3': '2', 'q10': 'BC', 'q4': 'B', 'q7': 'C',             
+                    'id1': '2', 'q8': 'A', 'q5': 'B', 'id2': '0'}              
+           INFO     (/52) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_052.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_053.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (53) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_053.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 184.02              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_053.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'BCD', 'id7':               
+                    '3', 'id8': '6', 'q2': 'B', 'q3': 'D', 'q9':               
+                    'ABD', 'q6': 'B', 'id6': '1', 'id4': '5',                  
+                    'id3': '2', 'q10': 'BD', 'q4': 'A', 'q7': 'C',             
+                    'id1': '2', 'q8': 'C', 'q5': 'B', 'id2': '0'}              
+           INFO     (/53) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_053.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_054.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (54) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_054.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 185.29              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_054.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'CD', 'id7':                
+                    '3', 'id8': '5', 'q2': 'B', 'q3': 'D', 'q9':               
+                    'ABCD', 'q6': 'B', 'id6': '1', 'id4': '5',                 
+                    'id3': '2', 'q10': 'BC', 'q4': 'B', 'q7': 'D',             
+                    'id1': '2', 'q8': 'D', 'q5': 'B', 'id2': '0'}              
+           INFO     (/54) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_054.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_055.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (55) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_055.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 185.66              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_055.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'ABCD', 'id7':              
+                    '3', 'id8': '7', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'ABCD', 'q6': 'C', 'id6': '1', 'id4': '6',                 
+                    'id3': '2', 'q10': 'BCD', 'q4': 'C', 'q7':                 
+                    'D', 'id1': '2', 'q8': 'C', 'q5': 'C', 'id2':              
+                    '0'}                                                       
+           INFO     (/55) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_055.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_160125_056.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (56) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_160125_056.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 178.78              core.py:484
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_56_weak_identifier\CheckedOMRs\            
+                    MX-M3658N_20260731_160125_056.png'                         
+           INFO     Read Response:                                 entry.py:289
+                    {'id5': '0', 'q1': 'A', 'q11': 'ABD', 'id7':               
+                    '3', 'id8': '5', 'q2': 'B', 'q3': 'B', 'q9':               
+                    'AC', 'q6': 'B', 'id6': '1', 'id4': '5',                   
+                    'id3': '2', 'q10': 'BC', 'q4': 'C', 'q7': 'D',             
+                    'id1': '2', 'q8': 'B', 'q5': 'A', 'id2': '0'}              
+           INFO     (/56) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_160125_056.png'                        
+           INFO                                                    entry.py:397
+           INFO     Total file(s) moved        : 0                 entry.py:398
+           INFO     Total file(s) not moved    : 56                entry.py:399
+           INFO     --------------------------------               entry.py:400
+           INFO     Total file(s) processed    : 56 (Sum Tallied!) entry.py:401
+           INFO                                                    entry.py:406
+                    Finished Checking 56 file(s) in 7.9 seconds                
+                    i.e. ~0.1 minute(s).                                       
+           INFO     OMR Processing Rate        :     ~ 0.14        entry.py:409
+                    seconds/OMR                                                
+           INFO     OMR Processing Speed       :     ~ 426.94      entry.py:412
+                    OMRs/minute                                                
+           INFO                                                    entry.py:419
+                    Tip: To see some awesome visuals, open                     
+                    config.json and increase 'show_image_level'                

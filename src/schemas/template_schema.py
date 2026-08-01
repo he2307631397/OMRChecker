@@ -209,6 +209,7 @@ TEMPLATE_SCHEMA = {
                         "emptyValue": {"type": "string"},
                         "fieldLabels": {"type": "array", "items": FIELD_STRING_TYPE},
                         "labelsGap": positive_number,
+                        "multiSelect": {"type": "boolean"},
                         "origin": two_positive_integers,
                         "fieldType": {
                             "type": "string",

@@ -1,0 +1,373 @@
+[16:09:04] INFO     Loading OMRChecker modules...                 __init__.py:5
+[16:09:05] INFO     Loading processors from "src.processors"...   manager.py:53
+           INFO     Loaded processors: ['CropOnMarkers',          manager.py:76
+                    'CropPage', 'FeatureBasedAlignment',                       
+                    'GaussianBlur', 'Levels', 'MedianBlur']                    
+           INFO     Loading config.json: inputs\config.json   validations.py:84
+           INFO     Loading template.json:                    validations.py:49
+                    inputs\template.json                                       
+           INFO     Checking Directories...                          file.py:34
+           INFO     Created :                                        file.py:37
+                    outputs_inputs_10_weak_fill_adaptive_v7\CheckedO           
+                    MRs                                                        
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_10_weak_fill_adaptive_v7\Manual             
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_10_weak_fill_adaptive_v7\Results            
+           INFO     Created :                                        file.py:45
+                    outputs_inputs_10_weak_fill_adaptive_v7\Evaluati           
+                    on                                                         
+           INFO     Created :                                        file.py:50
+                    outputs_inputs_10_weak_fill_adaptive_v7\Manual\M           
+                    ultiMarkedFiles                                            
+           INFO     Created :                                        file.py:50
+                    outputs_inputs_10_weak_fill_adaptive_v7\Manual\E           
+                    rrorFiles                                                  
+           INFO     Checking Files...                                file.py:57
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Results           
+                    \Results_04PM.csv'                                         
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Manual\           
+                    MultiMarkedFiles.csv'                                      
+           INFO     Created new file:                                file.py:80
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Manual\           
+                    ErrorFiles.csv'                                            
+           INFO                                                     entry.py:53
+                            Current Configurations                             
+              +-------------------------------------------------+              
+              | Directory Path          | inputs                |              
+              | Count of Images         | 10                    |              
+              | Set Layout Mode         | OFF                   |              
+              | Markers Detection       | OFF                   |              
+              | Auto Alignment          | False                 |              
+              | Detected Template Path  | inputs\template.json  |              
+              | Detected Local Config   | inputs\config.json    |              
+              | Detected pre-processors | FeatureBasedAlignment |              
+              +-------------------------------------------------+              
+[16:09:06] INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_001.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (1) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_001.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           WARNING  Weak identifier fallback: field 'id7' -> '1'    core.py:319
+                    (darkest_mean=205.65,                                      
+                    second_darkest_mean=220.89, gap=15.24,                     
+                    blank_baseline=224.19, delta=18.54,                        
+                    page_blank_mean=223.19, page_z=12.11,                      
+                    density=0.562, density_gap=0.196,                          
+                    rule=adaptive)                                             
+           INFO     Weak mark candidate rejected: field 'q5'        core.py:197
+                    reason=adaptive_min_delta_from_blank                       
+                    darkest_mean=201.78,                                       
+                    second_darkest_mean=208.03, gap=6.25,                      
+                    blank_baseline=212.59, delta=10.81,                        
+                    page_z=14.78, density=0.484, density_gap=0.198             
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_001.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '1', 'id3': '2', 'q3': 'A', 'id4':                 
+                    '5', 'id1': '2', 'id5': '4', 'q9': 'CD', 'q1':             
+                    'ABCD', 'id6': '5', 'id2': '3', 'q10': 'BCD',              
+                    'q7': 'C', 'q6': 'D', 'q8': 'C', 'q5': '',                 
+                    'id8': '9', 'q11': 'ABCD', 'q2': 'ABD', 'q4':              
+                    'A'}                                                       
+           INFO     (/1) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_001.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_002.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (2) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_002.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           WARNING  Weak identifier fallback: field 'id1' -> '2'    core.py:319
+                    (darkest_mean=201.39,                                      
+                    second_darkest_mean=216.76, gap=15.37,                     
+                    blank_baseline=221.03, delta=19.64,                        
+                    page_blank_mean=223.93, page_z=14.84,                      
+                    density=0.627, density_gap=0.196,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id2' -> '4'    core.py:319
+                    (darkest_mean=203.98,                                      
+                    second_darkest_mean=217.95, gap=13.97,                     
+                    blank_baseline=221.60, delta=17.62,                        
+                    page_blank_mean=223.93, page_z=13.13,                      
+                    density=0.573, density_gap=0.188,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id3' -> '3'    core.py:319
+                    (darkest_mean=206.15,                                      
+                    second_darkest_mean=217.53, gap=11.39,                     
+                    blank_baseline=222.01, delta=15.86,                        
+                    page_blank_mean=223.93, page_z=11.70,                      
+                    density=0.477, density_gap=0.119,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id5' -> '1'    core.py:319
+                    (darkest_mean=205.07,                                      
+                    second_darkest_mean=219.59, gap=14.51,                     
+                    blank_baseline=223.38, delta=18.30,                        
+                    page_blank_mean=223.93, page_z=12.41,                      
+                    density=0.531, density_gap=0.138,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id6' -> '0'    core.py:319
+                    (darkest_mean=208.77,                                      
+                    second_darkest_mean=221.25, gap=12.48,                     
+                    blank_baseline=225.58, delta=16.81,                        
+                    page_blank_mean=223.93, page_z=9.98,                       
+                    density=0.477, density_gap=0.138,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id7' -> '7'    core.py:319
+                    (darkest_mean=202.93,                                      
+                    second_darkest_mean=221.73, gap=18.80,                     
+                    blank_baseline=225.26, delta=22.33,                        
+                    page_blank_mean=223.93, page_z=13.82,                      
+                    density=0.596, density_gap=0.269,                          
+                    rule=adaptive)                                             
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_002.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '7', 'id3': '3', 'q3': 'A', 'id4':                 
+                    '5', 'id1': '2', 'id5': '1', 'q9': 'BCD',                  
+                    'q1': 'B', 'id6': '0', 'id2': '4', 'q10':                  
+                    'AB', 'q7': 'C', 'q6': 'C', 'q8': 'C', 'q5':               
+                    'A', 'id8': '8', 'q11': 'CD', 'q2': 'ABD',                 
+                    'q4': 'D'}                                                 
+           INFO     (/2) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_002.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_003.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (3) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_003.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           WARNING  Weak identifier fallback: field 'id2' -> '3'    core.py:319
+                    (darkest_mean=200.64,                                      
+                    second_darkest_mean=217.41, gap=16.77,                     
+                    blank_baseline=221.42, delta=20.77,                        
+                    page_blank_mean=223.51, page_z=17.09,                      
+                    density=0.623, density_gap=0.208,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id7' -> '1'    core.py:319
+                    (darkest_mean=206.14,                                      
+                    second_darkest_mean=221.94, gap=15.80,                     
+                    blank_baseline=223.53, delta=17.39,                        
+                    page_blank_mean=223.51, page_z=12.98,                      
+                    density=0.554, density_gap=0.204,                          
+                    rule=adaptive)                                             
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_003.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '1', 'id3': '4', 'q3': 'A', 'id4':                 
+                    '5', 'id1': '4', 'id5': '9', 'q9': 'BC', 'q1':             
+                    'B', 'id6': '7', 'id2': '3', 'q10': 'AB',                  
+                    'q7': 'D', 'q6': 'C', 'q8': 'C', 'q5': 'A',                
+                    'id8': '8', 'q11': 'BCD', 'q2': 'ABD', 'q4':               
+                    'D'}                                                       
+           INFO     (/3) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_003.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_004.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (4) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_004.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           WARNING  Weak identifier fallback: field 'id5' -> '4'    core.py:319
+                    (darkest_mean=204.04,                                      
+                    second_darkest_mean=219.24, gap=15.20,                     
+                    blank_baseline=223.41, delta=19.37,                        
+                    page_blank_mean=223.23, page_z=13.38,                      
+                    density=0.546, density_gap=0.188,                          
+                    rule=adaptive)                                             
+           WARNING  Weak identifier fallback: field 'id6' -> '8'    core.py:319
+                    (darkest_mean=201.00,                                      
+                    second_darkest_mean=220.14, gap=19.14,                     
+                    blank_baseline=224.15, delta=23.15,                        
+                    page_blank_mean=223.23, page_z=15.50,                      
+                    density=0.581, density_gap=0.227,                          
+                    rule=adaptive)                                             
+           INFO     Weak identifier candidate rejected: field 'id7' core.py:293
+                    reason=max_mean_without_adaptive_support                   
+                    darkest_mean=209.67,                                       
+                    second_darkest_mean=221.23, gap=11.56,                     
+                    blank_baseline=224.35, delta=14.69,                        
+                    page_delta=13.56, page_z=9.45, density=0.404,              
+                    density_gap=0.058                                          
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_004.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '', 'id3': '3', 'q3': 'D', 'id4': '5',             
+                    'id1': '2', 'id5': '4', 'q9': 'BCD', 'q1':                 
+                    'D', 'id6': '8', 'id2': '7', 'q10': 'CD',                  
+                    'q7': 'C', 'q6': 'C', 'q8': 'C', 'q5': 'A',                
+                    'id8': '0', 'q11': 'BCD', 'q2': 'ABCD', 'q4':              
+                    'D'}                                                       
+           INFO     (/4) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_004.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_005.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (5) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_005.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_005.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '5', 'id3': '2', 'q3': 'D', 'id4':                 
+                    '5', 'id1': '2', 'id5': '0', 'q9': 'BCD',                  
+                    'q1': 'A', 'id6': '1', 'id2': '0', 'q10':                  
+                    'ABCD', 'q7': 'D', 'q6': 'B', 'q8': 'A', 'q5':             
+                    'D', 'id8': '0', 'q11': 'CD', 'q2': 'C', 'q4':             
+                    'C'}                                                       
+           INFO     (/5) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_005.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_006.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (6) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_006.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_006.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '5', 'id3': '2', 'q3': 'B', 'id4':                 
+                    '5', 'id1': '2', 'id5': '0', 'q9': 'ABD',                  
+                    'q1': 'A', 'id6': '1', 'id2': '0', 'q10':                  
+                    'BD', 'q7': 'D', 'q6': 'B', 'q8': 'D', 'q5':               
+                    'B', 'id8': '1', 'q11': 'BCD', 'q2': 'C',                  
+                    'q4': 'B'}                                                 
+           INFO     (/6) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_006.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_007.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (7) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_007.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_007.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '5', 'id3': '2', 'q3': 'C', 'id4':                 
+                    '5', 'id1': '2', 'id5': '0', 'q9': 'ABCD',                 
+                    'q1': 'A', 'id6': '1', 'id2': '0', 'q10':                  
+                    'ABCD', 'q7': 'B', 'q6': 'B', 'q8': 'D', 'q5':             
+                    'C', 'id8': '2', 'q11': 'ABCD', 'q2': 'C',                 
+                    'q4': 'B'}                                                 
+           INFO     (/7) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_007.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_008.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (8) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_008.png'                        
+                    Resolution: (1682, 1190)                                   
+[16:09:07] INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           INFO     Weak mark candidate rejected: field 'q3'        core.py:197
+                    reason=adaptive_min_delta_from_blank                       
+                    darkest_mean=201.47,                                       
+                    second_darkest_mean=202.12, gap=0.65,                      
+                    blank_baseline=205.79, delta=4.33,                         
+                    page_z=14.35, density=0.282, density_gap=0.004             
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_008.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '2', 'id3': '3', 'q3': '', 'id4': '8',             
+                    'id1': '4', 'id5': '1', 'q9': 'BD', 'q1': 'B',             
+                    'id6': '4', 'id2': '5', 'q10': 'AC', 'q7':                 
+                    'C', 'q6': 'C', 'q8': 'C', 'q5': 'A', 'id8':               
+                    '6', 'q11': 'AD', 'q2': 'C', 'q4': 'B'}                    
+           INFO     (/8) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_008.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_009.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (9) Opening image:                             entry.py:235
+                    'MX-M3658N_20260731_162311_009.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 141.99              core.py:649
+                    global_std_THR: 200                                        
+           INFO     Weak mark candidate rejected: field 'q6'        core.py:197
+                    reason=adaptive_min_delta_from_blank                       
+                    darkest_mean=202.27,                                       
+                    second_darkest_mean=204.13, gap=1.85,                      
+                    blank_baseline=207.97, delta=5.70,                         
+                    page_z=15.04, density=0.369, density_gap=-0.048            
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_009.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '6', 'id3': '6', 'q3': 'A', 'id4':                 
+                    '2', 'id1': '1', 'id5': '0', 'q9': 'ACD',                  
+                    'q1': 'C', 'id6': '1', 'id2': '3', 'q10':                  
+                    'AC', 'q7': 'C', 'q6': '', 'q8': 'D', 'q5':                
+                    'C', 'id8': '2', 'q11': 'BD', 'q2': 'B', 'q4':             
+                    'A'}                                                       
+           INFO     (/9) Processed file:                           entry.py:303
+                    'MX-M3658N_20260731_162311_009.png'                        
+           INFO     Processing PDF                                 image.py:212
+                    'MX-M3658N_20260731_162311_010.pdf'                        
+                    (pdf_dpi=144, pdf_page=1)                                  
+           INFO                                                    entry.py:234
+           INFO     (10) Opening image:                            entry.py:235
+                    'MX-M3658N_20260731_162311_010.png'                        
+                    Resolution: (1682, 1190)                                   
+           INFO     Thresholding:   global_thr: 200                 core.py:649
+                    global_std_THR: 200                                        
+           INFO     Saving Image to                                 image.py:24
+                    'outputs_inputs_10_weak_fill_adaptive_v7\Checke            
+                    dOMRs\MX-M3658N_20260731_162311_010.png'                   
+           INFO     Read Response:                                 entry.py:289
+                    {'id7': '4', 'id3': '7', 'q3': 'B', 'id4':                 
+                    '5', 'id1': '3', 'id5': '4', 'q9': 'ACD',                  
+                    'q1': 'A', 'id6': '7', 'id2': '2', 'q10':                  
+                    'AC', 'q7': 'A', 'q6': 'B', 'q8': 'D', 'q5':               
+                    'B', 'id8': '8', 'q11': 'BD', 'q2': 'A', 'q4':             
+                    'C'}                                                       
+           INFO     (/10) Processed file:                          entry.py:303
+                    'MX-M3658N_20260731_162311_010.png'                        
+           INFO                                                    entry.py:397
+           INFO     Total file(s) moved        : 0                 entry.py:398
+           INFO     Total file(s) not moved    : 10                entry.py:399
+           INFO     --------------------------------               entry.py:400
+           INFO     Total file(s) processed    : 10 (Sum Tallied!) entry.py:401
+           INFO                                                    entry.py:406
+                    Finished Checking 10 file(s) in 2.2 seconds                
+                    i.e. ~0.0 minute(s).                                       
+           INFO     OMR Processing Rate        :     ~ 0.23        entry.py:409
+                    seconds/OMR                                                
+           INFO     OMR Processing Speed       :     ~ 266.67      entry.py:412
+                    OMRs/minute                                                
+           INFO                                                    entry.py:419
+                    Tip: To see some awesome visuals, open                     
+                    config.json and increase 'show_image_level'                

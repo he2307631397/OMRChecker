@@ -6,6 +6,8 @@
 # Everything in inputs/ and outputs/
 inputs/*
 outputs/*
+service_data/*
+outputs_*/
 
 # Misc
 **/.DS_Store

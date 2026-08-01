@@ -1,0 +1,53 @@
+{
+  "dimensions": {
+    "display_height": 1682,
+    "display_width": 1190,
+    "processing_height": 1682,
+    "processing_width": 1190
+  },
+  "outputs": {
+    "show_image_level": 0,
+    "save_image_level": 0,
+    "save_detections": true
+  },
+  "threshold_params": {
+    "GAMMA_LOW": 0.7,
+    "MIN_GAP": 30,
+    "MIN_JUMP": 25,
+    "CONFIDENT_SURPLUS": 5,
+    "JUMP_DELTA": 30,
+    "PAGE_TYPE_FOR_THRESHOLD": "white"
+  },
+  "alignment_params": {
+    "auto_align": true
+  },
+  "pdf_params": {
+    "pdf_dpi": 144,
+    "pdf_page": 1
+  },
+  "weak_mark_params": {
+    "enabled": true,
+    "min_gap": 10,
+    "max_mean": 215,
+    "supported_field_types": [
+      "QTYPE_MCQ4"
+    ],
+    "exclude_labels": [
+      "q9",
+      "q10",
+      "q11"
+    ]
+  },
+  "weak_multi_mark_params": {
+    "enabled": true,
+    "labels": [
+      "q9",
+      "q10",
+      "q11"
+    ],
+    "only_when_blank": true,
+    "min_delta_from_blank": 10,
+    "max_mean": 218,
+    "max_marks": 4
+  }
+}

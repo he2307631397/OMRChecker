@@ -71,6 +71,141 @@ CONFIG_SCHEMA = {
                 },
             },
         },
+        "weak_mark_params": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "min_gap": {"type": "number", "minimum": 0, "maximum": 100},
+                "min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "adaptive_min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "min_delta_from_page_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "min_page_z_score": {"type": "number", "minimum": 0, "maximum": 20},
+                "min_dark_pixel_ratio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "resolve_single_choice_conflicts": {"type": "boolean"},
+                "conflict_min_gap": {"type": "number", "minimum": 0, "maximum": 100},
+                "conflict_min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "max_mean": {"type": "number", "minimum": 0, "maximum": 255},
+                "supported_field_types": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                },
+                "exclude_labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+        },
+        "weak_identifier_params": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "exclude_labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "min_gap": {"type": "number", "minimum": 0, "maximum": 100},
+                "min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "adaptive_min_gap": {"type": "number", "minimum": 0, "maximum": 100},
+                "adaptive_min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "min_page_z_score": {"type": "number", "minimum": 0, "maximum": 20},
+                "min_dark_pixel_ratio": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "max_mean": {"type": "number", "minimum": 0, "maximum": 255},
+                "adaptive_max_mean": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 255,
+                },
+                "supported_field_types": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 1,
+                },
+            },
+        },
+        "weak_multi_mark_params": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "labels": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "only_when_blank": {"type": "boolean"},
+                "min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "max_mean": {"type": "number", "minimum": 0, "maximum": 255},
+                "max_marks": {"type": "integer", "minimum": 1, "maximum": 10},
+                "full_select_fallback_enabled": {"type": "boolean"},
+                "full_select_max_mean": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 255,
+                },
+                "full_select_min_delta_from_blank": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+                "full_select_max_spread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                },
+            },
+        },
         "outputs": {
             "type": "object",
             "additionalProperties": False,

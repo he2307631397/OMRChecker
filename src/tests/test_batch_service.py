@@ -7,7 +7,7 @@ import numpy as np
 from src.services.batch_models import BatchRecognitionRequest, BatchSheetRequest
 from src.services.batch_models import ArtifactPayload
 from src.services.cos_client import LocalCosClient
-from src.services.service_config import ArchiveRegionConfig, ServiceConfig, StorageConfig
+from src.services.service_config import ArchiveRegionConfig, RecognitionConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
 from src.services.batch_service import BatchRecognitionService, RecognitionOutput
 
@@ -18,12 +18,19 @@ def _make_store(tmp_path: Path) -> TaskStore:
     return store
 
 
-def _make_config(tmp_path: Path, *, regions: list[ArchiveRegionConfig] | None = None, template_dir: Path | None = None) -> ServiceConfig:
+def _make_config(
+    tmp_path: Path,
+    *,
+    regions: list[ArchiveRegionConfig] | None = None,
+    template_dir: Path | None = None,
+    debug_artifacts: bool = False,
+) -> ServiceConfig:
     return ServiceConfig(
         storage=StorageConfig(
             service_data_dir=tmp_path / "service_data",
             template_dir=template_dir or (tmp_path / "templates"),
         ),
+        recognition=RecognitionConfig(debug_artifacts=debug_artifacts),
         archive_regions=regions or [],
     )
 
@@ -97,7 +104,7 @@ def test_process_batch_downloads_runs_uploads_artifacts_and_marks_completed(tmp_
     service = BatchRecognitionService(
         store=store,
         object_storage=cos,
-        config=_make_config(tmp_path, regions=regions),
+        config=_make_config(tmp_path, regions=regions, debug_artifacts=True),
         recognition_runner=fake_runner,
         task_id_factory=lambda: "task-1",
     )
@@ -206,7 +213,7 @@ def test_artifact_upload_failure_is_non_fatal_and_reflected_in_result_metadata(t
     service = BatchRecognitionService(
         store=store,
         object_storage=UploadFailingCos(source_cos),
-        config=_make_config(tmp_path, regions=regions),
+        config=_make_config(tmp_path, regions=regions, debug_artifacts=True),
         recognition_runner=fake_runner,
         task_id_factory=lambda: "task-1",
     )
@@ -290,7 +297,7 @@ def test_task_workdir_template_dependency_copying_includes_reference_png(tmp_pat
     service = BatchRecognitionService(
         store=store,
         object_storage=cos,
-        config=_make_config(tmp_path, template_dir=template_dir),
+        config=_make_config(tmp_path, template_dir=template_dir, debug_artifacts=True),
         recognition_runner=fake_runner,
         task_id_factory=lambda: "task-1",
     )
@@ -497,3 +504,97 @@ def test_callback_exception_is_recorded_without_failing_batch(tmp_path: Path) ->
     attempt = store.list_callback_attempts("task-1")[0]
     assert attempt["success"] is False
     assert attempt["error"] == "callback down"
+
+
+def _runner_that_writes_process_files(context):
+    context.workdir.mkdir(parents=True, exist_ok=True)
+    source_dir = context.workdir / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = context.workdir / "output" / "CheckedOMRs"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checked_image = output_dir / f"{context.sheet.sheet_id}.png"
+    _write_image(checked_image)
+    process_file = context.workdir / "output" / "process-debug.txt"
+    process_file.write_text("debug", encoding="utf-8")
+    return RecognitionOutput(
+        result={"answers": {"Q1": "A"}, "checkedImagePath": str(checked_image)},
+        checked_image_path=checked_image,
+    )
+
+
+def test_process_batch_cleans_sheet_workdirs_by_default(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=_runner_that_writes_process_files,
+        task_id_factory=lambda: "task-1",
+    )
+    submitted = service.submit_batch(_make_request())
+
+    result = service.process_batch(submitted.task_id)
+
+    assert result.status == "completed"
+    sheet_workdir = tmp_path / "service_data" / "tasks" / submitted.task_id / "sheets" / "sheet-1"
+    assert not sheet_workdir.exists()
+    assert result.sheets[0].result["checkedImageOsskey"].startswith("checked/")
+
+
+def test_process_batch_preserves_sheet_workdirs_when_request_debug_artifacts_true(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=_runner_that_writes_process_files,
+        task_id_factory=lambda: "task-1",
+    )
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "externalBatchId": "external-batch-1",
+            "callbackUrl": "https://callback.example.test/omr",
+            "recognitionConfig": {"debugArtifacts": True},
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    submitted = service.submit_batch(request)
+
+    result = service.process_batch(submitted.task_id)
+
+    assert result.status == "completed"
+    sheet_workdir = tmp_path / "service_data" / "tasks" / submitted.task_id / "sheets" / "sheet-1"
+    assert (sheet_workdir / "output" / "process-debug.txt").exists()
+
+
+def test_process_batch_request_false_cleans_when_service_config_preserves(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, debug_artifacts=True),
+        recognition_runner=_runner_that_writes_process_files,
+        task_id_factory=lambda: "task-1",
+    )
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "externalBatchId": "external-batch-1",
+            "callbackUrl": "https://callback.example.test/omr",
+            "recognitionConfig": {"debugArtifacts": False},
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    submitted = service.submit_batch(request)
+
+    service.process_batch(submitted.task_id)
+
+    sheet_workdir = tmp_path / "service_data" / "tasks" / submitted.task_id / "sheets" / "sheet-1"
+    assert not sheet_workdir.exists()

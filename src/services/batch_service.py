@@ -88,6 +88,8 @@ class BatchRecognitionService:
     def process_batch(self, task_id: str) -> BatchRecognitionResult:
         batch = self._require_batch(task_id)
         request = BatchRecognitionRequest.from_api_json(batch["request_json"])
+        preserve_debug_artifacts = self._should_preserve_debug_artifacts(request)
+        sheet_workdirs: dict[str, Path] = {}
         self.store.update_batch_status(task_id, "running")
 
         any_artifact_errors = False
@@ -100,6 +102,7 @@ class BatchRecognitionService:
                 result_json={},
             )
             workdir = self._sheet_workdir(task_id, sheet_request.sheet_id)
+            sheet_workdirs[sheet_request.sheet_id] = workdir
             try:
                 source_path = workdir / "source" / Path(sheet_request.osskey).name
                 self.object_storage.download_file(sheet_request.osskey, source_path)
@@ -172,9 +175,44 @@ class BatchRecognitionService:
         status = self._compute_batch_status(task_id, artifact_errors=any_artifact_errors)
         result = self._result_from_store(task_id, status=status)
         self.store.update_batch_status(task_id, status, result_json=result.to_callback_dict())
+        if not preserve_debug_artifacts:
+            self._cleanup_sheet_workdirs(task_id, sheet_workdirs)
         final_result = self._result_from_store(task_id)
         self._send_callback_if_configured(batch, final_result)
         return final_result
+
+    def _should_preserve_debug_artifacts(self, request: BatchRecognitionRequest) -> bool:
+        if request.debug_artifacts is not None:
+            return request.debug_artifacts
+        return self.config.recognition.debug_artifacts
+
+    def _cleanup_sheet_workdirs(self, task_id: str, sheet_workdirs: dict[str, Path]) -> None:
+        for sheet_id, workdir in sheet_workdirs.items():
+            try:
+                shutil.rmtree(workdir)
+            except FileNotFoundError:
+                continue
+            except Exception as exc:  # noqa: BLE001 - cleanup must not fail recognition.
+                self._record_cleanup_error(task_id, sheet_id, str(exc))
+
+    def _record_cleanup_error(self, task_id: str, sheet_id: str, error: str) -> None:
+        sheet = next((item for item in self.store.list_sheets(task_id) if item["sheet_id"] == sheet_id), None)
+        if sheet is None:
+            return
+        result_json = sheet.get("result_json") or {}
+        if isinstance(result_json, dict):
+            stored_result = dict(result_json)
+            stored_result["artifactCleanupError"] = error
+        else:
+            stored_result = {"result": result_json, "artifactCleanupError": error}
+        self.store.update_sheet(
+            task_id=task_id,
+            sheet_id=sheet_id,
+            source_osskey=sheet["source_osskey"],
+            status=sheet["status"],
+            result_json=stored_result,
+            error=sheet.get("error"),
+        )
 
     def _send_callback_if_configured(self, batch: dict, result: BatchRecognitionResult) -> None:
         if self.callback_client is None or not batch.get("callback_url"):

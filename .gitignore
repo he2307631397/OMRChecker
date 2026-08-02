@@ -19,3 +19,4 @@ OMRChecker.wiki/
 config/robyn-service.json
 service_data/*.db
 service_data/*.db-*
+.codegraph/

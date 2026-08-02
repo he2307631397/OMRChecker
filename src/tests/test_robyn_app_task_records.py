@@ -299,3 +299,109 @@ def test_create_task_accepts_file_only_multipart_without_metadata(monkeypatch, t
     assert response["external_task_id"] is None
     assert response["batch_id"] is None
     assert stored_task["callback"] == robyn_app._make_callback_state(None)
+
+
+class FakeRunResult:
+    def to_dict(self):
+        return {
+            "results_csv": "service_data/tasks/task-1/output/Results/Results_10AM.csv",
+            "count": 1,
+            "results": [{"file_id": "checked.png"}],
+        }
+
+
+class CompletedFuture:
+    def __init__(self, result=None, error=None):
+        self._result = result
+        self._error = error
+
+    def result(self):
+        if self._error:
+            raise self._error
+        return self._result
+
+
+def test_complete_task_records_completed_terminal_payload(monkeypatch):
+    monkeypatch.setattr(robyn_app, "_deliver_callback", lambda task: None)
+    robyn_app._TASKS.clear()
+    robyn_app._TASKS["task-1"] = {
+        "task_id": "task-1",
+        "status": "queued",
+        "created_at": "created",
+        "updated_at": "created",
+        "started_at": None,
+        "completed_at": None,
+        "output_dir": "service_data/tasks/task-1/output",
+        "callback": robyn_app._make_callback_state(None),
+        "result": None,
+        "error": None,
+    }
+
+    robyn_app._complete_task("task-1", CompletedFuture(result=FakeRunResult()))
+
+    task = robyn_app._TASKS["task-1"]
+    assert task["status"] == "completed"
+    assert task["completed_at"] is not None
+    assert task["updated_at"] == task["completed_at"]
+    assert task["result"]["results"][0]["checked_image_url"] == "/api/omr/tasks/task-1/checked-image/checked.png"
+    payload = robyn_app._terminal_task_payload(task)
+    assert payload["status"] == "completed"
+    assert payload["result"]["count"] == 1
+    assert "future" not in payload
+
+
+def test_complete_task_records_failed_terminal_payload(monkeypatch):
+    monkeypatch.setattr(robyn_app, "_deliver_callback", lambda task: None)
+    robyn_app._TASKS.clear()
+    robyn_app._TASKS["task-2"] = {
+        "task_id": "task-2",
+        "status": "queued",
+        "created_at": "created",
+        "updated_at": "created",
+        "started_at": None,
+        "completed_at": None,
+        "output_dir": "service_data/tasks/task-2/output",
+        "callback": robyn_app._make_callback_state(None),
+        "result": None,
+        "error": None,
+    }
+
+    robyn_app._complete_task("task-2", CompletedFuture(error=RuntimeError("boom")))
+
+    task = robyn_app._TASKS["task-2"]
+    assert task["status"] == "failed"
+    assert task["completed_at"] is not None
+    assert task["updated_at"] == task["completed_at"]
+    assert task["error"] == "boom"
+    payload = robyn_app._terminal_task_payload(task)
+    assert payload["status"] == "failed"
+    assert payload["result"] is None
+    assert payload["error"] == "boom"
+
+
+def test_complete_task_delivers_callback_after_releasing_task_lock(monkeypatch):
+    delivered = []
+    robyn_app._TASKS.clear()
+    robyn_app._TASKS["task-3"] = {
+        "task_id": "task-3",
+        "status": "queued",
+        "created_at": "created",
+        "updated_at": "created",
+        "started_at": None,
+        "completed_at": None,
+        "output_dir": "service_data/tasks/task-3/output",
+        "callback": robyn_app._make_callback_state("https://example.com/callback"),
+        "result": None,
+        "error": None,
+    }
+
+    def deliver(task):
+        assert robyn_app._TASK_LOCK.acquire(blocking=False)
+        robyn_app._TASK_LOCK.release()
+        delivered.append(task["task_id"])
+
+    monkeypatch.setattr(robyn_app, "_deliver_callback", deliver)
+
+    robyn_app._complete_task("task-3", CompletedFuture(result=FakeRunResult()))
+
+    assert delivered == ["task-3"]

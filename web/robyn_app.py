@@ -309,11 +309,14 @@ def _get_task(task_id: str) -> dict[str, Any] | None:
 
 
 def _complete_task(task_id: str, future: Future) -> None:
+    task_for_callback: dict[str, Any] | None = None
     with _TASK_LOCK:
         task = _TASKS.get(task_id)
         if task is None:
             return
-        task["updated_at"] = _now_iso()
+        completed_at = _now_iso()
+        task["updated_at"] = completed_at
+        task["completed_at"] = completed_at
         try:
             result = future.result()
             result_dict = result.to_dict()
@@ -328,6 +331,16 @@ def _complete_task(task_id: str, future: Future) -> None:
         except Exception as exc:
             task["status"] = "failed"
             task["error"] = str(exc)
+        task_for_callback = task
+    _deliver_callback(task_for_callback)
+
+
+def _deliver_callback(task: dict[str, Any]) -> None:
+    """Task 4 no-op hook. Task 5 implements real callback delivery."""
+
+
+def _terminal_task_payload(task: dict[str, Any]) -> dict[str, Any]:
+    return _public_task(task)
 
 
 def _public_task(task: dict[str, Any]) -> dict[str, Any]:

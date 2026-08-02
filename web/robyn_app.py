@@ -162,16 +162,17 @@ def _extract_file_bytes(file_content: Any) -> bytes:
 def _extract_request_metadata(request: Request) -> dict[str, str | None]:
     payload: dict[str, Any] = {}
 
-    body = getattr(request, "body", None)
-    if body:
-        json_payload = request.json()
-        if isinstance(json_payload, dict):
-            payload.update(json_payload)
-
     for form_attr in ("form_data", "form"):
         form_payload = getattr(request, form_attr, None)
         if form_payload:
             payload.update(dict(form_payload))
+
+    if not payload:
+        body = getattr(request, "body", None)
+        if body:
+            json_payload = request.json()
+            if isinstance(json_payload, dict):
+                payload.update(json_payload)
 
     metadata = {
         "callback_url": _clean_optional_string(payload.get("callback_url")),

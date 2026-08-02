@@ -4,15 +4,18 @@ from web.robyn_app import _extract_request_metadata, _make_callback_state
 
 
 class DummyRequest:
-    def __init__(self, body=None, json_payload=None, form_data=None, form=None):
+    def __init__(self, body=None, json_payload=None, form_data=None, form=None, json_error=None):
         self.body = body
         self._json_payload = json_payload
+        self._json_error = json_error
         if form_data is not None:
             self.form_data = form_data
         if form is not None:
             self.form = form
 
     def json(self):
+        if self._json_error is not None:
+            raise self._json_error
         return self._json_payload
 
 
@@ -50,6 +53,26 @@ def test_extract_request_metadata_from_form_data_returns_optional_task_fields():
         "callback_url": "http://example.com/callback",
         "external_task_id": "ext-789",
         "batch_id": "batch-012",
+    }
+
+
+def test_extract_request_metadata_from_form_data_with_non_json_body_returns_optional_task_fields():
+    request = DummyRequest(
+        body=b"------WebKitFormBoundary\r\nform-data",
+        json_error=ValueError("not json"),
+        form_data={
+            "callback_url": "https://example.com/form-callback",
+            "external_task_id": "form-ext-123",
+            "batch_id": "form-batch-456",
+        },
+    )
+
+    metadata = _extract_request_metadata(request)
+
+    assert metadata == {
+        "callback_url": "https://example.com/form-callback",
+        "external_task_id": "form-ext-123",
+        "batch_id": "form-batch-456",
     }
 
 

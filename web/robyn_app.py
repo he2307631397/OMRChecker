@@ -10,6 +10,7 @@ so it can be tested without Robyn and reused by other front ends.
 import os
 import sys
 from concurrent.futures import Future, ThreadPoolExecutor
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -156,6 +157,52 @@ def _extract_file_bytes(file_content: Any) -> bytes:
     if hasattr(file_content, "body"):
         return bytes(file_content.body)
     raise TypeError(f"Unsupported uploaded file object: {type(file_content)!r}")
+
+
+def _extract_request_metadata(request: Request) -> dict[str, str | None]:
+    payload: dict[str, Any] = {}
+
+    body = getattr(request, "body", None)
+    if body:
+        json_payload = request.json()
+        if isinstance(json_payload, dict):
+            payload.update(json_payload)
+
+    for form_attr in ("form_data", "form"):
+        form_payload = getattr(request, form_attr, None)
+        if form_payload:
+            payload.update(dict(form_payload))
+
+    metadata = {
+        "callback_url": _clean_optional_string(payload.get("callback_url")),
+        "external_task_id": _clean_optional_string(payload.get("external_task_id")),
+        "batch_id": _clean_optional_string(payload.get("batch_id")),
+    }
+
+    callback_url = metadata["callback_url"]
+    if callback_url is not None:
+        parsed_url = urlparse(callback_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            raise ValueError("callback_url must start with http:// or https://")
+
+    return metadata
+
+
+def _clean_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
+def _make_callback_state(callback_url: str | None) -> dict[str, Any]:
+    return {
+        "url": callback_url,
+        "status": "pending" if callback_url else "disabled",
+        "attempts": 0,
+        "last_error": None,
+        "last_attempt_at": None,
+    }
 
 
 def output_safe_task_id() -> str:

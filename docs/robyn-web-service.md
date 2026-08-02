@@ -9,6 +9,8 @@ This branch adds a Web-service layer for OMRChecker so a Java platform can submi
 - Use asynchronous task submission so Java requests are not blocked by CPU/IO-heavy PDF recognition.
 - Return JSON rows, CSV download links, and checked image download links.
 - Keep uploaded files and generated outputs isolated per task.
+- Support optional callback delivery for long-running recognition tasks.
+- Support task execution record queries for compensation and audit.
 
 ## Architecture
 
@@ -64,11 +66,19 @@ Content-Type: multipart/form-data
 
 Use one file field. The field name is used as the saved file name.
 
+Optional fields:
+
+- `callback_url`: completion callback endpoint. If supplied, the service posts the terminal task payload to this URL.
+- `external_task_id`: caller-side task ID returned in task responses and callbacks.
+- `batch_id`: caller-side batch ID used by task list filtering.
+
 Response:
 
 ```json
 {
   "task_id": "a1b2c3...",
+  "external_task_id": "java-task-001",
+  "batch_id": "batch-20260802-001",
   "status": "queued",
   "links": {
     "self": "/api/omr/tasks/a1b2c3..."
@@ -116,6 +126,63 @@ Completed response shape:
       }
     ]
   }
+}
+```
+
+### Query task execution records
+
+```http
+GET /api/omr/tasks?status=completed&batch_id=batch-20260802-001&limit=50&offset=0
+```
+
+Response:
+
+```json
+{
+  "total": 1,
+  "limit": 50,
+  "offset": 0,
+  "tasks": [
+    {
+      "task_id": "a1b2c3...",
+      "external_task_id": "java-task-001",
+      "batch_id": "batch-20260802-001",
+      "status": "completed",
+      "created_at": "2026-08-02T03:20:00Z",
+      "updated_at": "2026-08-02T03:25:00Z",
+      "completed_at": "2026-08-02T03:25:00Z",
+      "result_count": 1,
+      "callback_status": "delivered",
+      "links": {
+        "self": "/api/omr/tasks/a1b2c3..."
+      }
+    }
+  ]
+}
+```
+
+### Callback payload
+
+When `callback_url` is supplied, the service posts the terminal task payload after completion or failure. The payload matches `GET /api/omr/tasks/{task_id}` and includes caller metadata and callback delivery state.
+
+```json
+{
+  "task_id": "a1b2c3...",
+  "external_task_id": "java-task-001",
+  "batch_id": "batch-20260802-001",
+  "status": "completed",
+  "callback": {
+    "url": "https://java.example.com/omr/callback",
+    "status": "pending",
+    "attempts": 1,
+    "last_error": null,
+    "last_attempt_at": "2026-08-02T03:25:00Z"
+  },
+  "result": {
+    "count": 1,
+    "results": []
+  },
+  "error": null
 }
 ```
 

@@ -498,3 +498,30 @@ def test_deliver_callback_posts_independent_payload_snapshots():
     assert first_payload["callback"]["last_error"] is None
     assert second_payload["callback"]["attempts"] == 2
     assert second_payload["callback"]["last_error"] == "HTTP 500"
+
+
+def test_health_response_remains_compatible():
+    response = robyn_app.health()
+
+    assert response["status"] == "ok"
+    assert response["service"] == "omrchecker-robyn"
+    assert "workers" in response
+    assert "template_dir" in response
+
+
+def test_public_task_hides_future_and_reports_running_status():
+    class RunningFuture:
+        def running(self):
+            return True
+
+    public = robyn_app._public_task(
+        {
+            "task_id": "task-1",
+            "status": "queued",
+            "future": RunningFuture(),
+            "result": None,
+        }
+    )
+
+    assert public["status"] == "running"
+    assert "future" not in public

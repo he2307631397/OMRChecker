@@ -199,6 +199,35 @@ Alternatively you can also use `python3 main.py -i ./samples/sample1`.
 
 Each example in the samples folder demonstrates different ways in which OMRChecker can be used.
 
+### 4. Run the Robyn web service
+
+The Robyn service exposes OMR recognition as an HTTP API for async task submission, polling, task-record queries, and optional callbacks.
+
+Install dependencies first, then start the service from the project root:
+
+```bash
+python3 -m pip install --user -r requirements.txt
+python3 web/robyn_app.py
+```
+
+By default, the service listens on port `8080`. You can override the port and service paths with environment variables:
+
+```bash
+OMR_SERVICE_PORT=8080 \
+OMR_SERVICE_WORKERS=1 \
+OMR_SERVICE_DATA_DIR=service_data \
+OMR_TEMPLATE_DIR=inputs \
+python3 web/robyn_app.py
+```
+
+Check that the service is running:
+
+```bash
+curl http://localhost:8080/health
+```
+
+See [docs/robyn-web-service.md](docs/robyn-web-service.md) for the full API contract.
+
 ### Common Issues
 
 <details>

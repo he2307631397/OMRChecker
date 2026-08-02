@@ -33,7 +33,7 @@ from src.services.omr_service import (
     run_omr_directory,
 )
 from src.services.batch_models import BatchRecognitionRequest, render_callback_payload_from_records
-from src.services.batch_service import BatchRecognitionService
+from src.services.batch_service import BatchRecognitionService, RecognitionContext, RecognitionOutput
 from src.services.cos_client import build_cos_client
 from src.services.service_config import load_service_config
 from src.services.task_store import TaskStore
@@ -92,8 +92,29 @@ def _build_batch_service() -> BatchRecognitionService:
         store=store,
         object_storage=build_cos_client(config.cos),
         config=config,
+        recognition_runner=_run_batch_omr,
         callback_client=HttpCallbackClient(timeout_seconds=config.callback.timeout_seconds),
     )
+
+
+def _run_batch_omr(context: RecognitionContext) -> RecognitionOutput:
+    output_dir = context.workdir / "output"
+    result = run_omr_directory(context.workdir, output_dir)
+    result_payload = result.rows[0] if len(result.rows) == 1 else result.to_dict()
+    checked_image_path = _checked_image_path_for_result(output_dir, result_payload)
+    if checked_image_path is not None and isinstance(result_payload, dict):
+        result_payload = dict(result_payload)
+        result_payload["checkedImagePath"] = str(checked_image_path)
+    return RecognitionOutput(result=result_payload, checked_image_path=checked_image_path)
+
+
+def _checked_image_path_for_result(output_dir: Path, result_payload: dict[str, Any] | Any) -> Path | None:
+    if not isinstance(result_payload, dict):
+        return None
+    file_id = result_payload.get("file_id")
+    if not file_id:
+        return None
+    return get_checked_image_path(output_dir, str(file_id))
 
 
 _BATCH_SERVICE = _build_batch_service()

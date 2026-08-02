@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import web.robyn_app as robyn_app
+from src.services.batch_models import BatchRecognitionRequest
 from src.services.batch_service import BatchRecognitionService, RecognitionOutput
 from src.services.cos_client import LocalCosClient
-from src.services.service_config import ServiceConfig, StorageConfig
+from src.services.omr_service import OmrRunResult
+from src.services.service_config import DatabaseConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
 
 
@@ -164,3 +166,44 @@ def test_batch_task_alias_uses_same_submit_handler(monkeypatch, tmp_path):
 
     assert response["taskId"] == "batch-task-1"
     assert response["examId"] == "exam-1"
+
+
+def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
+    cos_root = tmp_path / "cos"
+    (cos_root / "incoming").mkdir(parents=True)
+    (cos_root / "incoming" / "sheet-1.png").write_bytes(b"fake-image")
+    service_config = ServiceConfig(
+        storage=StorageConfig(
+            service_data_dir=tmp_path / "service_data",
+            template_dir=tmp_path / "templates",
+        ),
+        database=DatabaseConfig(url=f"sqlite:///{tmp_path / 'omr_service.db'}"),
+    )
+    runner_calls = []
+
+    def fake_run_omr_directory(input_dir, output_dir):
+        runner_calls.append((Path(input_dir), Path(output_dir)))
+        checked_image = Path(output_dir) / "CheckedOMRs" / "sheet-1.png"
+        checked_image.parent.mkdir(parents=True)
+        checked_image.write_bytes(b"checked")
+        return OmrRunResult(
+            input_dir=Path(input_dir),
+            output_dir=Path(output_dir),
+            results_csv=None,
+            rows=[{"file_id": "sheet-1.png", "answers": {"q1": "A"}}],
+        )
+
+    monkeypatch.setattr(robyn_app, "load_service_config", lambda: service_config)
+    monkeypatch.setattr(robyn_app, "build_cos_client", lambda _config: LocalCosClient(cos_root))
+    monkeypatch.setattr(robyn_app, "run_omr_directory", fake_run_omr_directory)
+
+    service = robyn_app._build_batch_service()
+    service.task_id_factory = lambda: "batch-task-1"
+    service.submit_batch(BatchRecognitionRequest.from_api_json(_payload()))
+
+    result = service.process_batch("batch-task-1")
+
+    assert result.status == "completed"
+    assert result.sheets[0].result["answers"] == {"q1": "A"}
+    assert result.sheets[0].result["checkedImagePath"].endswith("CheckedOMRs/sheet-1.png")
+    assert len(runner_calls) == 1

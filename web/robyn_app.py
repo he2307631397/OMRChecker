@@ -60,16 +60,23 @@ def create_task(request: Request) -> dict[str, Any]:
     """
 
     try:
+        metadata = _extract_request_metadata(request)
         input_dir, output_dir, upload_name = _prepare_task_input(request)
         task_id = output_dir.parent.name
+        now = _now_iso()
         future = _EXECUTOR.submit(run_omr_directory, input_dir, output_dir)
         _store_task(
             task_id,
             {
                 "task_id": task_id,
                 "status": "queued",
-                "created_at": _now_iso(),
-                "updated_at": _now_iso(),
+                "created_at": now,
+                "updated_at": now,
+                "started_at": None,
+                "completed_at": None,
+                "external_task_id": metadata["external_task_id"],
+                "batch_id": metadata["batch_id"],
+                "callback": _make_callback_state(metadata["callback_url"]),
                 "input_dir": str(input_dir),
                 "output_dir": str(output_dir),
                 "upload_name": upload_name,
@@ -82,12 +89,29 @@ def create_task(request: Request) -> dict[str, Any]:
         return {
             "task_id": task_id,
             "status": "queued",
+            "external_task_id": metadata["external_task_id"],
+            "batch_id": metadata["batch_id"],
             "links": {
                 "self": f"/api/omr/tasks/{task_id}",
             },
         }
     except Exception as exc:  # Robyn will serialize this response for clients.
         return {"status": "failed", "error": str(exc)}
+
+
+@app.get("/api/omr/tasks")
+def get_tasks(request: Request) -> dict[str, Any]:
+    query_params = getattr(request, "query_params", None) or getattr(request, "queries", None) or {}
+    filters = {
+        "status": _clean_optional_string(query_params.get("status")),
+        "batch_id": _clean_optional_string(query_params.get("batch_id")),
+        "external_task_id": _clean_optional_string(query_params.get("external_task_id")),
+    }
+    limit = _positive_int(query_params.get("limit"), default=100)
+    offset = _nonnegative_int(query_params.get("offset"), default=0)
+    with _TASK_LOCK:
+        tasks = list(_TASKS.values())
+    return _list_tasks_response(tasks, filters=filters, limit=limit, offset=offset)
 
 
 @app.get("/api/omr/tasks/:task_id")
@@ -194,6 +218,22 @@ def _clean_optional_string(value: Any) -> str | None:
         return None
     cleaned = str(value).strip()
     return cleaned or None
+
+
+def _positive_int(value: Any, *, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _nonnegative_int(value: Any, *, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
 
 
 def _make_callback_state(callback_url: str | None) -> dict[str, Any]:

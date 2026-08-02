@@ -5,10 +5,19 @@ from web.robyn_app import _extract_request_metadata, _make_callback_state
 
 
 class DummyRequest:
-    def __init__(self, body=None, json_payload=None, form_data=None, form=None, json_error=None):
+    def __init__(
+        self,
+        body=None,
+        json_payload=None,
+        form_data=None,
+        form=None,
+        json_error=None,
+        query_params=None,
+    ):
         self.body = body
         self._json_payload = json_payload
         self._json_error = json_error
+        self.query_params = query_params or {}
         if form_data is not None:
             self.form_data = form_data
         if form is not None:
@@ -171,3 +180,89 @@ def test_list_tasks_response_filters_and_paginates():
     assert response["limit"] == 1
     assert response["offset"] == 1
     assert [task["task_id"] for task in response["tasks"]] == ["task-3"]
+
+
+class StubFuture:
+    def __init__(self):
+        self.done_callback = None
+
+    def add_done_callback(self, callback):
+        self.done_callback = callback
+
+    def running(self):
+        return False
+
+
+def test_get_tasks_lists_current_registry_and_filters_by_status(monkeypatch):
+    monkeypatch.setattr(
+        robyn_app,
+        "_TASKS",
+        {
+            "task-queued": {
+                "task_id": "task-queued",
+                "status": "queued",
+                "created_at": "2026-08-02T03:30:00Z",
+                "updated_at": "2026-08-02T03:30:00Z",
+                "completed_at": None,
+                "external_task_id": "external-queued",
+                "batch_id": "batch-1",
+                "callback": {"status": "pending"},
+                "result": None,
+            },
+            "task-completed": {
+                "task_id": "task-completed",
+                "status": "completed",
+                "created_at": "2026-08-02T03:31:00Z",
+                "updated_at": "2026-08-02T03:32:00Z",
+                "completed_at": None,
+                "external_task_id": "external-completed",
+                "batch_id": "batch-1",
+                "callback": {"status": "disabled"},
+                "result": {"count": 2},
+            },
+        },
+    )
+
+    unfiltered = robyn_app.get_tasks(DummyRequest())
+    filtered = robyn_app.get_tasks(DummyRequest(query_params={"status": "completed"}))
+
+    assert unfiltered["total"] == 2
+    assert {task["task_id"] for task in unfiltered["tasks"]} == {"task-queued", "task-completed"}
+    assert filtered["total"] == 1
+    assert [task["task_id"] for task in filtered["tasks"]] == ["task-completed"]
+
+
+def test_create_task_response_and_stored_record_include_external_metadata(monkeypatch, tmp_path):
+    future = StubFuture()
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "tasks" / "task-from-output-dir" / "output"
+    input_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    monkeypatch.setattr(robyn_app, "_TASKS", {})
+    monkeypatch.setattr(
+        robyn_app,
+        "_prepare_task_input",
+        lambda request: (input_dir, output_dir, "upload.pdf"),
+    )
+    monkeypatch.setattr(robyn_app._EXECUTOR, "submit", lambda *args, **kwargs: future)
+
+    response = robyn_app.create_task(
+        DummyRequest(
+            form_data={
+                "callback_url": "https://example.com/callback",
+                "external_task_id": "external-123",
+                "batch_id": "batch-123",
+            }
+        )
+    )
+
+    task_id = response["task_id"]
+    stored_task = robyn_app._TASKS[task_id]
+    assert response["status"] == "queued"
+    assert response["external_task_id"] == "external-123"
+    assert response["batch_id"] == "batch-123"
+    assert stored_task["external_task_id"] == "external-123"
+    assert stored_task["batch_id"] == "batch-123"
+    assert stored_task["callback"] == robyn_app._make_callback_state("https://example.com/callback")
+    assert stored_task["started_at"] is None
+    assert stored_task["completed_at"] is None

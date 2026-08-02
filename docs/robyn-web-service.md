@@ -148,9 +148,9 @@ Response:
       "external_task_id": "java-task-001",
       "batch_id": "batch-20260802-001",
       "status": "completed",
-      "created_at": "2026-08-02T03:20:00Z",
-      "updated_at": "2026-08-02T03:25:00Z",
-      "completed_at": "2026-08-02T03:25:00Z",
+      "created_at": "2026-08-02T03:20:00+00:00",
+      "updated_at": "2026-08-02T03:25:00+00:00",
+      "completed_at": "2026-08-02T03:25:00+00:00",
       "result_count": 1,
       "callback_status": "delivered",
       "links": {
@@ -176,7 +176,7 @@ When `callback_url` is supplied, the service posts the terminal task payload aft
     "status": "pending",
     "attempts": 1,
     "last_error": null,
-    "last_attempt_at": "2026-08-02T03:25:00Z"
+    "last_attempt_at": "2026-08-02T03:25:00+00:00"
   },
   "result": {
     "count": 1,

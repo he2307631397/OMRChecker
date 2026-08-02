@@ -4,7 +4,7 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Protocol, Sequence
 
 from .batch_models import (
     ArtifactPayload,
@@ -34,6 +34,7 @@ class RecognitionContext:
 
 
 RecognitionRunner = Callable[[RecognitionContext], RecognitionOutput]
+RegionArtifactGenerator = Callable[..., list[ArtifactPayload]]
 
 
 class CallbackClient(Protocol):
@@ -50,6 +51,7 @@ class BatchRecognitionService:
         config: ServiceConfig,
         recognition_runner: RecognitionRunner | None = None,
         callback_client: CallbackClient | None = None,
+        region_artifact_generator: RegionArtifactGenerator | None = None,
         task_id_factory: Callable[[], str] | None = None,
     ) -> None:
         self.store = store
@@ -57,6 +59,7 @@ class BatchRecognitionService:
         self.config = config
         self.recognition_runner = recognition_runner or _default_recognition_runner
         self.callback_client = callback_client
+        self.region_artifact_generator = region_artifact_generator or generate_region_artifacts
         self.task_id_factory = task_id_factory or (lambda: uuid.uuid4().hex)
 
     def submit_batch(self, request: BatchRecognitionRequest) -> BatchRecognitionResult:
@@ -115,7 +118,7 @@ class BatchRecognitionService:
 
                 artifact_errors = []
                 if output.checked_image_path is not None and self.config.archive_regions:
-                    local_artifacts = generate_region_artifacts(
+                    local_artifacts = self.region_artifact_generator(
                         output.checked_image_path,
                         self.config.archive_regions,
                         workdir / "region_artifacts",
@@ -148,7 +151,35 @@ class BatchRecognitionService:
         status = self._compute_batch_status(task_id, artifact_errors=any_artifact_errors)
         result = self._result_from_store(task_id, status=status)
         self.store.update_batch_status(task_id, status, result_json=result.to_callback_dict())
-        return self._result_from_store(task_id)
+        final_result = self._result_from_store(task_id)
+        self._send_callback_if_configured(batch, final_result)
+        return final_result
+
+    def _send_callback_if_configured(self, batch: dict, result: BatchRecognitionResult) -> None:
+        if self.callback_client is None or not batch.get("callback_url"):
+            return
+
+        payload = result.to_callback_dict()
+        try:
+            response = self.callback_client.send(payload)
+            response_data = response if isinstance(response, dict) else {}
+            self.store.add_callback_attempt(
+                task_id=result.task_id,
+                target_url=batch["callback_url"],
+                status_code=response_data.get("status_code"),
+                success=bool(response_data.get("success", True)),
+                error=response_data.get("error"),
+                request_json=payload,
+                response_text=response_data.get("response_text"),
+            )
+        except Exception as exc:  # noqa: BLE001 - callback failure must be recorded, not raised.
+            self.store.add_callback_attempt(
+                task_id=result.task_id,
+                target_url=batch["callback_url"],
+                success=False,
+                error=str(exc),
+                request_json=payload,
+            )
 
     def _upload_region_artifacts(
         self,

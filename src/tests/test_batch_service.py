@@ -5,6 +5,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from src.services.batch_models import BatchRecognitionRequest, BatchSheetRequest
+from src.services.batch_models import ArtifactPayload
 from src.services.cos_client import LocalCosClient
 from src.services.service_config import ArchiveRegionConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
@@ -225,3 +226,78 @@ def test_task_workdir_template_dependency_copying_includes_reference_png(tmp_pat
     assert copied_paths["reference"].is_file()
     assert copied_paths["config"].read_text(encoding="utf-8") == '{"dimensions": {}}'
     assert copied_paths["template"].read_text(encoding="utf-8") == '{"fields": []}'
+
+
+def test_process_batch_uses_injected_region_artifact_generator(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    generator_calls = []
+
+    def fake_runner(context):
+        checked_path = context.workdir / "checked.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"score": 88}, checked_image_path=checked_path)
+
+    def fake_region_generator(image_path, regions, output_dir, *, sheet_id=None, task_id=None):
+        generator_calls.append((image_path, list(regions), output_dir, sheet_id, task_id))
+        local_path = output_dir / "fake.png"
+        _write_image(local_path)
+        return [
+            ArtifactPayload(
+                artifact_type="region_screenshot",
+                osskey=str(local_path),
+                metadata={"localPath": str(local_path), "regionName": "fake"},
+            )
+        ]
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, regions=[ArchiveRegionConfig(region_code="r", region_name="区域", type="type", bbox=[1, 1, 2, 2])]),
+        recognition_runner=fake_runner,
+        region_artifact_generator=fake_region_generator,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    service.process_batch("task-1")
+
+    assert len(generator_calls) == 1
+    assert generator_calls[0][3:] == ("sheet-1", "task-1")
+    assert store.list_artifacts("task-1", sheet_id="sheet-1")[0]["osskey"] == "artifacts/task-1/sheet-1/fake.png"
+
+
+def test_process_batch_invokes_callback_client_and_records_attempt(tmp_path: Path) -> None:
+    class RecordingCallbackClient:
+        def __init__(self):
+            self.payloads = []
+
+        def send(self, payload):
+            self.payloads.append(payload)
+            return {"status_code": 202, "response_text": "accepted", "success": True}
+
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    callback_client = RecordingCallbackClient()
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=lambda context: RecognitionOutput(result={"ok": True}),
+        callback_client=callback_client,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    service.process_batch("task-1")
+
+    assert callback_client.payloads[0]["taskId"] == "task-1"
+    assert callback_client.payloads[0]["status"] == "completed"
+    attempts = store.list_callback_attempts("task-1")
+    assert attempts[0]["target_url"] == "https://callback.example.test/omr"
+    assert attempts[0]["status_code"] == 202
+    assert attempts[0]["success"] is True
+    assert attempts[0]["request_json"] == callback_client.payloads[0]

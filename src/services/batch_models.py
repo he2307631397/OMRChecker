@@ -37,6 +37,7 @@ class BatchRecognitionRequest:
     sheets: list[BatchSheetRequest]
     external_batch_id: str | None = None
     recognition_config: dict[str, Any] = field(default_factory=dict)
+    debug_artifacts: bool | None = None
 
     @classmethod
     def from_api_json(cls, payload: Any) -> "BatchRecognitionRequest":
@@ -51,6 +52,9 @@ class BatchRecognitionRequest:
             recognition_config = {}
         if not isinstance(recognition_config, dict):
             raise ValueError("recognitionConfig must be an object")
+        debug_artifacts = recognition_config.get("debugArtifacts")
+        if debug_artifacts is not None and not isinstance(debug_artifacts, bool):
+            raise ValueError("recognitionConfig.debugArtifacts must be a boolean")
 
         if "sheets" not in payload:
             raise ValueError("sheets is required")
@@ -64,6 +68,7 @@ class BatchRecognitionRequest:
             external_batch_id=external_batch_id,
             callback_url=callback_url,
             recognition_config=recognition_config,
+            debug_artifacts=debug_artifacts,
             sheets=sheets,
         )
 

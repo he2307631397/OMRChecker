@@ -207,3 +207,56 @@ def test_render_callback_payload_from_task_store_like_records_groups_sheet_artif
     assert payload["artifacts"] == [
         {"artifactType": "summary", "osskey": "artifacts/task-1/summary.json"}
     ]
+
+
+def test_batch_request_debug_artifacts_override_parses_true():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-001",
+            "callbackUrl": "https://example.test/callback",
+            "recognitionConfig": {"debugArtifacts": True},
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+
+    assert request.debug_artifacts is True
+    assert request.to_api_dict()["recognitionConfig"]["debugArtifacts"] is True
+
+
+def test_batch_request_debug_artifacts_override_parses_false():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-001",
+            "callbackUrl": "https://example.test/callback",
+            "recognitionConfig": {"debugArtifacts": False},
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+
+    assert request.debug_artifacts is False
+    assert request.to_api_dict()["recognitionConfig"]["debugArtifacts"] is False
+
+
+def test_batch_request_omits_recognition_config_when_no_override():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-001",
+            "callbackUrl": "https://example.test/callback",
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+
+    assert request.debug_artifacts is None
+    assert request.to_api_dict()["recognitionConfig"] == {}
+
+
+def test_batch_request_rejects_non_boolean_debug_artifacts():
+    with pytest.raises(ValueError, match="recognitionConfig.debugArtifacts"):
+        BatchRecognitionRequest.from_api_json(
+            {
+                "examId": "exam-001",
+                "callbackUrl": "https://example.test/callback",
+                "recognitionConfig": {"debugArtifacts": "true"},
+                "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+            }
+        )

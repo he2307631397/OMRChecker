@@ -127,6 +127,9 @@ Startup configuration can come from `config/robyn-service.json` or environment v
     "enabled": false,
     "localRoot": "service_data/cos_mock"
   },
+  "recognition": {
+    "debugArtifacts": false
+  },
   "archiveRegions": [
     {
       "regionCode": "exam_no",
@@ -178,6 +181,34 @@ Initial response:
 ```
 
 The service downloads each source `osskey`, copies template dependencies into an isolated work directory, runs OMR recognition, uploads the checked image, crops configured large regions from the checked image, uploads those region images, persists all records in SQLite, and posts the terminal callback.
+
+#### Debug artifacts
+
+Robyn API calls default to returning JSON recognition results without retaining local per-sheet process files. This keeps production service storage small and avoids treating intermediate debugging files as normal interface output.
+
+Enable local process-file retention only when troubleshooting recognition quality:
+
+```json
+{
+  "recognition": {
+    "debugArtifacts": true
+  }
+}
+```
+
+For a single batch, override the service default in the request:
+
+```json
+{
+  "examId": "exam-20260802-001",
+  "recognitionConfig": {"debugArtifacts": true},
+  "sheets": [
+    {"sheetId": "sheet-001", "osskey": "incoming/exam-20260802-001/sheet-001.png"}
+  ]
+}
+```
+
+Set `debugArtifacts` to `false` in a request to force cleanup even when the service default is enabled. This switch only applies to Robyn service work directories. CLI runs through `main.py` still write their normal `Results`, `CheckedOMRs`, and related debugging outputs.
 
 Terminal callback and query payloads include business fields at the sheet level for callers that do not want to inspect the nested `result` or generic `artifacts` arrays:
 

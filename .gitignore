@@ -10,6 +10,7 @@ service_data/*
 outputs_*/
 
 # Misc
+*.log
 **/.DS_Store
 **/__pycache__
 venv/

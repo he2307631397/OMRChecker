@@ -7,10 +7,12 @@ The API is intentionally thin. Recognition logic lives in ``src.services.omr_ser
 so it can be tested without Robyn and reused by other front ends.
 """
 
+import json
 import os
 import sys
 from concurrent.futures import Future, ThreadPoolExecutor
 from urllib.parse import urlparse
+import urllib.request as urllib_request
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -335,8 +337,44 @@ def _complete_task(task_id: str, future: Future) -> None:
     _deliver_callback(task_for_callback)
 
 
-def _deliver_callback(task: dict[str, Any]) -> None:
-    """Task 4 no-op hook. Task 5 implements real callback delivery."""
+def _post_callback(url: str, payload: dict[str, Any], timeout: float = 10.0) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib_request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib_request.urlopen(request, timeout=timeout) as response:
+        status = getattr(response, "status", response.getcode())
+        if status >= 400:
+            raise RuntimeError(f"Callback POST failed with HTTP status {status}")
+
+
+def _deliver_callback(
+    task: dict[str, Any],
+    *,
+    post_callback=_post_callback,
+    max_attempts: int = 3,
+) -> None:
+    callback = task.get("callback") or {}
+    url = callback.get("url")
+    if not url:
+        return
+
+    payload = _terminal_task_payload(task)
+    for _attempt in range(max_attempts):
+        callback["attempts"] += 1
+        callback["last_attempt_at"] = _now_iso()
+        try:
+            post_callback(url, payload)
+        except Exception as exc:
+            callback["last_error"] = str(exc)
+            callback["status"] = "failed"
+        else:
+            callback["status"] = "delivered"
+            callback["last_error"] = None
+            return
 
 
 def _terminal_task_payload(task: dict[str, Any]) -> dict[str, Any]:

@@ -405,3 +405,67 @@ def test_complete_task_delivers_callback_after_releasing_task_lock(monkeypatch):
     robyn_app._complete_task("task-3", CompletedFuture(result=FakeRunResult()))
 
     assert delivered == ["task-3"]
+
+
+def _callback_task(callback_url="https://example.com/callback"):
+    return {
+        "task_id": "task-callback",
+        "status": "completed",
+        "created_at": "created",
+        "updated_at": "updated",
+        "started_at": None,
+        "completed_at": "completed",
+        "external_task_id": "external-123",
+        "batch_id": "batch-123",
+        "output_dir": "service_data/tasks/task-callback/output",
+        "callback": robyn_app._make_callback_state(callback_url),
+        "result": {"count": 1, "results": [{"file_id": "checked.png"}]},
+        "error": None,
+        "future": object(),
+    }
+
+
+def test_deliver_callback_leaves_disabled_callback_unchanged():
+    task = _callback_task(callback_url=None)
+    callback_before = dict(task["callback"])
+    posted = []
+
+    robyn_app._deliver_callback(task, post_callback=lambda url, payload: posted.append((url, payload)))
+
+    assert task["callback"] == callback_before
+    assert posted == []
+
+
+def test_deliver_callback_marks_delivered_after_success_with_injected_post():
+    task = _callback_task()
+    posts = []
+
+    def fake_post(url, payload):
+        posts.append((url, payload))
+
+    robyn_app._deliver_callback(task, post_callback=fake_post)
+
+    assert posts == [("https://example.com/callback", robyn_app._terminal_task_payload(task))]
+    assert task["callback"]["status"] == "delivered"
+    assert task["callback"]["attempts"] == 1
+    assert task["callback"]["last_error"] is None
+    assert task["callback"]["last_attempt_at"] is not None
+
+
+def test_deliver_callback_marks_failed_after_retries_with_attempts_and_last_error():
+    task = _callback_task()
+    attempts = []
+
+    def failing_post(url, payload):
+        attempts.append((url, payload))
+        raise RuntimeError(f"network down {len(attempts)}")
+
+    robyn_app._deliver_callback(task, post_callback=failing_post, max_attempts=3)
+
+    assert len(attempts) == 3
+    assert {url for url, _payload in attempts} == {"https://example.com/callback"}
+    assert all(payload == robyn_app._terminal_task_payload(task) for _url, payload in attempts)
+    assert task["callback"]["status"] == "failed"
+    assert task["callback"]["attempts"] == 3
+    assert task["callback"]["last_error"] == "network down 3"
+    assert task["callback"]["last_attempt_at"] is not None

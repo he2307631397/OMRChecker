@@ -97,6 +97,7 @@ def test_submit_valid_batch_returns_business_fields_persists_and_processes_inlin
     assert response["sheets"] == [
         {
             "sheetId": "sheet-1",
+            "osskey": "incoming/sheet-1.png",
             "sourceOsskey": "incoming/sheet-1.png",
             "status": "pending",
             "result": {},

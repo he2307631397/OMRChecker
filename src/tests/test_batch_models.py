@@ -127,8 +127,11 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
         "sheets": [
             {
                 "sheetId": "sheet-1",
+                "osskey": "inputs/sheet-1.pdf",
                 "sourceOsskey": "inputs/sheet-1.pdf",
                 "status": "completed",
+                "answers": ["A", "B"],
+                "score": 2,
                 "result": {"answers": ["A", "B"], "score": 2},
                 "artifacts": [
                     {
@@ -137,9 +140,16 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
                         "metadata": {"region": "business-large"},
                     }
                 ],
+                "regionImages": [
+                    {
+                        "osskey": "artifacts/task-1/sheet-1/region-1.png",
+                        "uploadStatus": "uploaded",
+                    }
+                ],
             },
             {
                 "sheetId": "sheet-2",
+                "osskey": "inputs/sheet-2.pdf",
                 "sourceOsskey": "inputs/sheet-2.pdf",
                 "status": "failed",
                 "result": [],

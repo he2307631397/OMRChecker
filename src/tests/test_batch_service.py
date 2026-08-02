@@ -65,6 +65,7 @@ def test_submit_batch_persists_batch_and_sheets_and_returns_business_fields(tmp_
         "sheets": [
             {
                 "sheetId": "sheet-1",
+                "osskey": "incoming/sheet-1.png",
                 "sourceOsskey": "incoming/sheet-1.png",
                 "status": "pending",
                 "result": {},
@@ -117,6 +118,38 @@ def test_process_batch_downloads_runs_uploads_artifacts_and_marks_completed(tmp_
     assert store.list_artifacts("task-1", sheet_id="sheet-1")[0]["osskey"] == "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png"
 
 
+def test_fake_cos_smoke_terminal_payload_contains_business_artifact_fields(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    regions = [ArchiveRegionConfig(region_code="exam_no", region_name="准考证号区域", type="student_id", bbox=[5, 10, 40, 20])]
+
+    def fake_runner(context):
+        checked_path = context.workdir / "checked" / "sheet-1.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"answers": {"q1": "A"}}, checked_image_path=checked_path)
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, regions=regions),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    payload = service.process_batch("task-1").to_callback_dict()
+
+    sheet = payload["sheets"][0]
+    assert payload["examId"] == "exam-1"
+    assert sheet["sheetId"] == "sheet-1"
+    assert sheet["osskey"] == "incoming/sheet-1.png"
+    assert sheet["answers"] == {"q1": "A"}
+    assert sheet["regionImages"][0]["osskey"] == "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png"
+    assert sheet["checkedImageOsskey"] == "checked/task-1/sheet-1/sheet-1.png"
+    assert (tmp_path / "cos" / "checked" / "task-1" / "sheet-1" / "sheet-1.png").is_file()
+
+
 def test_one_sheet_recognition_failure_marks_sheet_failed_and_batch_partial_failed(tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
@@ -156,7 +189,9 @@ def test_one_sheet_recognition_failure_marks_sheet_failed_and_batch_partial_fail
 def test_artifact_upload_failure_is_non_fatal_and_reflected_in_result_metadata(tmp_path: Path) -> None:
     class UploadFailingCos(LocalCosClient):
         def upload_file(self, local_path, osskey, content_type=None):
-            raise RuntimeError("upload denied")
+            if str(osskey).startswith("artifacts/"):
+                raise RuntimeError("upload denied")
+            return super().upload_file(local_path, osskey, content_type=content_type)
 
     store = _make_store(tmp_path)
     source_cos = tmp_path / "cos"
@@ -194,6 +229,46 @@ def test_artifact_upload_failure_is_non_fatal_and_reflected_in_result_metadata(t
     ]
     assert Path(sheet["result_json"]["artifactErrors"][0]["localPath"]).is_file()
     assert store.list_artifacts("task-1") == []
+
+
+def test_checked_image_upload_failure_is_non_fatal_and_reflected_in_result_metadata(tmp_path: Path) -> None:
+    class CheckedUploadFailingCos(LocalCosClient):
+        def upload_file(self, local_path, osskey, content_type=None):
+            if str(osskey).startswith("checked/"):
+                raise RuntimeError("checked upload denied")
+            return super().upload_file(local_path, osskey, content_type=content_type)
+
+    store = _make_store(tmp_path)
+    source_cos = tmp_path / "cos"
+    _write_image(source_cos / "incoming" / "sheet-1.png")
+
+    def fake_runner(context):
+        checked_path = context.workdir / "checked.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"score": 98}, checked_image_path=checked_path)
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=CheckedUploadFailingCos(source_cos),
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    result = service.process_batch("task-1")
+
+    assert result.status == "partial_failed"
+    sheet = store.list_sheets("task-1")[0]
+    assert sheet["status"] == "completed"
+    assert sheet["result_json"]["artifactErrors"] == [
+        {
+            "artifactType": "checked_image",
+            "localPath": sheet["result_json"]["artifactErrors"][0]["localPath"],
+            "osskey": "checked/task-1/sheet-1/checked.png",
+            "error": "checked upload denied",
+        }
+    ]
 
 
 def test_task_workdir_template_dependency_copying_includes_reference_png(tmp_path: Path) -> None:

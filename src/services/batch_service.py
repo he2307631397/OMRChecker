@@ -120,6 +120,17 @@ class BatchRecognitionService:
                     stored_result = result_json
 
                 artifact_errors = []
+                if output.checked_image_path is not None and isinstance(stored_result, dict):
+                    checked_image_osskey, checked_image_error = self._upload_checked_image(
+                        task_id,
+                        sheet_request.sheet_id,
+                        output.checked_image_path,
+                    )
+                    if checked_image_osskey is not None:
+                        stored_result["checkedImageOsskey"] = checked_image_osskey
+                    if checked_image_error is not None:
+                        artifact_errors.append(checked_image_error)
+                        any_artifact_errors = True
                 if output.checked_image_path is not None and self.config.archive_regions:
                     local_artifacts = self.region_artifact_generator(
                         output.checked_image_path,
@@ -128,16 +139,18 @@ class BatchRecognitionService:
                         sheet_id=sheet_request.sheet_id,
                         task_id=task_id,
                     )
-                    uploaded, artifact_errors = self._upload_region_artifacts(
+                    uploaded, region_artifact_errors = self._upload_region_artifacts(
                         task_id,
                         sheet_request.sheet_id,
                         local_artifacts,
                         workdir / "region_artifacts",
                     )
-                    if isinstance(stored_result, dict) and artifact_errors:
-                        stored_result["artifactErrors"] = artifact_errors
+                    artifact_errors.extend(region_artifact_errors)
                     if artifact_errors:
                         any_artifact_errors = True
+
+                if isinstance(stored_result, dict) and artifact_errors:
+                    stored_result["artifactErrors"] = artifact_errors
 
                 self.store.update_sheet(
                     task_id=task_id,
@@ -231,6 +244,19 @@ class BatchRecognitionService:
                 metadata_json=metadata,
             )
         return uploaded, errors
+
+    def _upload_checked_image(self, task_id: str, sheet_id: str, checked_image_path: Path) -> tuple[str | None, dict | None]:
+        remote_key = f"checked/{_safe_component(task_id)}/{_safe_component(sheet_id)}/{checked_image_path.name}"
+        try:
+            self.object_storage.upload_file(checked_image_path, remote_key, content_type="image/png")
+        except Exception as exc:  # noqa: BLE001 - checked-image upload is non-fatal like region artifacts.
+            return None, {
+                "artifactType": "checked_image",
+                "localPath": str(checked_image_path),
+                "osskey": remote_key,
+                "error": str(exc),
+            }
+        return remote_key, None
 
     def _copy_template_dependencies(self, workdir: Path) -> None:
         template_dir = self.config.storage.template_dir

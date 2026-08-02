@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from src.services.service_config import load_service_config
 
 
@@ -35,3 +37,42 @@ def test_load_service_config_allows_environment_port_override(tmp_path, monkeypa
 
     assert config.server.port == 9090
     assert config.storage.template_dir == Path("inputs")
+
+
+def test_recognition_debug_artifacts_defaults_to_false(tmp_path, monkeypatch):
+    monkeypatch.delenv("OMR_RECOGNITION_DEBUG_ARTIFACTS", raising=False)
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text("{}", encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.recognition.debug_artifacts is False
+
+
+def test_recognition_debug_artifacts_loads_from_json(tmp_path, monkeypatch):
+    monkeypatch.delenv("OMR_RECOGNITION_DEBUG_ARTIFACTS", raising=False)
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"recognition": {"debugArtifacts": true}}', encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.recognition.debug_artifacts is True
+
+
+def test_recognition_debug_artifacts_env_overrides_json(tmp_path, monkeypatch):
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"recognition": {"debugArtifacts": false}}', encoding="utf-8")
+    monkeypatch.setenv("OMR_RECOGNITION_DEBUG_ARTIFACTS", "yes")
+
+    config = load_service_config(config_path)
+
+    assert config.recognition.debug_artifacts is True
+
+
+def test_recognition_debug_artifacts_invalid_env_value_fails(tmp_path, monkeypatch):
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("OMR_RECOGNITION_DEBUG_ARTIFACTS", "sometimes")
+
+    with pytest.raises(ValueError, match="OMR_RECOGNITION_DEBUG_ARTIFACTS"):
+        load_service_config(config_path)

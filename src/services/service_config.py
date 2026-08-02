@@ -47,6 +47,11 @@ class CallbackConfig:
 
 
 @dataclass(frozen=True)
+class RecognitionConfig:
+    debug_artifacts: bool = False
+
+
+@dataclass(frozen=True)
 class ArchiveRegionConfig:
     region_code: str
     region_name: str
@@ -61,6 +66,7 @@ class ServiceConfig:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     cos: CosConfig = field(default_factory=CosConfig)
     callback: CallbackConfig = field(default_factory=CallbackConfig)
+    recognition: RecognitionConfig = field(default_factory=RecognitionConfig)
     archive_regions: list[ArchiveRegionConfig] = field(default_factory=list)
 
 
@@ -79,6 +85,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
     database = resolved_config.get("database", {})
     cos = resolved_config.get("cos", {})
     callback = resolved_config.get("callback", {})
+    recognition = resolved_config.get("recognition", {})
 
     return ServiceConfig(
         server=ServerConfig(
@@ -105,6 +112,12 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
             max_attempts=int(callback.get("maxAttempts", CallbackConfig.max_attempts)),
             timeout_seconds=int(callback.get("timeoutSeconds", CallbackConfig.timeout_seconds)),
         ),
+        recognition=RecognitionConfig(
+            debug_artifacts=_parse_bool(
+                recognition.get("debugArtifacts", RecognitionConfig.debug_artifacts),
+                "recognition.debugArtifacts",
+            ),
+        ),
         archive_regions=[
             ArchiveRegionConfig(
                 region_code=str(region.get("regionCode", "")),
@@ -130,6 +143,7 @@ def _resolve_env_placeholders(value: Any) -> Any:
 def _apply_environment_overrides(config: dict[str, Any]) -> None:
     server = config.setdefault("server", {})
     storage = config.setdefault("storage", {})
+    recognition = config.setdefault("recognition", {})
 
     if "OMR_SERVICE_PORT" in os.environ:
         server["port"] = int(os.environ["OMR_SERVICE_PORT"])
@@ -139,3 +153,20 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]
     if "OMR_TEMPLATE_DIR" in os.environ:
         storage["templateDir"] = os.environ["OMR_TEMPLATE_DIR"]
+    if "OMR_RECOGNITION_DEBUG_ARTIFACTS" in os.environ:
+        recognition["debugArtifacts"] = _parse_bool(
+            os.environ["OMR_RECOGNITION_DEBUG_ARTIFACTS"],
+            "OMR_RECOGNITION_DEBUG_ARTIFACTS",
+        )
+
+
+def _parse_bool(value: Any, field_name: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{field_name} must be a boolean")

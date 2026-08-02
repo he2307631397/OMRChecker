@@ -4,6 +4,7 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Callable, Protocol, Sequence
 
 from .batch_models import (
@@ -16,6 +17,8 @@ from .cos_client import ObjectStorageClient
 from .region_artifacts import generate_region_artifacts
 from .service_config import ServiceConfig
 from .task_store import TaskStore
+
+_SAFE_COMPONENT_PATTERN = re.compile(r"[^\w\u4e00-\u9fff.-]+", re.UNICODE)
 
 
 @dataclass(frozen=True)
@@ -125,7 +128,12 @@ class BatchRecognitionService:
                         sheet_id=sheet_request.sheet_id,
                         task_id=task_id,
                     )
-                    uploaded, artifact_errors = self._upload_region_artifacts(task_id, sheet_request.sheet_id, local_artifacts)
+                    uploaded, artifact_errors = self._upload_region_artifacts(
+                        task_id,
+                        sheet_request.sheet_id,
+                        local_artifacts,
+                        workdir / "region_artifacts",
+                    )
                     if isinstance(stored_result, dict) and artifact_errors:
                         stored_result["artifactErrors"] = artifact_errors
                     if artifact_errors:
@@ -186,14 +194,16 @@ class BatchRecognitionService:
         task_id: str,
         sheet_id: str,
         local_artifacts: list[ArtifactPayload],
+        region_output_dir: Path,
     ) -> tuple[list[ArtifactPayload], list[dict]]:
         uploaded: list[ArtifactPayload] = []
         errors: list[dict] = []
         for artifact in local_artifacts:
             metadata = dict(artifact.metadata or {})
             local_path = Path(str(metadata.get("localPath", artifact.osskey)))
-            remote_key = f"artifacts/{task_id}/{sheet_id}/{local_path.name}"
+            remote_key = f"artifacts/{_safe_component(task_id)}/{_safe_component(sheet_id)}/{local_path.name}"
             try:
+                _ensure_within_directory(local_path, region_output_dir)
                 self.object_storage.upload_file(local_path, remote_key, content_type="image/png")
             except Exception as exc:  # noqa: BLE001 - artifact upload is intentionally non-fatal.
                 errors.append(
@@ -226,12 +236,18 @@ class BatchRecognitionService:
         template_dir = self.config.storage.template_dir
         if not template_dir.exists():
             return
+        resolved_template_dir = template_dir.resolve(strict=False)
         for source in template_dir.iterdir():
+            if source.is_symlink():
+                continue
+            resolved_source = source.resolve(strict=False)
+            if resolved_template_dir != resolved_source and resolved_template_dir not in resolved_source.parents:
+                continue
             if source.is_file():
                 shutil.copy2(source, workdir / source.name)
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
-        workdir = self.config.storage.service_data_dir / "tasks" / task_id / "sheets" / sheet_id
+        workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
         workdir.mkdir(parents=True, exist_ok=True)
         return workdir
 
@@ -289,3 +305,18 @@ def _default_recognition_runner(context: RecognitionContext) -> RecognitionOutpu
         "No default OMR recognition runner is configured for BatchRecognitionService. "
         "Pass recognition_runner when constructing the service."
     )
+
+
+def _safe_component(value: str) -> str:
+    sanitized = _SAFE_COMPONENT_PATTERN.sub("_", value.strip())
+    sanitized = sanitized.replace("/", "_").replace("\\", "_")
+    sanitized = sanitized.replace("..", "_")
+    sanitized = re.sub(r"_+", "_", sanitized).strip("._")
+    return sanitized or "item"
+
+
+def _ensure_within_directory(path: Path, directory: Path) -> None:
+    resolved_path = path.resolve(strict=False)
+    resolved_directory = directory.resolve(strict=False)
+    if resolved_path != resolved_directory and resolved_directory not in resolved_path.parents:
+        raise ValueError(f"artifact localPath is outside region artifact directory: {path}")

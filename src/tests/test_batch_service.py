@@ -301,3 +301,124 @@ def test_process_batch_invokes_callback_client_and_records_attempt(tmp_path: Pat
     assert attempts[0]["status_code"] == 202
     assert attempts[0]["success"] is True
     assert attempts[0]["request_json"] == callback_client.payloads[0]
+
+
+def test_process_batch_sanitizes_sheet_id_for_workdir_and_artifact_key(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    observed_workdirs = []
+
+    def fake_runner(context):
+        observed_workdirs.append(context.workdir)
+        checked_path = context.workdir / "checked.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"ok": True}, checked_image_path=checked_path)
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(
+            tmp_path,
+            regions=[ArchiveRegionConfig(region_code="r", region_name="区域", type="type", bbox=[5, 10, 40, 20])],
+        ),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task/../1",
+    )
+    service.submit_batch(_make_request(sheets=[BatchSheetRequest(sheet_id="../evil sheet", osskey="incoming/sheet-1.png")]))
+
+    service.process_batch("task/../1")
+
+    expected_root = tmp_path / "service_data" / "tasks" / "task_1" / "sheets" / "evil_sheet"
+    assert observed_workdirs == [expected_root]
+    artifact = store.list_artifacts("task/../1", sheet_id="../evil sheet")[0]
+    assert artifact["osskey"].startswith("artifacts/task_1/evil_sheet/")
+    assert not (tmp_path / "service_data" / "tasks" / "evil sheet").exists()
+
+
+def test_template_dependency_copying_skips_symlinks(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir(parents=True)
+    secret = tmp_path / "secret.txt"
+    secret.write_text("do not copy", encoding="utf-8")
+    (template_dir / "reference.png").symlink_to(secret)
+    copied_workdirs = []
+
+    def fake_runner(context):
+        copied_workdirs.append(context.workdir)
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, template_dir=template_dir),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    service.process_batch("task-1")
+
+    assert not (copied_workdirs[0] / "reference.png").exists()
+
+
+def test_region_generator_local_path_must_stay_under_region_output_dir(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    outside = tmp_path / "outside.png"
+    _write_image(outside)
+
+    def fake_runner(context):
+        checked_path = context.workdir / "checked.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"ok": True}, checked_image_path=checked_path)
+
+    def malicious_generator(image_path, regions, output_dir, *, sheet_id=None, task_id=None):
+        return [ArtifactPayload(artifact_type="region_screenshot", osskey=str(outside), metadata={"localPath": str(outside)})]
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, regions=[ArchiveRegionConfig(region_code="r", region_name="区域", type="type", bbox=[1, 1, 2, 2])]),
+        recognition_runner=fake_runner,
+        region_artifact_generator=malicious_generator,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    result = service.process_batch("task-1")
+
+    assert result.status == "partial_failed"
+    sheet = store.list_sheets("task-1")[0]
+    assert "outside region artifact directory" in sheet["result_json"]["artifactErrors"][0]["error"]
+    assert store.list_artifacts("task-1") == []
+
+
+def test_callback_exception_is_recorded_without_failing_batch(tmp_path: Path) -> None:
+    class FailingCallbackClient:
+        def send(self, payload):
+            raise RuntimeError("callback down")
+
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=lambda context: RecognitionOutput(result={"ok": True}),
+        callback_client=FailingCallbackClient(),
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request())
+
+    result = service.process_batch("task-1")
+
+    assert result.status == "completed"
+    attempt = store.list_callback_attempts("task-1")[0]
+    assert attempt["success"] is False
+    assert attempt["error"] == "callback down"

@@ -37,6 +37,7 @@ class CosConfig:
     bucket: str = ""
     secret_id: str = ""
     secret_key: str = ""
+    local_root: Path = Path("service_data/cos_mock")
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
             bucket=str(cos.get("bucket", CosConfig.bucket)),
             secret_id=str(cos.get("secretId", CosConfig.secret_id)),
             secret_key=str(cos.get("secretKey", CosConfig.secret_key)),
+            local_root=Path(cos.get("localRoot", CosConfig.local_root)),
         ),
         callback=CallbackConfig(
             max_attempts=int(callback.get("maxAttempts", CallbackConfig.max_attempts)),

@@ -7,9 +7,13 @@ The API is intentionally thin. Recognition logic lives in ``src.services.omr_ser
 so it can be tested without Robyn and reused by other front ends.
 """
 
+import copy
+import json
 import os
 import sys
 from concurrent.futures import Future, ThreadPoolExecutor
+from urllib.parse import urlparse
+import urllib.request as urllib_request
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -59,16 +63,23 @@ def create_task(request: Request) -> dict[str, Any]:
     """
 
     try:
+        metadata = _extract_request_metadata(request)
         input_dir, output_dir, upload_name = _prepare_task_input(request)
         task_id = output_dir.parent.name
+        now = _now_iso()
         future = _EXECUTOR.submit(run_omr_directory, input_dir, output_dir)
         _store_task(
             task_id,
             {
                 "task_id": task_id,
                 "status": "queued",
-                "created_at": _now_iso(),
-                "updated_at": _now_iso(),
+                "created_at": now,
+                "updated_at": now,
+                "started_at": None,
+                "completed_at": None,
+                "external_task_id": metadata["external_task_id"],
+                "batch_id": metadata["batch_id"],
+                "callback": _make_callback_state(metadata["callback_url"]),
                 "input_dir": str(input_dir),
                 "output_dir": str(output_dir),
                 "upload_name": upload_name,
@@ -81,12 +92,29 @@ def create_task(request: Request) -> dict[str, Any]:
         return {
             "task_id": task_id,
             "status": "queued",
+            "external_task_id": metadata["external_task_id"],
+            "batch_id": metadata["batch_id"],
             "links": {
                 "self": f"/api/omr/tasks/{task_id}",
             },
         }
     except Exception as exc:  # Robyn will serialize this response for clients.
         return {"status": "failed", "error": str(exc)}
+
+
+@app.get("/api/omr/tasks")
+def get_tasks(request: Request) -> dict[str, Any]:
+    query_params = getattr(request, "query_params", None) or getattr(request, "queries", None) or {}
+    filters = {
+        "status": _clean_optional_string(query_params.get("status")),
+        "batch_id": _clean_optional_string(query_params.get("batch_id")),
+        "external_task_id": _clean_optional_string(query_params.get("external_task_id")),
+    }
+    limit = _positive_int(query_params.get("limit"), default=50)
+    offset = _nonnegative_int(query_params.get("offset"), default=0)
+    with _TASK_LOCK:
+        tasks = list(_TASKS.values())
+    return _list_tasks_response(tasks, filters=filters, limit=limit, offset=offset)
 
 
 @app.get("/api/omr/tasks/:task_id")
@@ -158,6 +186,115 @@ def _extract_file_bytes(file_content: Any) -> bytes:
     raise TypeError(f"Unsupported uploaded file object: {type(file_content)!r}")
 
 
+def _extract_request_metadata(request: Request) -> dict[str, str | None]:
+    payload: dict[str, Any] = {}
+
+    for form_attr in ("form_data", "form"):
+        form_payload = getattr(request, form_attr, None)
+        if form_payload:
+            payload.update(dict(form_payload))
+
+    if not payload:
+        body = getattr(request, "body", None)
+        if body:
+            try:
+                json_payload = request.json()
+            except Exception:
+                json_payload = {}
+            if isinstance(json_payload, dict):
+                payload.update(json_payload)
+
+    metadata = {
+        "callback_url": _clean_optional_string(payload.get("callback_url")),
+        "external_task_id": _clean_optional_string(payload.get("external_task_id")),
+        "batch_id": _clean_optional_string(payload.get("batch_id")),
+    }
+
+    callback_url = metadata["callback_url"]
+    if callback_url is not None:
+        parsed_url = urlparse(callback_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            raise ValueError("callback_url must start with http:// or https://")
+
+    return metadata
+
+
+def _clean_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
+
+
+def _positive_int(value: Any, *, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _nonnegative_int(value: Any, *, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
+
+
+def _make_callback_state(callback_url: str | None) -> dict[str, Any]:
+    return {
+        "url": callback_url,
+        "status": "pending" if callback_url else "disabled",
+        "attempts": 0,
+        "last_error": None,
+        "last_attempt_at": None,
+    }
+
+
+def _task_matches_filters(task: dict[str, Any], filters: dict[str, str | None]) -> bool:
+    for key in ("status", "batch_id", "external_task_id"):
+        expected = filters.get(key)
+        if expected and task.get(key) != expected:
+            return False
+    return True
+
+
+def _task_summary(task: dict[str, Any]) -> dict[str, Any]:
+    result = task.get("result") or {}
+    callback = task.get("callback") or {}
+    task_id = task.get("task_id")
+    return {
+        "task_id": task_id,
+        "external_task_id": task.get("external_task_id"),
+        "batch_id": task.get("batch_id"),
+        "status": task.get("status"),
+        "created_at": task.get("created_at"),
+        "updated_at": task.get("updated_at"),
+        "completed_at": task.get("completed_at"),
+        "result_count": result.get("count", 0),
+        "callback_status": callback.get("status"),
+        "links": {"self": f"/api/omr/tasks/{task_id}"},
+    }
+
+
+def _list_tasks_response(
+    tasks: list[dict[str, Any]],
+    *,
+    filters: dict[str, str | None],
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    filtered = [task for task in tasks if _task_matches_filters(task, filters)]
+    page = filtered[offset : offset + limit]
+    return {
+        "total": len(filtered),
+        "limit": limit,
+        "offset": offset,
+        "tasks": [_task_summary(task) for task in page],
+    }
+
+
 def output_safe_task_id() -> str:
     from src.services.omr_service import create_task_id
 
@@ -175,11 +312,14 @@ def _get_task(task_id: str) -> dict[str, Any] | None:
 
 
 def _complete_task(task_id: str, future: Future) -> None:
+    task_for_callback: dict[str, Any] | None = None
     with _TASK_LOCK:
         task = _TASKS.get(task_id)
         if task is None:
             return
-        task["updated_at"] = _now_iso()
+        completed_at = _now_iso()
+        task["updated_at"] = completed_at
+        task["completed_at"] = completed_at
         try:
             result = future.result()
             result_dict = result.to_dict()
@@ -194,6 +334,52 @@ def _complete_task(task_id: str, future: Future) -> None:
         except Exception as exc:
             task["status"] = "failed"
             task["error"] = str(exc)
+        task_for_callback = task
+    _deliver_callback(task_for_callback)
+
+
+def _post_callback(url: str, payload: dict[str, Any], timeout: float = 10.0) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib_request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib_request.urlopen(request, timeout=timeout) as response:
+        status = getattr(response, "status", response.getcode())
+        if status >= 400:
+            raise RuntimeError(f"Callback POST failed with HTTP status {status}")
+
+
+def _deliver_callback(
+    task: dict[str, Any],
+    *,
+    post_callback=_post_callback,
+    max_attempts: int = 3,
+) -> None:
+    callback = task.get("callback") or {}
+    url = callback.get("url")
+    if not url:
+        return
+
+    for _attempt in range(max_attempts):
+        callback["attempts"] += 1
+        callback["last_attempt_at"] = _now_iso()
+        try:
+            payload = copy.deepcopy(_terminal_task_payload(task))
+            post_callback(url, payload)
+        except Exception as exc:
+            callback["last_error"] = str(exc)
+            callback["status"] = "failed"
+        else:
+            callback["status"] = "delivered"
+            callback["last_error"] = None
+            return
+
+
+def _terminal_task_payload(task: dict[str, Any]) -> dict[str, Any]:
+    return _public_task(task)
 
 
 def _public_task(task: dict[str, Any]) -> dict[str, Any]:

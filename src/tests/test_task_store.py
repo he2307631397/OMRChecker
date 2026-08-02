@@ -68,6 +68,59 @@ def test_update_batch_status_sets_updated_and_completed_at_for_terminal_status(t
     assert updated["completed_at"].endswith("Z")
 
 
+def test_create_sheet_round_trips_result_json(tmp_path):
+    store = TaskStore(tmp_path / "tasks.db")
+    store.initialize()
+    store.create_batch(task_id="task-1", exam_id="exam-1", status="queued")
+
+    created = store.create_sheet(
+        task_id="task-1",
+        sheet_id="sheet-1",
+        source_osskey="input/sheet-1.jpg",
+        status="completed",
+        result_json={"answers": ["A", "B"], "score": 2},
+    )
+
+    assert created["task_id"] == "task-1"
+    assert created["sheet_id"] == "sheet-1"
+    assert created["source_osskey"] == "input/sheet-1.jpg"
+    assert created["status"] == "completed"
+    assert created["result_json"] == {"answers": ["A", "B"], "score": 2}
+    assert created["error"] is None
+    assert created["created_at"].endswith("Z")
+    assert created["updated_at"] == created["created_at"]
+    assert store.list_sheets("task-1") == [created]
+
+
+def test_update_sheet_round_trips_result_json_and_advances_updated_at(tmp_path):
+    store = TaskStore(tmp_path / "tasks.db")
+    store.initialize()
+    store.create_batch(task_id="task-1", exam_id="exam-1", status="queued")
+    created = store.create_sheet(
+        task_id="task-1",
+        sheet_id="sheet-1",
+        source_osskey="input/sheet-1.jpg",
+        status="processing",
+    )
+
+    updated = store.update_sheet(
+        task_id="task-1",
+        sheet_id="sheet-1",
+        source_osskey="input/sheet-1-retry.jpg",
+        status="failed",
+        result_json={"quality": {"confidence": 0.42}},
+        error="unreadable",
+    )
+
+    assert updated["created_at"] == created["created_at"]
+    assert updated["updated_at"] > created["updated_at"]
+    assert updated["source_osskey"] == "input/sheet-1-retry.jpg"
+    assert updated["status"] == "failed"
+    assert updated["result_json"] == {"quality": {"confidence": 0.42}}
+    assert updated["error"] == "unreadable"
+    assert store.list_sheets("task-1") == [updated]
+
+
 def test_sheet_artifact_and_callback_attempt_persistence_and_list_ordering(tmp_path):
     store = TaskStore(tmp_path / "tasks.db")
     store.initialize()

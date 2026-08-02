@@ -242,6 +242,60 @@ class TaskStore:
             ).fetchone()
         return _sheet_from_row(row)
 
+    def create_sheet(
+        self,
+        *,
+        task_id: str,
+        sheet_id: str,
+        source_osskey: str,
+        status: str,
+        result_json: JsonValue = None,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        now = _utc_now()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                insert into sheets (
+                    task_id, sheet_id, source_osskey, status, result_json, error, created_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (task_id, sheet_id, source_osskey, status, _json_dumps(result_json), error, now, now),
+            )
+            row = conn.execute(
+                "select * from sheets where task_id = ? and sheet_id = ?",
+                (task_id, sheet_id),
+            ).fetchone()
+        return _sheet_from_row(row)
+
+    def update_sheet(
+        self,
+        *,
+        task_id: str,
+        sheet_id: str,
+        source_osskey: str,
+        status: str,
+        result_json: JsonValue = None,
+        error: str | None = None,
+    ) -> dict[str, Any]:
+        now = _utc_now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                update sheets
+                set source_osskey = ?, status = ?, result_json = ?, error = ?, updated_at = ?
+                where task_id = ? and sheet_id = ?
+                """,
+                (source_osskey, status, _json_dumps(result_json), error, now, task_id, sheet_id),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(f"sheet not found: {task_id}/{sheet_id}")
+            row = conn.execute(
+                "select * from sheets where task_id = ? and sheet_id = ?",
+                (task_id, sheet_id),
+            ).fetchone()
+        return _sheet_from_row(row)
+
     def list_sheets(self, task_id: str) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(

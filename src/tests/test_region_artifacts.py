@@ -86,4 +86,24 @@ def test_filename_sanitization_is_deterministic_for_chinese_and_spaces(tmp_path:
     second = generate_region_artifacts(image_path, [region], tmp_path / "second", sheet_id="sheet A")[0]
 
     assert Path(first.metadata["localPath"]).name == Path(second.metadata["localPath"]).name
-    assert Path(first.metadata["localPath"]).name == "sheet_A_single_choice_单选题_区域.png"
+    assert Path(first.metadata["localPath"]).name == "001_sheet_A_single_choice_单选题_区域.png"
+
+
+def test_filename_generation_keeps_sanitized_collisions_unique(tmp_path: Path) -> None:
+    image_path = tmp_path / "aligned.png"
+    _write_synthetic_image(image_path)
+    regions = [
+        RegionSpec(region_code="same code", region_name="同名 区域", type="single_choice", bbox=[5, 10, 40, 20]),
+        RegionSpec(region_code="same/code", region_name="同名/区域", type="single_choice", bbox=[60, 40, 50, 30]),
+    ]
+
+    artifacts = generate_region_artifacts(image_path, regions, tmp_path / "artifacts", sheet_id="sheet A")
+
+    paths = [Path(artifact.metadata["localPath"]) for artifact in artifacts]
+    assert [path.name for path in paths] == [
+        "001_sheet_A_same_code_同名_区域.png",
+        "002_sheet_A_same_code_同名_区域.png",
+    ]
+    assert paths[0] != paths[1]
+    assert np.all(cv2.imread(str(paths[0])) == (0, 0, 255))
+    assert np.all(cv2.imread(str(paths[1])) == (0, 255, 0))

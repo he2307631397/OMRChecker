@@ -108,8 +108,8 @@ def _artifact_filename(region: RegionLike, *, index: int, sheet_id: str | None) 
     parts = [part for part in (sheet_id, region.region_code, region.region_name) if part]
     stem = "_".join(_sanitize_filename_part(part) for part in parts)
     if not stem:
-        stem = f"region_{index:03d}"
-    return f"{stem}.png"
+        stem = "region"
+    return f"{index:03d}_{stem}.png"
 
 
 def _sanitize_filename_part(value: str) -> str:

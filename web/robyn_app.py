@@ -7,6 +7,7 @@ The API is intentionally thin. Recognition logic lives in ``src.services.omr_ser
 so it can be tested without Robyn and reused by other front ends.
 """
 
+import copy
 import json
 import os
 import sys
@@ -362,11 +363,11 @@ def _deliver_callback(
     if not url:
         return
 
-    payload = _terminal_task_payload(task)
     for _attempt in range(max_attempts):
         callback["attempts"] += 1
         callback["last_attempt_at"] = _now_iso()
         try:
+            payload = copy.deepcopy(_terminal_task_payload(task))
             post_callback(url, payload)
         except Exception as exc:
             callback["last_error"] = str(exc)

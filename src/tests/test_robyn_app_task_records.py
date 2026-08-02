@@ -445,7 +445,15 @@ def test_deliver_callback_marks_delivered_after_success_with_injected_post():
 
     robyn_app._deliver_callback(task, post_callback=fake_post)
 
-    assert posts == [("https://example.com/callback", robyn_app._terminal_task_payload(task))]
+    assert len(posts) == 1
+    assert posts[0][0] == "https://example.com/callback"
+    sent_payload = posts[0][1]
+    assert sent_payload["task_id"] == "task-callback"
+    assert sent_payload["callback"] is not task["callback"]
+    assert sent_payload["callback"]["status"] == "pending"
+    assert sent_payload["callback"]["attempts"] == 1
+    assert sent_payload["callback"]["last_error"] is None
+    assert sent_payload["callback"]["last_attempt_at"] is not None
     assert task["callback"]["status"] == "delivered"
     assert task["callback"]["attempts"] == 1
     assert task["callback"]["last_error"] is None
@@ -464,8 +472,29 @@ def test_deliver_callback_marks_failed_after_retries_with_attempts_and_last_erro
 
     assert len(attempts) == 3
     assert {url for url, _payload in attempts} == {"https://example.com/callback"}
-    assert all(payload == robyn_app._terminal_task_payload(task) for _url, payload in attempts)
+    assert [payload["callback"]["attempts"] for _url, payload in attempts] == [1, 2, 3]
+    assert [payload["callback"]["last_error"] for _url, payload in attempts] == [None, "network down 1", "network down 2"]
     assert task["callback"]["status"] == "failed"
     assert task["callback"]["attempts"] == 3
     assert task["callback"]["last_error"] == "network down 3"
     assert task["callback"]["last_attempt_at"] is not None
+
+
+def test_deliver_callback_posts_independent_payload_snapshots():
+    task = _callback_task()
+    posted_payloads = []
+
+    def failing_post(_url, payload):
+        posted_payloads.append(payload)
+        raise RuntimeError("HTTP 500")
+
+    robyn_app._deliver_callback(task, post_callback=failing_post, max_attempts=2)
+
+    first_payload = posted_payloads[0]
+    second_payload = posted_payloads[1]
+    assert first_payload is not second_payload
+    assert first_payload["callback"] is not task["callback"]
+    assert first_payload["callback"]["attempts"] == 1
+    assert first_payload["callback"]["last_error"] is None
+    assert second_payload["callback"]["attempts"] == 2
+    assert second_payload["callback"]["last_error"] == "HTTP 500"

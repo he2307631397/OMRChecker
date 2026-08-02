@@ -25,6 +25,100 @@ flowchart LR
   B -->|download CSV/image| A
 ```
 
+## Calling workflow
+
+Keep this section as the primary maintained guide for service callers. The root `README.md` links here and should not duplicate the full API flow.
+
+### 1. Check service health
+
+```bash
+curl http://localhost:8080/health
+```
+
+Expected response includes `status: "ok"`, the service name, worker count, and the active template directory.
+
+### 2. Submit a recognition task
+
+Use multipart upload for normal Java-platform integration. The uploaded file field can be named `file`; optional metadata fields are returned in task records and callback payloads.
+
+```bash
+curl -X POST http://localhost:8080/api/omr/tasks \
+  -F "file=@/absolute/path/to/sheet.pdf" \
+  -F "external_task_id=java-task-001" \
+  -F "batch_id=batch-20260802-001" \
+  -F "callback_url=https://java.example.com/omr/callback"
+```
+
+Response:
+
+```json
+{
+  "task_id": "a1b2c3...",
+  "external_task_id": "java-task-001",
+  "batch_id": "batch-20260802-001",
+  "status": "queued",
+  "links": {
+    "self": "/api/omr/tasks/a1b2c3..."
+  }
+}
+```
+
+Store `task_id` on the caller side. It is the service-side identifier for polling, result download, checked-image download, and audit lookup.
+
+### 3. Poll task status and result
+
+```bash
+curl http://localhost:8080/api/omr/tasks/a1b2c3...
+```
+
+While the task is queued or running, continue polling the same URL. When `status` becomes `completed`, the response includes parsed recognition rows under `result.results`. When `status` becomes `failed`, inspect `error`.
+
+### 4. Query task execution records
+
+Use this endpoint for compensation, audit, dashboard lists, or batch-level reconciliation.
+
+```bash
+curl "http://localhost:8080/api/omr/tasks?status=completed&batch_id=batch-20260802-001&limit=50&offset=0"
+```
+
+Supported query parameters:
+
+- `status`: filter by task status, for example `queued`, `running`, `completed`, or `failed`.
+- `batch_id`: filter by caller batch ID.
+- `external_task_id`: filter by caller task ID.
+- `limit`: page size. Default is `50`.
+- `offset`: page offset. Default is `0`.
+
+### 5. Download generated files
+
+After completion, download the CSV result:
+
+```bash
+curl -OJ http://localhost:8080/api/omr/tasks/a1b2c3.../results-csv
+```
+
+Each result row can include a `checked_image_url`. Download a checked image with:
+
+```bash
+curl -OJ http://localhost:8080/api/omr/tasks/a1b2c3.../checked-image/MX-M3658N_20260730_123704_003.png
+```
+
+### 6. Use callback mode for long-running recognition
+
+If `callback_url` is supplied on task submission, the service posts the terminal task payload after completion or failure. Callers should still persist `task_id` and keep polling/query APIs available as compensation paths if callback delivery fails.
+
+### Related interfaces
+
+| Purpose | Method and path | Notes |
+| --- | --- | --- |
+| Health check | `GET /health` | Verify service is running and see active worker/template settings. |
+| Submit recognition task | `POST /api/omr/tasks` | Multipart file upload. Supports optional `callback_url`, `external_task_id`, `batch_id`. |
+| Query one task | `GET /api/omr/tasks/{task_id}` | Poll status and retrieve terminal result or error. |
+| Query task records | `GET /api/omr/tasks` | Filter by status, batch ID, external task ID, with limit/offset pagination. |
+| Download checked image | `GET /api/omr/tasks/{task_id}/checked-image/{file_id}` | Use `checked_image_url` from completed result rows. |
+| Download CSV | `GET /api/omr/tasks/{task_id}/results-csv` | Available after the task has produced `Results_*.csv`. |
+
+
 ## Files added
 
 - `src/services/omr_service.py`

@@ -107,7 +107,7 @@ def get_tasks(request: Request) -> dict[str, Any]:
         "batch_id": _clean_optional_string(query_params.get("batch_id")),
         "external_task_id": _clean_optional_string(query_params.get("external_task_id")),
     }
-    limit = _positive_int(query_params.get("limit"), default=100)
+    limit = _positive_int(query_params.get("limit"), default=50)
     offset = _nonnegative_int(query_params.get("offset"), default=0)
     with _TASK_LOCK:
         tasks = list(_TASKS.values())
@@ -194,7 +194,10 @@ def _extract_request_metadata(request: Request) -> dict[str, str | None]:
     if not payload:
         body = getattr(request, "body", None)
         if body:
-            json_payload = request.json()
+            try:
+                json_payload = request.json()
+            except Exception:
+                json_payload = {}
             if isinstance(json_payload, dict):
                 payload.update(json_payload)
 

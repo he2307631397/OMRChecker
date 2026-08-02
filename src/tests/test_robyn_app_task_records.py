@@ -13,11 +13,13 @@ class DummyRequest:
         form=None,
         json_error=None,
         query_params=None,
+        files=None,
     ):
         self.body = body
         self._json_payload = json_payload
         self._json_error = json_error
         self.query_params = query_params or {}
+        self.files = files or {}
         if form_data is not None:
             self.form_data = form_data
         if form is not None:
@@ -227,6 +229,7 @@ def test_get_tasks_lists_current_registry_and_filters_by_status(monkeypatch):
     filtered = robyn_app.get_tasks(DummyRequest(query_params={"status": "completed"}))
 
     assert unfiltered["total"] == 2
+    assert unfiltered["limit"] == 50
     assert {task["task_id"] for task in unfiltered["tasks"]} == {"task-queued", "task-completed"}
     assert filtered["total"] == 1
     assert [task["task_id"] for task in filtered["tasks"]] == ["task-completed"]
@@ -266,3 +269,33 @@ def test_create_task_response_and_stored_record_include_external_metadata(monkey
     assert stored_task["callback"] == robyn_app._make_callback_state("https://example.com/callback")
     assert stored_task["started_at"] is None
     assert stored_task["completed_at"] is None
+
+
+def test_create_task_accepts_file_only_multipart_without_metadata(monkeypatch, tmp_path):
+    future = StubFuture()
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "tasks" / "file-only-task" / "output"
+    input_dir.mkdir(parents=True)
+    output_dir.mkdir(parents=True)
+    monkeypatch.setattr(robyn_app, "_TASKS", {})
+    monkeypatch.setattr(
+        robyn_app,
+        "_prepare_task_input",
+        lambda request: (input_dir, output_dir, "upload.pdf"),
+    )
+    monkeypatch.setattr(robyn_app._EXECUTOR, "submit", lambda *args, **kwargs: future)
+
+    response = robyn_app.create_task(
+        DummyRequest(
+            body=b"------WebKitFormBoundary\r\nfile-bytes",
+            files={"file": b"pdf-bytes"},
+            json_error=ValueError("not json"),
+        )
+    )
+
+    task_id = response["task_id"]
+    stored_task = robyn_app._TASKS[task_id]
+    assert response["status"] == "queued"
+    assert response["external_task_id"] is None
+    assert response["batch_id"] is None
+    assert stored_task["callback"] == robyn_app._make_callback_state(None)

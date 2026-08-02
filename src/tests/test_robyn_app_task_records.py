@@ -1,5 +1,6 @@
 import pytest
 
+import web.robyn_app as robyn_app
 from web.robyn_app import _extract_request_metadata, _make_callback_state
 
 
@@ -104,3 +105,69 @@ def test_make_callback_state_with_url_is_pending():
         "last_error": None,
         "last_attempt_at": None,
     }
+
+
+def test_task_matches_status_batch_and_external_filters():
+    task = {
+        "task_id": "task-1",
+        "status": "completed",
+        "external_task_id": "java-task-001",
+        "batch_id": "batch-001",
+    }
+
+    assert robyn_app._task_matches_filters(task, {"status": "completed"}) is True
+    assert robyn_app._task_matches_filters(task, {"status": "failed"}) is False
+    assert robyn_app._task_matches_filters(task, {"batch_id": "batch-001"}) is True
+    assert robyn_app._task_matches_filters(task, {"batch_id": "batch-002"}) is False
+    assert robyn_app._task_matches_filters(task, {"external_task_id": "java-task-001"}) is True
+    assert robyn_app._task_matches_filters(task, {"external_task_id": "java-task-404"}) is False
+
+
+def test_task_summary_excludes_full_result_rows():
+    task = {
+        "task_id": "task-1",
+        "status": "completed",
+        "external_task_id": "java-task-001",
+        "batch_id": "batch-001",
+        "created_at": "2026-08-02T03:20:00Z",
+        "updated_at": "2026-08-02T03:25:00Z",
+        "completed_at": "2026-08-02T03:25:00Z",
+        "callback": {"status": "delivered"},
+        "result": {"count": 2, "results": [{"file_id": "a.png"}, {"file_id": "b.png"}]},
+    }
+
+    summary = robyn_app._task_summary(task)
+
+    assert summary == {
+        "task_id": "task-1",
+        "external_task_id": "java-task-001",
+        "batch_id": "batch-001",
+        "status": "completed",
+        "created_at": "2026-08-02T03:20:00Z",
+        "updated_at": "2026-08-02T03:25:00Z",
+        "completed_at": "2026-08-02T03:25:00Z",
+        "result_count": 2,
+        "callback_status": "delivered",
+        "links": {"self": "/api/omr/tasks/task-1"},
+    }
+    assert "results" not in summary
+
+
+def test_list_tasks_response_filters_and_paginates():
+    tasks = [
+        {"task_id": "task-1", "status": "completed", "batch_id": "batch-1", "result": {"count": 1}},
+        {"task_id": "task-2", "status": "failed", "batch_id": "batch-1", "result": None},
+        {"task_id": "task-3", "status": "completed", "batch_id": "batch-2", "result": {"count": 3}},
+    ]
+
+    response = robyn_app._list_tasks_response(
+        tasks,
+        filters={"status": "completed"},
+        limit=1,
+        offset=1,
+    )
+
+    assert response["total"] == 2
+    assert response["limit"] == 1
+    assert response["offset"] == 1
+    assert [task["task_id"] for task in response["tasks"]] == ["task-3"]

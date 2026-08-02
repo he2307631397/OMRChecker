@@ -206,6 +206,49 @@ def _make_callback_state(callback_url: str | None) -> dict[str, Any]:
     }
 
 
+def _task_matches_filters(task: dict[str, Any], filters: dict[str, str | None]) -> bool:
+    for key in ("status", "batch_id", "external_task_id"):
+        expected = filters.get(key)
+        if expected and task.get(key) != expected:
+            return False
+    return True
+
+
+def _task_summary(task: dict[str, Any]) -> dict[str, Any]:
+    result = task.get("result") or {}
+    callback = task.get("callback") or {}
+    task_id = task.get("task_id")
+    return {
+        "task_id": task_id,
+        "external_task_id": task.get("external_task_id"),
+        "batch_id": task.get("batch_id"),
+        "status": task.get("status"),
+        "created_at": task.get("created_at"),
+        "updated_at": task.get("updated_at"),
+        "completed_at": task.get("completed_at"),
+        "result_count": result.get("count", 0),
+        "callback_status": callback.get("status"),
+        "links": {"self": f"/api/omr/tasks/{task_id}"},
+    }
+
+
+def _list_tasks_response(
+    tasks: list[dict[str, Any]],
+    *,
+    filters: dict[str, str | None],
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    filtered = [task for task in tasks if _task_matches_filters(task, filters)]
+    page = filtered[offset : offset + limit]
+    return {
+        "total": len(filtered),
+        "limit": limit,
+        "offset": offset,
+        "tasks": [_task_summary(task) for task in page],
+    }
+
+
 def output_safe_task_id() -> str:
     from src.services.omr_service import create_task_id
 

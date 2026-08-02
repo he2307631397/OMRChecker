@@ -32,6 +32,11 @@ from src.services.omr_service import (
     prepare_upload_input_dir,
     run_omr_directory,
 )
+from src.services.batch_models import BatchRecognitionRequest, render_callback_payload_from_records
+from src.services.batch_service import BatchRecognitionService, RecognitionContext, RecognitionOutput
+from src.services.cos_client import build_cos_client
+from src.services.service_config import load_service_config
+from src.services.task_store import TaskStore
 
 app = Robyn(__file__)
 
@@ -41,6 +46,79 @@ _TEMPLATE_DIR = Path(os.getenv("OMR_TEMPLATE_DIR", str(DEFAULT_TEMPLATE_DIR)))
 _EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-worker")
 _TASKS: dict[str, dict[str, Any]] = {}
 _TASK_LOCK = Lock()
+
+
+class HttpCallbackClient:
+    def __init__(self, *, timeout_seconds: int = 10) -> None:
+        self.timeout_seconds = timeout_seconds
+
+    def send(self, payload: dict[str, Any]) -> dict[str, Any]:
+        task_id = payload.get("taskId")
+        batch = _BATCH_SERVICE.store.get_batch(str(task_id)) if task_id else None
+        url = batch.get("callback_url") if batch else None
+        if not url:
+            return {"success": False, "error": "callback url not found"}
+        body = json.dumps(payload).encode("utf-8")
+        request = urllib_request.Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib_request.urlopen(request, timeout=self.timeout_seconds) as response:
+            status_code = getattr(response, "status", response.getcode())
+            response_text = response.read().decode("utf-8", errors="replace")
+            return {
+                "success": status_code < 400,
+                "status_code": status_code,
+                "response_text": response_text,
+            }
+
+
+def _sqlite_path_from_url(url: str) -> Path:
+    if url.startswith("sqlite:///"):
+        return Path(url.removeprefix("sqlite:///"))
+    if url.startswith("sqlite://"):
+        return Path(url.removeprefix("sqlite://"))
+    return Path(url)
+
+
+def _build_batch_service() -> BatchRecognitionService:
+    config = load_service_config()
+    db_path = _sqlite_path_from_url(config.database.url or "sqlite:///service_data/omr_service.db")
+    store = TaskStore(db_path)
+    store.initialize()
+    return BatchRecognitionService(
+        store=store,
+        object_storage=build_cos_client(config.cos),
+        config=config,
+        recognition_runner=_run_batch_omr,
+        callback_client=HttpCallbackClient(timeout_seconds=config.callback.timeout_seconds),
+    )
+
+
+def _run_batch_omr(context: RecognitionContext) -> RecognitionOutput:
+    output_dir = context.workdir / "output"
+    result = run_omr_directory(context.workdir, output_dir)
+    result_payload = result.rows[0] if len(result.rows) == 1 else result.to_dict()
+    checked_image_path = _checked_image_path_for_result(output_dir, result_payload)
+    if checked_image_path is not None and isinstance(result_payload, dict):
+        result_payload = dict(result_payload)
+        result_payload["checkedImagePath"] = str(checked_image_path)
+    return RecognitionOutput(result=result_payload, checked_image_path=checked_image_path)
+
+
+def _checked_image_path_for_result(output_dir: Path, result_payload: dict[str, Any] | Any) -> Path | None:
+    if not isinstance(result_payload, dict):
+        return None
+    file_id = result_payload.get("file_id")
+    if not file_id:
+        return None
+    return get_checked_image_path(output_dir, str(file_id))
+
+
+_BATCH_SERVICE = _build_batch_service()
+_BATCH_EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-batch-worker")
 
 
 @app.get("/health")
@@ -100,6 +178,56 @@ def create_task(request: Request) -> dict[str, Any]:
         }
     except Exception as exc:  # Robyn will serialize this response for clients.
         return {"status": "failed", "error": str(exc)}
+
+
+@app.post("/api/omr/batches")
+def create_batch(request: Request) -> dict[str, Any]:
+    try:
+        batch_request = BatchRecognitionRequest.from_api_json(_json_request_body(request))
+        result = _BATCH_SERVICE.submit_batch(batch_request)
+        _BATCH_EXECUTOR.submit(_process_batch_safely, result.task_id)
+        return result.to_callback_dict()
+    except ValueError as exc:
+        return {"status": "failed", "error": str(exc)}
+
+
+@app.post("/api/omr/batch-tasks")
+def create_batch_task(request: Request) -> dict[str, Any]:
+    return create_batch(request)
+
+
+@app.get("/api/omr/batches")
+def get_batches(request: Request) -> dict[str, Any]:
+    query_params = getattr(request, "query_params", None) or getattr(request, "queries", None) or {}
+    filters = {
+        "status": _clean_optional_string(query_params.get("status")),
+        "exam_id": _clean_optional_string(query_params.get("examId") or query_params.get("exam_id")),
+        "external_batch_id": _clean_optional_string(
+            query_params.get("externalBatchId") or query_params.get("external_batch_id")
+        ),
+    }
+    limit = _positive_int(query_params.get("limit"), default=50)
+    offset = _nonnegative_int(query_params.get("offset"), default=0)
+    batches = _BATCH_SERVICE.store.list_batches(
+        status=filters["status"],
+        exam_id=filters["exam_id"],
+        external_batch_id=filters["external_batch_id"],
+    )
+    page = batches[offset : offset + limit]
+    return {
+        "total": len(batches),
+        "limit": limit,
+        "offset": offset,
+        "batches": [_batch_summary(batch) for batch in page],
+    }
+
+
+@app.get("/api/omr/batches/:task_id")
+def get_batch(task_id: str) -> dict[str, Any]:
+    batch = _BATCH_SERVICE.store.get_batch(task_id)
+    if batch is None:
+        return {"status": "not_found", "taskId": task_id, "error": "batch not found"}
+    return _batch_payload_from_store(task_id)
 
 
 @app.get("/api/omr/tasks")
@@ -172,6 +300,53 @@ def _prepare_task_input(request: Request) -> tuple[Path, Path, str | None]:
         return Path(payload["input_dir"]), output_dir, None
 
     raise ValueError("Upload a file using multipart/form-data or send JSON with input_dir")
+
+
+def _json_request_body(request: Request) -> dict[str, Any]:
+    try:
+        payload = request.json()
+    except Exception as exc:
+        raise ValueError("invalid JSON request body") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be an object")
+    return payload
+
+
+def _process_batch_safely(task_id: str) -> None:
+    try:
+        _BATCH_SERVICE.process_batch(task_id)
+    except Exception as exc:  # noqa: BLE001 - background failures must be persisted.
+        try:
+            _BATCH_SERVICE.store.update_batch_status(task_id, "failed", error=str(exc))
+        except KeyError:
+            return
+
+
+def _batch_payload_from_store(task_id: str) -> dict[str, Any]:
+    batch = _BATCH_SERVICE.store.get_batch(task_id)
+    if batch is None:
+        raise KeyError(f"batch not found: {task_id}")
+    return render_callback_payload_from_records(
+        batch=batch,
+        sheets=_BATCH_SERVICE.store.list_sheets(task_id),
+        artifacts=_BATCH_SERVICE.store.list_artifacts(task_id),
+    )
+
+
+def _batch_summary(batch: dict[str, Any]) -> dict[str, Any]:
+    payload = _batch_payload_from_store(batch["task_id"])
+    return {
+        "taskId": payload["taskId"],
+        "examId": payload["examId"],
+        "externalBatchId": payload.get("externalBatchId"),
+        "status": payload["status"],
+        "aggregateCounts": payload["aggregateCounts"],
+        "sheets": payload["sheets"],
+        "createdAt": batch.get("created_at"),
+        "updatedAt": batch.get("updated_at"),
+        "completedAt": batch.get("completed_at"),
+        "links": {"self": f"/api/omr/batches/{payload['taskId']}"},
+    }
 
 
 def _extract_file_bytes(file_content: Any) -> bytes:

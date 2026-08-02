@@ -226,7 +226,7 @@ Check that the service is running:
 curl http://localhost:8080/health
 ```
 
-See [docs/robyn-web-service.md](docs/robyn-web-service.md) for the maintained calling workflow and full API contract.
+See [docs/robyn-web-service.md](docs/robyn-web-service.md) for the maintained calling workflow, including multipart task APIs, COS batch recognition, callback payloads, and local fake-COS smoke testing.
 
 ### Common Issues
 

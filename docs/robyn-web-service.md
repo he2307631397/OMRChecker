@@ -107,6 +107,163 @@ curl -OJ http://localhost:8080/api/omr/tasks/a1b2c3.../checked-image/MX-M3658N_2
 
 If `callback_url` is supplied on task submission, the service posts the terminal task payload after completion or failure. Callers should still persist `task_id` and keep polling/query APIs available as compensation paths if callback delivery fails.
 
+
+### 7. Submit a COS batch recognition task
+
+Use `/api/omr/batches` when the Java platform has already uploaded source sheets to Tencent COS, or when local development uses the filesystem-backed fake COS client. The request body is JSON. Each sheet must provide the business `sheetId` and source object key `osskey`.
+
+Startup configuration can come from `config/robyn-service.json` or environment variables. With `cos.enabled: false`, object storage uses `LocalCosClient` and reads or writes under `cos.localRoot`, which is useful for local smoke tests.
+
+```json
+{
+  "storage": {
+    "serviceDataDir": "service_data",
+    "templateDir": "inputs"
+  },
+  "database": {
+    "url": "sqlite:///service_data/omr_service.db"
+  },
+  "cos": {
+    "enabled": false,
+    "localRoot": "service_data/cos_mock"
+  },
+  "recognition": {
+    "debugArtifacts": false
+  },
+  "archiveRegions": [
+    {
+      "regionCode": "exam_no",
+      "regionName": "准考证号区域",
+      "type": "student_id",
+      "bbox": [5, 10, 40, 20]
+    }
+  ]
+}
+```
+
+Submit a batch:
+
+```bash
+curl -X POST http://localhost:8080/api/omr/batches \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "examId": "exam-20260802-001",
+    "externalBatchId": "java-batch-001",
+    "callbackUrl": "https://java.example.com/omr/batch-callback",
+    "recognitionConfig": {"template": "default", "archiveRegionImages": true},
+    "sheets": [
+      {"sheetId": "sheet-001", "osskey": "incoming/exam-20260802-001/sheet-001.png"}
+    ]
+  }'
+```
+
+Initial response:
+
+```json
+{
+  "taskId": "svc-batch-id",
+  "examId": "exam-20260802-001",
+  "externalBatchId": "java-batch-001",
+  "status": "pending",
+  "aggregateCounts": {"total": 1, "pending": 1},
+  "sheets": [
+    {
+      "sheetId": "sheet-001",
+      "osskey": "incoming/exam-20260802-001/sheet-001.png",
+      "sourceOsskey": "incoming/exam-20260802-001/sheet-001.png",
+      "status": "pending",
+      "result": {},
+      "artifacts": []
+    }
+  ],
+  "links": {"self": "/api/omr/batches/svc-batch-id"}
+}
+```
+
+The service downloads each source `osskey`, copies template dependencies into an isolated work directory, runs OMR recognition, uploads the checked image, crops configured large regions from the checked image, uploads those region images, persists all records in SQLite, and posts the terminal callback.
+
+#### Debug artifacts
+
+Robyn API calls default to returning JSON recognition results without retaining local per-sheet process files. This keeps production service storage small and avoids treating intermediate debugging files as normal interface output.
+
+Enable local process-file retention only when troubleshooting recognition quality:
+
+```json
+{
+  "recognition": {
+    "debugArtifacts": true
+  }
+}
+```
+
+For a single batch, override the service default in the request:
+
+```json
+{
+  "examId": "exam-20260802-001",
+  "recognitionConfig": {"debugArtifacts": true},
+  "sheets": [
+    {"sheetId": "sheet-001", "osskey": "incoming/exam-20260802-001/sheet-001.png"}
+  ]
+}
+```
+
+Set `debugArtifacts` to `false` in a request to force cleanup even when the service default is enabled. This switch only applies to Robyn service work directories. CLI runs through `main.py` still write their normal `Results`, `CheckedOMRs`, and related debugging outputs.
+
+Terminal callback and query payloads include business fields at the sheet level for callers that do not want to inspect the nested `result` or generic `artifacts` arrays:
+
+```json
+{
+  "taskId": "svc-batch-id",
+  "examId": "exam-20260802-001",
+  "externalBatchId": "java-batch-001",
+  "status": "completed",
+  "aggregateCounts": {"total": 1, "completed": 1},
+  "sheets": [
+    {
+      "sheetId": "sheet-001",
+      "osskey": "incoming/exam-20260802-001/sheet-001.png",
+      "sourceOsskey": "incoming/exam-20260802-001/sheet-001.png",
+      "status": "completed",
+      "answers": {"q1": "A"},
+      "checkedImageOsskey": "checked/svc-batch-id/sheet-001/sheet-001.png",
+      "regionImages": [
+        {
+          "regionCode": "exam_no",
+          "regionName": "准考证号区域",
+          "type": "student_id",
+          "osskey": "artifacts/svc-batch-id/sheet-001/001_sheet-001_exam_no_准考证号区域.png",
+          "bbox": {"x": 5, "y": 10, "width": 40, "height": 20},
+          "uploadStatus": "uploaded"
+        }
+      ],
+      "result": {
+        "answers": {"q1": "A"}
+      },
+      "artifacts": [
+        {
+          "artifactType": "region_screenshot",
+          "osskey": "artifacts/svc-batch-id/sheet-001/001_sheet-001_exam_no_准考证号区域.png"
+        }
+      ]
+    }
+  ]
+}
+```
+
+If an artifact upload fails, recognition remains per-sheet isolated. The batch becomes `partial_failed` when recognition completed but checked-image or region-image upload failed, and the sheet result includes `artifactErrors` entries with the failed local path, intended `osskey`, and error message.
+
+### 8. Query COS batch records
+
+Use query APIs as callback compensation paths, audit records, and dashboard inputs.
+
+```bash
+curl http://localhost:8080/api/omr/batches/svc-batch-id
+curl "http://localhost:8080/api/omr/batches?examId=exam-20260802-001&status=completed&externalBatchId=java-batch-001&limit=50&offset=0"
+```
+
+Supported list filters are `examId`, `status`, `externalBatchId`, `limit`, and `offset`. Single-batch responses render the same terminal payload shape as callbacks.
+
 ### Related interfaces
 
 | Purpose | Method and path | Notes |

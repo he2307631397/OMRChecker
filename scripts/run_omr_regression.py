@@ -6,6 +6,7 @@ Generated runtime directories are intentionally kept outside git-tracked assets:
 - .jcode_runs/regression/<scenario>
 - outputs/<scenario>
 - outputs/Results/<scenario>_<asset_dir>_Results.csv
+- outputs/Results/<scenario>_<asset_dir>_WeakFillReview.csv
 - jcode_regression_<scenario>.log
 - outputs/recognition_rate_report.{csv,md}
 """
@@ -60,6 +61,11 @@ REPORT_COLUMNS = [
     "blank_rows",
     "csv",
     "classified_csv",
+    "review_csv",
+    "classified_review_csv",
+    "review_total",
+    "review_status_counts",
+    "review_type_counts",
 ]
 
 
@@ -98,6 +104,13 @@ def summarize_csv(output_dir: Path) -> dict:
             "blank_cells": 0,
             "blank_rows": 0,
             "csv": "",
+            "classified_csv": "",
+            "review_csv": "",
+            "classified_review_csv": "",
+            "review_total": 0,
+            "review_status_counts": "",
+            "review_type_counts": "",
+            "review_rows": [],
             "blanks": [],
         }
 
@@ -142,7 +155,37 @@ def summarize_csv(output_dir: Path) -> dict:
         "blank_rows": len({file_id for file_id, _ in blanks}),
         "csv": str(result_csv),
         "classified_csv": "",
+        **summarize_review_csv(output_dir),
         "blanks": blanks,
+    }
+
+
+def summarize_review_csv(output_dir: Path) -> dict:
+    """Summarize optional review CSV rows for manual/audit follow-up."""
+
+    review_csv = output_dir / "Results" / "WeakFillReview.csv"
+    if not review_csv.exists() or review_csv.stat().st_size == 0:
+        return {
+            "review_csv": "",
+            "classified_review_csv": "",
+            "review_total": 0,
+            "review_status_counts": "",
+            "review_type_counts": "",
+            "review_rows": [],
+        }
+
+    with review_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    status_counts = count_by_key(rows, "status")
+    type_counts = count_by_key(rows, "review_type")
+    return {
+        "review_csv": str(review_csv),
+        "classified_review_csv": "",
+        "review_total": len(rows),
+        "review_status_counts": format_counts(status_counts),
+        "review_type_counts": format_counts(type_counts),
+        "review_rows": rows,
     }
 
 
@@ -226,10 +269,15 @@ def write_reports(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
                 "",
                 f"- 结果 CSV: `{summary['csv']}`",
                 f"- 场景命名结果 CSV: `{summary['classified_csv']}`",
+                f"- 审核 CSV: `{summary['review_csv'] or '无'}`",
+                f"- 场景命名审核 CSV: `{summary['classified_review_csv'] or '无'}`",
                 f"- ID: {summary['id_recognized_cells']}/{summary['id_total_cells']} = {summary['id_recognition_rate']:.2%}",
                 f"- 题目: {summary['q_recognized_cells']}/{summary['q_total_cells']} = {summary['q_recognition_rate']:.2%}",
                 f"- 总体: {summary['recognized_cells']}/{summary['total_cells']} = {summary['overall_recognition_rate']:.2%}",
                 f"- fallback/review 事件: `{fallbacks}`",
+                f"- 审核记录数: {summary['review_total']}",
+                f"- 审核状态统计: `{summary['review_status_counts'] or '无'}`",
+                f"- 审核类型统计: `{summary['review_type_counts'] or '无'}`",
             ]
         )
         blanks = summary.get("blanks", [])
@@ -239,6 +287,7 @@ def write_reports(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
                 lines.append(f"  - `{file_id}` `{col}`")
         else:
             lines.append("- 空白单元格: 无")
+        append_review_markdown(lines, summary)
         lines.append("")
     md_path.write_text("\n".join(lines), encoding="utf-8")
 
@@ -257,6 +306,43 @@ def publish_classified_results(
         target_csv = results_dir / f"{scenario}_{safe_asset_dir}_Results.csv"
         shutil.copy2(source_csv, target_csv)
         summary["classified_csv"] = str(target_csv)
+        source_review_csv = Path(summary.get("review_csv", ""))
+        if source_review_csv.exists() and summary.get("review_total", 0):
+            target_review_csv = results_dir / f"{scenario}_{safe_asset_dir}_WeakFillReview.csv"
+            shutil.copy2(source_review_csv, target_review_csv)
+            summary["classified_review_csv"] = str(target_review_csv)
+
+
+def append_review_markdown(lines: list[str], summary: dict) -> None:
+    """Append review/audit recognition details to the markdown report."""
+
+    review_rows = summary.get("review_rows", [])
+    if not review_rows:
+        lines.append("- 审核识别结果: 无")
+        return
+
+    lines.extend(
+        [
+            "",
+            "#### 审核识别结果",
+            "",
+            "| file_id | 类型 | 字段 | 原值 | 候选值 | 置信度 | 状态 | 原因 |",
+            "| --- | --- | --- | --- | --- | ---: | --- | --- |",
+        ]
+    )
+    for row in review_rows:
+        lines.append(
+            "| `{file_id}` | {review_type} | {field} | `{original_value}` | `{candidate}` | {confidence} | {status} | {reason} |".format(
+                file_id=row.get("file_id", ""),
+                review_type=row.get("review_type", ""),
+                field=row.get("field", ""),
+                original_value=row.get("original_value", ""),
+                candidate=row.get("candidate", ""),
+                confidence=row.get("confidence", ""),
+                status=row.get("status", ""),
+                reason=row.get("reason", ""),
+            )
+        )
 
 
 def print_summary(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
@@ -303,6 +389,18 @@ def main() -> None:
 
 def _rate(numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
+
+
+def count_by_key(rows: list[dict], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = (row.get(key) or "").strip() or "<blank>"
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def format_counts(counts: dict[str, int]) -> str:
+    return ", ".join(f"{key}={counts[key]}" for key in sorted(counts))
 
 
 def safe_rmtree(path: Path, retries: int = 5, delay_seconds: float = 0.4) -> bool:

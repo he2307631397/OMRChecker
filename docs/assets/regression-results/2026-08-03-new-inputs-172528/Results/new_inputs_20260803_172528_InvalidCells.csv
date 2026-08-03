@@ -1,0 +1,206 @@
+﻿file_id,field,value,reason
+MX-M3658N_20260803_172528_001.png,id1,012345678,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id2,012345679,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id3,01234569,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id4,012345689,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id5,012345789,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id6,012346789,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id7,012346789,ID should be one digit
+MX-M3658N_20260803_172528_001.png,id8,012356789,ID should be one digit
+MX-M3658N_20260803_172528_001.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q3,BCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q7,AD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_001.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_002.png,id2,01,ID should be one digit
+MX-M3658N_20260803_172528_002.png,id4,08,ID should be one digit
+MX-M3658N_20260803_172528_002.png,id7,012345678,ID should be one digit
+MX-M3658N_20260803_172528_002.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_002.png,q7,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_003.png,id7,4567,ID should be one digit
+MX-M3658N_20260803_172528_003.png,q4,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_004.png,q1,ABC,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q6,ABD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_004.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_005.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_005.png,id3,23456789,ID should be one digit
+MX-M3658N_20260803_172528_005.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_005.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_006.png,id2,789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id3,6789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id4,456789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id5,3456789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id6,23456789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id7,123456789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_006.png,q3,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_006.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_006.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_006.png,q8,BCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_007.png,id1,67,ID should be one digit
+MX-M3658N_20260803_172528_007.png,id2,23,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_008.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_008.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_009.png,id6,01,ID should be one digit
+MX-M3658N_20260803_172528_009.png,id7,012345,ID should be one digit
+MX-M3658N_20260803_172528_009.png,id8,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id1,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id2,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id3,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id4,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id5,012345678,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id6,01234567,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id7,01234567,ID should be one digit
+MX-M3658N_20260803_172528_010.png,id8,01234567,ID should be one digit
+MX-M3658N_20260803_172528_010.png,q1,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_010.png,q3,ACD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_011.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_011.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_012.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_012.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_013.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_013.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_014.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_014.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_015.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_015.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_015.png,q2,ABC,single-choice should be one option A-D
+MX-M3658N_20260803_172528_015.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_015.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_016.png,id2,459,ID should be one digit
+MX-M3658N_20260803_172528_016.png,id3,45,ID should be one digit
+MX-M3658N_20260803_172528_016.png,id4,34,ID should be one digit
+MX-M3658N_20260803_172528_016.png,id7,89,ID should be one digit
+MX-M3658N_20260803_172528_016.png,id8,6789,ID should be one digit
+MX-M3658N_20260803_172528_016.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,id5,01368,ID should be one digit
+MX-M3658N_20260803_172528_017.png,id8,01,ID should be one digit
+MX-M3658N_20260803_172528_017.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,q3,ABC,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_017.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_018.png,q1,AB,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q2,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q6,AB,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q7,CD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_018.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,id1,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id2,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id3,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id4,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id5,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id6,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id7,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,id8,0123456789,ID should be one digit
+MX-M3658N_20260803_172528_019.png,q1,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q2,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q3,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q4,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q5,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q6,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q7,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_019.png,q8,ABCD,single-choice should be one option A-D
+MX-M3658N_20260803_172528_020.png,q5,CD,single-choice should be one option A-D

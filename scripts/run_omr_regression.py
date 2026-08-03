@@ -5,6 +5,7 @@ Generated runtime directories are intentionally kept outside git-tracked assets:
 
 - .jcode_runs/regression/<scenario>
 - outputs/<scenario>
+- outputs/Results/<scenario>_<asset_dir>_Results.csv
 - jcode_regression_<scenario>.log
 - outputs/recognition_rate_report.{csv,md}
 """
@@ -17,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -57,6 +59,7 @@ REPORT_COLUMNS = [
     "overall_recognition_rate",
     "blank_rows",
     "csv",
+    "classified_csv",
 ]
 
 
@@ -65,7 +68,8 @@ def prepare_run_dir(root: Path, scenario: str, asset_dir: str) -> Path:
 
     run_dir = root / scenario
     if run_dir.exists():
-        shutil.rmtree(run_dir)
+        if not safe_rmtree(run_dir):
+            raise RuntimeError(f"Could not remove previous run directory: {run_dir}")
     run_dir.mkdir(parents=True)
 
     for name in RUNTIME_FILES:
@@ -137,6 +141,7 @@ def summarize_csv(output_dir: Path) -> dict:
         "overall_recognition_rate": _rate(total_cells - blank_cells, total_cells),
         "blank_rows": len({file_id for file_id, _ in blanks}),
         "csv": str(result_csv),
+        "classified_csv": "",
         "blanks": blanks,
     }
 
@@ -152,7 +157,8 @@ def run_scenario(scenario: str, run_dir: Path) -> tuple[dict, dict[str, int]]:
     output_dir = Path("outputs") / scenario
     log_path = Path(f"jcode_regression_{scenario}.log")
     if output_dir.exists():
-        shutil.rmtree(output_dir)
+        if not safe_rmtree(output_dir):
+            output_dir = Path("outputs") / f"{scenario}_{run_timestamp()}"
 
     with log_path.open("w", encoding="utf-8") as log_file:
         completed = subprocess.run(
@@ -169,6 +175,7 @@ def run_scenario(scenario: str, run_dir: Path) -> tuple[dict, dict[str, int]]:
 def write_reports(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
     outputs = Path("outputs")
     outputs.mkdir(exist_ok=True)
+    publish_classified_results(rows, outputs / "Results")
     csv_path = outputs / "recognition_rate_report.csv"
     md_path = outputs / "recognition_rate_report.md"
 
@@ -218,6 +225,7 @@ def write_reports(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
                 f"### {scenario} ({SCENARIOS[scenario]})",
                 "",
                 f"- 结果 CSV: `{summary['csv']}`",
+                f"- 场景命名结果 CSV: `{summary['classified_csv']}`",
                 f"- ID: {summary['id_recognized_cells']}/{summary['id_total_cells']} = {summary['id_recognition_rate']:.2%}",
                 f"- 题目: {summary['q_recognized_cells']}/{summary['q_total_cells']} = {summary['q_recognition_rate']:.2%}",
                 f"- 总体: {summary['recognized_cells']}/{summary['total_cells']} = {summary['overall_recognition_rate']:.2%}",
@@ -233,6 +241,22 @@ def write_reports(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
             lines.append("- 空白单元格: 无")
         lines.append("")
     md_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def publish_classified_results(
+    rows: list[tuple[str, dict, dict[str, int]]], results_dir: Path
+) -> None:
+    """Copy each scenario result CSV into outputs/Results with scene-aware names."""
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+    for scenario, summary, _fallbacks in rows:
+        source_csv = Path(summary.get("csv", ""))
+        if not source_csv.exists():
+            continue
+        safe_asset_dir = re.sub(r"[\\/:*?\"<>|\s]+", "_", SCENARIOS[scenario]).strip("_")
+        target_csv = results_dir / f"{scenario}_{safe_asset_dir}_Results.csv"
+        shutil.copy2(source_csv, target_csv)
+        summary["classified_csv"] = str(target_csv)
 
 
 def print_summary(rows: list[tuple[str, dict, dict[str, int]]]) -> None:
@@ -279,6 +303,24 @@ def main() -> None:
 
 def _rate(numerator: int, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
+
+
+def safe_rmtree(path: Path, retries: int = 5, delay_seconds: float = 0.4) -> bool:
+    """Remove a directory with short retries for transient Windows file locks."""
+
+    for attempt in range(1, retries + 1):
+        try:
+            shutil.rmtree(path)
+            return True
+        except OSError:
+            if attempt == retries:
+                return False
+            time.sleep(delay_seconds)
+    return False
+
+
+def run_timestamp() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
 def _natural_suffix(value: str) -> int:

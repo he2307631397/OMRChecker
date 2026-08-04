@@ -541,6 +541,8 @@ Current implementation includes `sheets` in each list item by rendering the full
 
 For COS batches, the callback payload is the same shape as `GET /api/omr/batches/{taskId}` terminal payload. Callback delivery attempts are persisted in SQLite by `TaskStore.add_callback_attempt()`. The callback attempt records are not currently exposed through a dedicated HTTP endpoint.
 
+Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbackClient`. `callback.maxAttempts` is loaded into config but is not used by the current COS batch callback sender, so a COS batch terminal callback is attempted once per completed `process_batch()` run.
+
 ## Interface summary
 
 | Purpose | Method and path | Persistence | Notes |
@@ -574,6 +576,7 @@ For COS batches, the callback payload is the same shape as `GET /api/omr/batches
 - `callbackUrl` is required for batch submission by `BatchRecognitionRequest.from_api_json()`.
 - `recognitionConfig.template` is accepted and persisted but not currently used to select a template. Template selection comes from `storage.templateDir`.
 - Single-file task records are in memory only. COS batch records are persisted in SQLite.
+- Single-file callbacks retry up to three times. COS batch callbacks are attempted once in the current code even though `callback.maxAttempts` is loaded.
 - Batch list responses include full `sheets`, which may be heavy for large batches.
 - There is no OpenAPI/Swagger generation in the current Robyn app.
 - There is no authentication or request signing in the current implementation.

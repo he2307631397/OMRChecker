@@ -22,7 +22,10 @@ class FeatureBasedAlignment(ImagePreprocessor):
 
         # process reference image
         self.ref_path = self.relative_dir.joinpath(options["reference"])
-        ref_img = cv2.imread(str(self.ref_path), cv2.IMREAD_GRAYSCALE)
+        ref_img = cv2.imdecode(
+            np.frombuffer(self.ref_path.read_bytes(), dtype=np.uint8),
+            cv2.IMREAD_GRAYSCALE,
+        )
         self.ref_img = ImageUtils.resize_util(
             ref_img,
             config.dimensions.processing_width,

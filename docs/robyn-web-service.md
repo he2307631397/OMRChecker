@@ -274,6 +274,39 @@ Supported list filters are `examId`, `status`, `externalBatchId`, `limit`, and `
 | Query task records | `GET /api/omr/tasks` | Filter by status, batch ID, external task ID, with limit/offset pagination. |
 | Download checked image | `GET /api/omr/tasks/{task_id}/checked-image/{file_id}` | Use `checked_image_url` from completed result rows. |
 | Download CSV | `GET /api/omr/tasks/{task_id}/results-csv` | Available after the task has produced `Results_*.csv`. |
+| Submit COS batch | `POST /api/omr/batches` | JSON body with `examId`, `externalBatchId`, optional `callbackUrl`, `recognitionConfig`, and `sheets[].sheetId/osskey`. |
+| Query one COS batch | `GET /api/omr/batches/{task_id}` | Poll batch status and retrieve terminal callback-compatible payload. |
+| Query COS batch records | `GET /api/omr/batches` | Filter by `examId`, `status`, `externalBatchId`, with limit/offset pagination. |
+
+
+## Business-system integration checklist
+
+Use this checklist before joint debugging with the business system.
+
+### Service startup
+
+- Copy `config/robyn-service.example.json` to `config/robyn-service.json` and fill environment-backed COS secrets when real COS is enabled.
+- Set `storage.templateDir` to the runtime template directory. For the current verified A3 template, copy or point to `docs/assets/A3风格模板/template` as the active template source.
+- For local fake-COS smoke tests, set `cos.enabled=false` and prepare files under `cos.localRoot`.
+- Start from the project root with `python -X utf8 web/robyn_app.py` on Windows when paths include Chinese characters.
+- Verify `GET /health` returns `status=ok`, the expected worker count, and the expected template directory.
+
+### Business-system contract
+
+- Confirm whether the business side will call single-file multipart tasks (`/api/omr/tasks`) or COS batch tasks (`/api/omr/batches`). The batch interface is recommended for platform-to-service integration when source files already live in COS.
+- Persist service `taskId` or `task_id` together with caller-side `externalBatchId` and `sheetId` for retry, polling, compensation, and audit.
+- Treat callback delivery as an acceleration path, not the only source of truth. Keep polling and list-query compensation enabled.
+- Confirm terminal statuses handled by the business side: `completed`, `failed`, `partial_failed`, and still-running states such as `pending` or `running`.
+- Confirm artifact fields consumed by the business side: `answers`, `checkedImageOsskey`, `regionImages`, `artifactErrors`, and nested `result/artifacts` for backward-compatible detail.
+
+### Joint-debug smoke test
+
+1. Start the service with local fake COS and a small template directory.
+2. Put one known-good PDF or image under `service_data/cos_mock/incoming/<exam>/<sheet>.pdf`.
+3. Submit `POST /api/omr/batches` with one `sheets` item.
+4. Poll `GET /api/omr/batches/{taskId}` until the terminal status is returned.
+5. Verify `answers` matches the known checked result and `checkedImageOsskey` exists in fake COS.
+6. Enable `recognitionConfig.debugArtifacts=true` only if local intermediate files are needed for troubleshooting.
 
 
 ## Files added

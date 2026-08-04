@@ -1,0 +1,215 @@
+{
+  "pageDimensions": [
+    2380,
+    1682
+  ],
+  "bubbleDimensions": [
+    25,
+    16
+  ],
+  "outputColumns": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9",
+    "q10",
+    "q11"
+  ],
+  "preProcessors": [
+    {
+      "name": "FeatureBasedAlignment",
+      "options": {
+        "reference": "reference.png",
+        "maxFeatures": 4000,
+        "goodMatchPercent": 0.25,
+        "2d": true
+      }
+    }
+  ],
+  "fieldBlocks": {
+    "Q1": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q1"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        129,
+        641
+      ]
+    },
+    "Q2": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q2"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        129,
+        673
+      ]
+    },
+    "Q3": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q3"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        129,
+        707
+      ]
+    },
+    "Q4": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q4"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        129,
+        742
+      ]
+    },
+    "Q5": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q5"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        378,
+        641
+      ]
+    },
+    "Q6": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q6"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        378,
+        673
+      ]
+    },
+    "Q7": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q7"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        378,
+        707
+      ]
+    },
+    "Q8": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q8"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        378,
+        742
+      ]
+    },
+    "Q9": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q9"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        626,
+        641
+      ],
+      "multiSelect": true
+    },
+    "Q10": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q10"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        626,
+        674
+      ],
+      "multiSelect": true
+    },
+    "Q11": {
+      "fieldType": "QTYPE_MCQ4",
+      "fieldLabels": [
+        "q11"
+      ],
+      "bubbleDimensions": [
+        25,
+        16
+      ],
+      "bubblesGap": 32,
+      "labelsGap": 0,
+      "origin": [
+        626,
+        708
+      ],
+      "multiSelect": true
+    }
+  }
+}

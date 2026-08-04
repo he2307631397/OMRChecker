@@ -1,0 +1,64 @@
+{
+  "dimensions": {
+    "display_height": 1682,
+    "display_width": 2380,
+    "processing_height": 1682,
+    "processing_width": 2380
+  },
+  "outputs": {
+    "show_image_level": 0,
+    "save_image_level": 1,
+    "save_detections": true
+  },
+  "threshold_params": {
+    "GAMMA_LOW": 0.7,
+    "MIN_GAP": 30,
+    "MIN_JUMP": 25,
+    "CONFIDENT_SURPLUS": 5,
+    "JUMP_DELTA": 30,
+    "PAGE_TYPE_FOR_THRESHOLD": "white"
+  },
+  "alignment_params": {
+    "auto_align": true,
+    "match_col": 5,
+    "max_steps": 30,
+    "stride": 1,
+    "thickness": 3
+  },
+  "pdf_params": {
+    "pdf_dpi": 144,
+    "pdf_page": 1
+  },
+  "weak_mark_params": {
+    "enabled": true,
+    "min_gap": 10,
+    "max_mean": 215,
+    "supported_field_types": [
+      "QTYPE_MCQ4"
+    ],
+    "exclude_labels": []
+  },
+  "weak_identifier_params": {
+    "enabled": false,
+    "labels": [],
+    "exclude_labels": [],
+    "min_gap": 20,
+    "min_delta_from_blank": 25,
+    "max_mean": 205,
+    "supported_field_types": [
+      "QTYPE_INT"
+    ]
+  },
+  "weak_multi_mark_params": {
+    "enabled": true,
+    "labels": [],
+    "only_when_blank": true,
+    "min_delta_from_blank": 10,
+    "max_mean": 218,
+    "max_marks": 4,
+    "full_select_fallback_enabled": true,
+    "full_select_max_mean": 170,
+    "full_select_min_delta_from_blank": 35,
+    "full_select_max_spread": 25
+  }
+}

@@ -25,6 +25,36 @@ There are two integration modes:
 
 For business-system integration, prefer the COS batch API when source files already live in object storage.
 
+## Recognition task lifecycle
+
+Yes. The intended integration flow in the current implementation is:
+
+```mermaid
+sequenceDiagram
+  participant Biz as Business system
+  participant Robyn as Robyn OMR service
+  participant Worker as Recognition worker
+
+  Biz->>Robyn: Create recognition task
+  Robyn-->>Biz: Return task ID and initial status
+  Robyn->>Worker: Execute recognition asynchronously
+  loop Optional compensation polling
+    Biz->>Robyn: Query task status by task ID
+    Robyn-->>Biz: Return pending/running/completed/failed result
+  end
+  Worker-->>Robyn: Finish recognition
+  Robyn->>Biz: POST terminal callback payload
+```
+
+Use the create-task response `task_id` or `taskId` as the only identifier for later status queries:
+
+| Mode | Create recognition task | Query recognition task status | Completion callback |
+| --- | --- | --- | --- |
+| Single-file upload | `POST /api/omr/tasks` | `GET /api/omr/tasks/{task_id}` | Optional `callback_url` form field. |
+| COS batch | `POST /api/omr/batches` or `POST /api/omr/batch-tasks` | `GET /api/omr/batches/{taskId}` | Required `callbackUrl` JSON field. |
+
+Polling is a compensation mechanism. The business system should still support polling because callbacks can fail or arrive late. The terminal callback payload is the same shape as the corresponding task-status query payload at completion or failure.
+
 ## Configuration actually used by current code
 
 ### Single-file task API
@@ -85,7 +115,7 @@ Response shape:
 
 This flow stores tasks only in process memory. It is useful for direct uploads and simple integration, but task records are lost when the service restarts.
 
-### 1. Submit one uploaded file
+### 1. Create a single-file recognition task
 
 `POST /api/omr/tasks`
 
@@ -142,7 +172,7 @@ If parsing or preparation fails, the implementation returns a JSON body like:
 
 This mode is intended for internal smoke tests or trusted servers only.
 
-### 3. Poll one single-file task
+### 3. Query single-file recognition task status
 
 `GET /api/omr/tasks/{task_id}`
 
@@ -313,7 +343,7 @@ Use `osskey`:
 incoming/exam-001/sheet-001.pdf
 ```
 
-### 3. Submit a COS batch
+### 3. Create a COS batch recognition task
 
 `POST /api/omr/batches`
 
@@ -399,7 +429,7 @@ For each sheet:
 9. If debug artifacts are disabled, per-sheet workdirs are removed after processing.
 10. If `callbackUrl` exists, terminal callback is attempted and recorded in the database.
 
-### 5. Poll one COS batch
+### 5. Query COS batch recognition task status
 
 `GET /api/omr/batches/{taskId}`
 

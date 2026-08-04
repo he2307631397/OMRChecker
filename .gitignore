@@ -1,7 +1,9 @@
 # Any directory starting with a dot
 **/\.*/
-# Except .github
+# Except .github and safe environment templates
 !.github/
+!.env.example
+.env
 
 # Everything in inputs/ and outputs/
 inputs/*

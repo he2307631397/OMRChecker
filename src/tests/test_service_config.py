@@ -28,6 +28,31 @@ def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
     assert config.archive_regions[0].bbox == [1, 2, 30, 40]
 
 
+def test_load_service_config_reads_env_file_for_cos_secrets(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("COS_SECRET_ID", raising=False)
+    monkeypatch.delenv("COS_SECRET_KEY", raising=False)
+    (tmp_path / ".env").write_text(
+        'COS_SECRET_ID="sid-from-env-file"\nCOS_SECRET_KEY=skey-from-env-file\n',
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text(json.dumps({
+        "cos": {
+            "enabled": True,
+            "region": "ap-guangzhou",
+            "bucket": "bucket",
+            "secretId": "${COS_SECRET_ID}",
+            "secretKey": "${COS_SECRET_KEY}",
+        }
+    }), encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.cos.secret_id == "sid-from-env-file"
+    assert config.cos.secret_key == "skey-from-env-file"
+
+
 def test_load_service_config_allows_environment_port_override(tmp_path, monkeypatch):
     monkeypatch.setenv("OMR_SERVICE_PORT", "9090")
     config_path = tmp_path / "robyn-service.json"

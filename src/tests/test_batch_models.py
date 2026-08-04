@@ -17,7 +17,7 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
             "examId": "exam-1",
             "externalBatchId": "external-1",
             "callbackUrl": "https://example.test/callback",
-            "recognitionConfig": {"template": "standard", "flags": ["fast"]},
+            "recognitionConfig": {"template": {"name": "standard"}, "flags": ["fast"]},
             "sheets": [
                 {"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf", "metadata": {"page": 1}},
                 {"sheetId": "sheet-2", "osskey": "inputs/sheet-2.pdf"},
@@ -28,7 +28,7 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
     assert request.exam_id == "exam-1"
     assert request.external_batch_id == "external-1"
     assert request.callback_url == "https://example.test/callback"
-    assert request.recognition_config == {"template": "standard", "flags": ["fast"]}
+    assert request.recognition_config == {"template": {"name": "standard"}, "flags": ["fast"]}
     assert request.sheets[0].sheet_id == "sheet-1"
     assert request.sheets[0].osskey == "inputs/sheet-1.pdf"
     assert request.sheets[0].metadata == {"page": 1}
@@ -37,7 +37,7 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
         "examId": "exam-1",
         "externalBatchId": "external-1",
         "callbackUrl": "https://example.test/callback",
-        "recognitionConfig": {"template": "standard", "flags": ["fast"]},
+        "recognitionConfig": {"template": {"name": "standard"}, "flags": ["fast"]},
         "sheets": [
             {"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf", "metadata": {"page": 1}},
             {"sheetId": "sheet-2", "osskey": "inputs/sheet-2.pdf"},
@@ -79,6 +79,8 @@ def test_batch_request_defaults_recognition_config_to_empty_dict_when_omitted_or
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": [{}]}, "sheets[0].sheetId is required"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": [{"sheetId": "sheet-1"}]}, "sheets[0].osskey is required"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": [] , "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig must be an object"),
+        ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": {"template": "standard"}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.template must be an object"),
+        ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": {"config": []}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.config must be an object"),
     ],
 )
 def test_batch_request_validation_failures_are_clear(payload, message):

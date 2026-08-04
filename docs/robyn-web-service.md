@@ -358,7 +358,7 @@ Request body fields:
 | `examId` | yes | Business exam ID. Must be a non-empty string. |
 | `callbackUrl` | yes | Terminal callback URL. Must be a non-empty string. Current validation only checks presence in batch model. |
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
-| `recognitionConfig` | no | Object. Currently only `debugArtifacts` is interpreted by backend. Other keys are persisted but not used. |
+| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` and `config`, when supplied as objects, are written as runtime `template.json` and `config.json`. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
 | `sheets` | yes | Non-empty list of sheet objects. |
 | `sheets[].sheetId` | yes | Business sheet ID. |
@@ -503,8 +503,8 @@ Template-parameter request example based on `docs/assets/自制模板1/template`
 Notes for Java integration:
 
 - The `recognitionConfig.template` and `recognitionConfig.config` object shapes above match the verified files in `docs/assets/自制模板1/template/template.json` and `docs/assets/自制模板1/template/config.json`.
-- Current backend validation only requires `recognitionConfig` to be an object and `recognitionConfig.debugArtifacts`, when supplied, to be a boolean. Template and config objects are persisted in the task request JSON for correlation and future extension.
-- Current recognition execution still reads runtime files from `storage.templateDir`. Keep `config.json`, `template.json`, and `reference.png` in that directory with the same structure as the request example.
+- Current backend validation requires `recognitionConfig` to be an object and `recognitionConfig.debugArtifacts`, when supplied, to be a boolean. When `recognitionConfig.template` or `recognitionConfig.config` is supplied, each must be an object to participate in runtime file generation.
+- Runtime behavior: batch recognition first copies top-level files from `storage.templateDir` into each sheet workdir. If `recognitionConfig.template` or `recognitionConfig.config` is provided as an object, the service writes them to `template.json` and `config.json` in that workdir before recognition, so the request parameters override the default template/config files. Keep non-JSON dependencies such as `reference.png` in `storage.templateDir`.
 
 Immediate response is the pending callback payload rendered from stored records:
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import uuid
+import json
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -107,6 +108,7 @@ class BatchRecognitionService:
                 source_path = workdir / "source" / Path(sheet_request.osskey).name
                 self.object_storage.download_file(sheet_request.osskey, source_path)
                 self._copy_template_dependencies(workdir)
+                self._write_request_template_dependencies(request, workdir)
                 output = self.recognition_runner(
                     RecognitionContext(
                         task_id=task_id,
@@ -310,6 +312,14 @@ class BatchRecognitionService:
             if source.is_file():
                 shutil.copy2(source, workdir / source.name)
 
+    def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
+        template = request.recognition_config.get("template")
+        config = request.recognition_config.get("config")
+        if isinstance(template, dict):
+            _write_json(workdir / "template.json", template)
+        if isinstance(config, dict):
+            _write_json(workdir / "config.json", config)
+
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
         workdir.mkdir(parents=True, exist_ok=True)
@@ -377,6 +387,11 @@ def _safe_component(value: str) -> str:
     sanitized = sanitized.replace("..", "_")
     sanitized = re.sub(r"_+", "_", sanitized).strip("._")
     return sanitized or "item"
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _ensure_within_directory(path: Path, directory: Path) -> None:

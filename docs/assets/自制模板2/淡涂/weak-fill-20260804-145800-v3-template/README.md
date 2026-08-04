@@ -2,6 +2,8 @@
 
 This directory archives the answer-sheet template files used for the local weak-fill recognition verification run on 2026-08-04.
 
+Template category: `自制模板2/淡涂`.
+
 ## Archived files
 
 - `config.json`

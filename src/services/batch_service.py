@@ -336,7 +336,13 @@ class BatchRecognitionService:
     def _persist_request_template_dependencies(self, request: BatchRecognitionRequest) -> None:
         if not self._uses_central_template_config(request):
             return
-        self._write_request_template_dependencies(request, self._template_dependency_dir(request))
+        template_dir = self._template_dependency_dir(request)
+        self._write_request_template_dependencies(request, template_dir)
+        if not (template_dir / "template.json").exists():
+            raise ValueError(
+                f"template.json is required for templateCode/schemaVersion recognition: {template_dir / 'template.json'}. "
+                "Provide a complete recognitionConfig.templateConfig/template payload or pre-create template.json in that directory."
+            )
 
     def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
         template = request.recognition_config.get("template")

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 from src.services.batch_models import BatchRecognitionRequest, BatchSheetRequest
 from src.services.batch_models import ArtifactPayload
 from src.services.cos_client import LocalCosClient
@@ -474,6 +475,33 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     service.submit_batch(request)
 
     assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_requires_central_template_json_for_template_code(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    (tmp_path / "config" / "ASTS-HTTP-001" / "v1").mkdir(parents=True)
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
+        recognition_config={"templateConfig": {"bubbleDimensions": None, "fieldBlocks": None}},
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=lambda _context: RecognitionOutput(result={"ok": True}),
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    with pytest.raises(ValueError, match="template.json is required"):
+        service.process_batch("task-1")
 
 
 def test_fake_cos_smoke_terminal_payload_contains_business_artifact_fields(tmp_path: Path) -> None:

@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 _ENV_PLACEHOLDER_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -111,7 +112,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
             local_root=Path(cos.get("localRoot", CosConfig.local_root)),
         ),
         callback=CallbackConfig(
-            url=_optional_non_empty_string(callback.get("url"), "callback.url"),
+            url=_optional_http_url(callback.get("url"), "callback.url"),
             max_attempts=int(callback.get("maxAttempts", CallbackConfig.max_attempts)),
             timeout_seconds=int(callback.get("timeoutSeconds", CallbackConfig.timeout_seconds)),
         ),
@@ -204,3 +205,13 @@ def _optional_non_empty_string(value: Any, field_name: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field_name} must be a non-empty string")
     return value.strip()
+
+
+def _optional_http_url(value: Any, field_name: str) -> str | None:
+    url = _optional_non_empty_string(value, field_name)
+    if url is None:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError(f"{field_name} must be a valid http:// or https:// URL")
+    return url

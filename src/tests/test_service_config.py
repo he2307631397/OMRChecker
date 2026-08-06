@@ -76,6 +76,14 @@ def test_load_service_config_allows_environment_callback_url_override(tmp_path, 
     assert config.callback.url == "https://env.example.test/callback"
 
 
+def test_load_service_config_rejects_malformed_callback_url(tmp_path, monkeypatch):
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"callback": {"url": "https:/localhost:8080/callback"}}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="callback.url must be a valid"):
+        load_service_config(config_path)
+
+
 def test_recognition_debug_artifacts_defaults_to_false(tmp_path, monkeypatch):
     monkeypatch.delenv("OMR_RECOGNITION_DEBUG_ARTIFACTS", raising=False)
     config_path = tmp_path / "robyn-service.json"

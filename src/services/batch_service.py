@@ -108,7 +108,7 @@ class BatchRecognitionService:
             try:
                 source_path = workdir / "source" / Path(sheet_request.osskey).name
                 self.object_storage.download_file(sheet_request.osskey, source_path)
-                self._copy_template_dependencies(workdir)
+                self._copy_template_dependencies(request, workdir)
                 self._write_request_template_dependencies(request, workdir)
                 output = self.recognition_runner(
                     RecognitionContext(
@@ -300,8 +300,8 @@ class BatchRecognitionService:
             }
         return remote_key, None
 
-    def _copy_template_dependencies(self, workdir: Path) -> None:
-        template_dir = self.config.storage.template_dir
+    def _copy_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
+        template_dir = self._template_dependency_dir(request)
         if not template_dir.exists():
             return
         resolved_template_dir = template_dir.resolve(strict=False)
@@ -313,6 +313,16 @@ class BatchRecognitionService:
                 continue
             if source.is_file():
                 shutil.copy2(source, workdir / source.name)
+
+    def _template_dependency_dir(self, request: BatchRecognitionRequest) -> Path:
+        if request.template_version is None:
+            return self.config.storage.template_dir
+        version_dir = Path("config") / request.template_version
+        resolved_config_root = Path("config").resolve(strict=False)
+        resolved_version_dir = version_dir.resolve(strict=False)
+        if resolved_config_root != resolved_version_dir and resolved_config_root not in resolved_version_dir.parents:
+            raise ValueError(f"templateVersion is outside config directory: {request.template_version}")
+        return version_dir
 
     def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
         template = request.recognition_config.get("template")

@@ -359,6 +359,7 @@ Request body fields:
 | `examId` | yes | Business exam ID. Must be a non-empty string. |
 | `callbackUrl` | no | Terminal callback URL. If omitted, Robyn uses `callback.url` from `config/robyn-service.json` or `OMR_CALLBACK_URL`. Must be a non-empty string when supplied. |
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
+| `templateVersion` | no | Template asset version such as `v1` or `v2`. When supplied, Robyn copies top-level files from project `config/<templateVersion>/` into each sheet workdir before writing request `template.json` and `config.json`. Use this for binary/template dependency files such as `reference.png`. |
 | `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
 | `sheets` | yes | Non-empty list of sheet objects. |
@@ -374,6 +375,7 @@ curl -X POST http://localhost:8080/api/omr/batches \
   -d '{
       "examId": 17,
       "templateSpecId": 1,
+      "templateVersion": "v1",
       "externalBatchId": "scan_batch_file:1785991732373",
       "attemptNo": 1785991732373,
       "batchId": 1,
@@ -842,6 +844,7 @@ Template-parameter request example based on `docs/assets/自制模板1/template`
 Notes for Java integration:
 
 - `recognitionConfig.template` and `recognitionConfig.templateConfig` are both accepted as the runtime `template.json` payload. If both are present, `template` wins.
+- `templateVersion` selects template dependency files from project `config/<templateVersion>/`. For example, `"templateVersion": "v1"` copies `config/v1/reference.png` into the workdir, so `preProcessors[].options.reference: "reference.png"` can resolve at runtime. Add future templates as `config/v2/`, `config/v3/`, etc.
 - Current backend validation requires `recognitionConfig` to be an object and `recognitionConfig.debugArtifacts`, when supplied, to be a boolean. When `recognitionConfig.template`, `recognitionConfig.templateConfig`, or `recognitionConfig.config` is supplied, each must be an object to participate in runtime file generation.
 - Runtime behavior: batch recognition first copies top-level files from `storage.templateDir` into each sheet workdir. If request template/config objects are provided, the service writes them to `template.json` and `config.json` in that workdir before recognition, so the request parameters override the default template/config files. Keep non-JSON dependencies such as `reference.png` in `storage.templateDir`.
 - `recognitionConfig.config` accepts the Java-style keys shown in the real request example, for example `thresholdParams.gammaLow`, `alignmentParams.autoAlign`, `pdfParams.pdfDpi`, `weakMarkParams.supportedFieldTypes`, and `weakMultiMarkParams.fullSelectFallbackEnabled`. Before recognition, Robyn writes OMRChecker runtime keys such as `threshold_params.GAMMA_LOW`, `alignment_params.auto_align`, `pdf_params.pdf_dpi`, `weak_mark_params.supported_field_types`, and `weak_multi_mark_params.full_select_fallback_enabled`.

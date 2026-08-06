@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +37,7 @@ class BatchRecognitionRequest:
     callback_url: str | None
     sheets: list[BatchSheetRequest]
     external_batch_id: str | None = None
+    template_version: str | None = None
     recognition_config: dict[str, Any] = field(default_factory=dict)
     debug_artifacts: bool | None = None
     extra_fields: dict[str, Any] = field(default_factory=dict)
@@ -47,6 +49,7 @@ class BatchRecognitionRequest:
         exam_id = _required_non_empty_scalar(payload, "examId", "examId")
         callback_url = _optional_non_empty_string(payload.get("callbackUrl"), "callbackUrl")
         external_batch_id = _optional_non_empty_string(payload.get("externalBatchId"), "externalBatchId")
+        template_version = _optional_template_version(payload.get("templateVersion"), "templateVersion")
 
         recognition_config = payload.get("recognitionConfig", {})
         if recognition_config is None:
@@ -68,12 +71,13 @@ class BatchRecognitionRequest:
             raise ValueError("sheets must be a non-empty list")
         sheets = [BatchSheetRequest.from_api_json(sheet, index=index) for index, sheet in enumerate(raw_sheets)]
 
-        known_fields = {"examId", "callbackUrl", "externalBatchId", "recognitionConfig", "sheets"}
+        known_fields = {"examId", "callbackUrl", "externalBatchId", "templateVersion", "recognitionConfig", "sheets"}
 
         return cls(
             exam_id=exam_id,
             external_batch_id=external_batch_id,
             callback_url=callback_url,
+            template_version=template_version,
             recognition_config=recognition_config,
             debug_artifacts=debug_artifacts,
             sheets=sheets,
@@ -90,6 +94,8 @@ class BatchRecognitionRequest:
             payload["callbackUrl"] = self.callback_url
         if self.external_batch_id is not None:
             payload["externalBatchId"] = self.external_batch_id
+        if self.template_version is not None:
+            payload["templateVersion"] = self.template_version
         payload.update(self.extra_fields)
         return payload
 
@@ -249,6 +255,17 @@ def _optional_non_empty_string(value: Any, display_name: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{display_name} must be a non-empty string")
     return value
+
+
+def _optional_template_version(value: Any, display_name: str) -> str | None:
+    version = _optional_non_empty_string(value, display_name)
+    if version is None:
+        return None
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", version):
+        raise ValueError(f"{display_name} must be a safe template version like v1")
+    if ".." in version:
+        raise ValueError(f"{display_name} must be a safe template version like v1")
+    return version
 
 
 def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:

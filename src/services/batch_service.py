@@ -322,7 +322,7 @@ class BatchRecognitionService:
         if isinstance(template, dict):
             _write_json(workdir / "template.json", template)
         if isinstance(config, dict):
-            _write_json(workdir / "config.json", config)
+            _write_json(workdir / "config.json", _normalize_runtime_config(config))
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -396,6 +396,120 @@ def _safe_component(value: str) -> str:
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _normalize_runtime_config(config: dict) -> dict:
+    """Convert Java/API camelCase config keys to OMRChecker config keys.
+
+    The public batch API accepts Java-friendly keys like ``displayHeight`` and
+    ``thresholdParams``. OMRChecker's runtime ``config.json`` expects snake_case
+    section names and, for threshold constants, uppercase names. Existing native
+    OMRChecker keys are preserved so callers can still pass config files as-is.
+    """
+
+    section_maps = {
+        "dimensions": {
+            "displayHeight": "display_height",
+            "displayWidth": "display_width",
+            "processingHeight": "processing_height",
+            "processingWidth": "processing_width",
+        },
+        "outputs": {
+            "showImageLevel": "show_image_level",
+            "saveImageLevel": "save_image_level",
+            "saveDetections": "save_detections",
+            "filterOutMultimarkedFiles": "filter_out_multimarked_files",
+        },
+        "threshold_params": {
+            "gammaLow": "GAMMA_LOW",
+            "minGap": "MIN_GAP",
+            "minJump": "MIN_JUMP",
+            "confidentSurplus": "CONFIDENT_SURPLUS",
+            "jumpDelta": "JUMP_DELTA",
+            "pageTypeForThreshold": "PAGE_TYPE_FOR_THRESHOLD",
+        },
+        "alignment_params": {
+            "autoAlign": "auto_align",
+            "matchCol": "match_col",
+            "maxSteps": "max_steps",
+        },
+        "pdf_params": {
+            "pdfDpi": "pdf_dpi",
+            "pdfPage": "pdf_page",
+        },
+        "weak_mark_params": {
+            "minGap": "min_gap",
+            "minDeltaFromBlank": "min_delta_from_blank",
+            "adaptiveMinDeltaFromBlank": "adaptive_min_delta_from_blank",
+            "minDeltaFromPageBlank": "min_delta_from_page_blank",
+            "minPageZScore": "min_page_z_score",
+            "minDarkPixelRatio": "min_dark_pixel_ratio",
+            "minDensityGap": "min_density_gap",
+            "resolveSingleChoiceConflicts": "resolve_single_choice_conflicts",
+            "conflictMinGap": "conflict_min_gap",
+            "conflictMinDeltaFromBlank": "conflict_min_delta_from_blank",
+            "conflictAutoResolveMinConfidence": "conflict_auto_resolve_min_confidence",
+            "conflictReviewMinConfidence": "conflict_review_min_confidence",
+            "weakFillAutoResolveMinConfidence": "weak_fill_auto_resolve_min_confidence",
+            "weakFillReviewMinConfidence": "weak_fill_review_min_confidence",
+            "maxMean": "max_mean",
+            "supportedFieldTypes": "supported_field_types",
+            "excludeLabels": "exclude_labels",
+        },
+        "weak_identifier_params": {
+            "excludeLabels": "exclude_labels",
+            "minGap": "min_gap",
+            "minDeltaFromBlank": "min_delta_from_blank",
+            "adaptiveMinGap": "adaptive_min_gap",
+            "adaptiveMinDeltaFromBlank": "adaptive_min_delta_from_blank",
+            "minPageZScore": "min_page_z_score",
+            "minDarkPixelRatio": "min_dark_pixel_ratio",
+            "minDensityGap": "min_density_gap",
+            "maxMean": "max_mean",
+            "adaptiveMaxMean": "adaptive_max_mean",
+            "supportedFieldTypes": "supported_field_types",
+        },
+        "weak_multi_mark_params": {
+            "onlyWhenBlank": "only_when_blank",
+            "minDeltaFromBlank": "min_delta_from_blank",
+            "maxMean": "max_mean",
+            "maxMarks": "max_marks",
+            "fullSelectFallbackEnabled": "full_select_fallback_enabled",
+            "fullSelectMaxMean": "full_select_max_mean",
+            "fullSelectMinDeltaFromBlank": "full_select_min_delta_from_blank",
+            "fullSelectMaxSpread": "full_select_max_spread",
+        },
+    }
+    top_level_sections = {
+        "thresholdParams": "threshold_params",
+        "alignmentParams": "alignment_params",
+        "pdfParams": "pdf_params",
+        "weakMarkParams": "weak_mark_params",
+        "weakIdentifierParams": "weak_identifier_params",
+        "weakMultiMarkParams": "weak_multi_mark_params",
+    }
+
+    normalized = dict(config)
+    for api_key, runtime_key in top_level_sections.items():
+        if api_key in normalized:
+            api_value = normalized.pop(api_key)
+            if runtime_key not in normalized:
+                normalized[runtime_key] = api_value
+    for section, key_map in section_maps.items():
+        value = normalized.get(section)
+        if isinstance(value, dict):
+            normalized[section] = _rename_keys(value, key_map)
+    return normalized
+
+
+def _rename_keys(payload: dict, key_map: dict[str, str]) -> dict:
+    renamed = dict(payload)
+    for api_key, runtime_key in key_map.items():
+        if api_key in renamed:
+            api_value = renamed.pop(api_key)
+            if runtime_key not in renamed:
+                renamed[runtime_key] = api_value
+    return renamed
 
 
 def _ensure_within_directory(path: Path, directory: Path) -> None:

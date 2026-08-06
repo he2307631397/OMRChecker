@@ -78,6 +78,69 @@ def _make_request_with_runtime_template() -> BatchRecognitionRequest:
     )
 
 
+def _make_request_with_java_style_runtime_config() -> BatchRecognitionRequest:
+    return BatchRecognitionRequest(
+        exam_id="17",
+        external_batch_id="scan_batch_file:1785991732373",
+        callback_url=None,
+        recognition_config={
+            "templateConfig": {"fieldBlocks": {"student_id": {"fieldType": "QTYPE_INT"}}},
+            "config": {
+                "dimensions": {
+                    "displayHeight": 1682,
+                    "displayWidth": 1190,
+                    "processingHeight": 1682,
+                    "processingWidth": 1190,
+                },
+                "outputs": {
+                    "showImageLevel": 0,
+                    "saveImageLevel": 0,
+                    "saveDetections": True,
+                },
+                "thresholdParams": {
+                    "gammaLow": 0.7,
+                    "minGap": 30,
+                    "minJump": 25,
+                    "confidentSurplus": 5,
+                    "jumpDelta": 30,
+                    "pageTypeForThreshold": "white",
+                },
+                "alignmentParams": {"autoAlign": False},
+                "pdfParams": {"pdfDpi": 144, "pdfPage": 1},
+                "weakMarkParams": {
+                    "enabled": True,
+                    "minGap": 10,
+                    "maxMean": 215,
+                    "supportedFieldTypes": ["QTYPE_MCQ4"],
+                    "excludeLabels": [],
+                },
+                "weakIdentifierParams": {
+                    "enabled": True,
+                    "labels": [],
+                    "excludeLabels": [],
+                    "minGap": 20,
+                    "minDeltaFromBlank": 25,
+                    "maxMean": 205,
+                    "supportedFieldTypes": ["QTYPE_INT"],
+                },
+                "weakMultiMarkParams": {
+                    "enabled": True,
+                    "labels": [],
+                    "onlyWhenBlank": True,
+                    "minDeltaFromBlank": 10,
+                    "maxMean": 218,
+                    "maxMarks": 4,
+                    "fullSelectFallbackEnabled": True,
+                    "fullSelectMaxMean": 170,
+                    "fullSelectMinDeltaFromBlank": 35,
+                    "fullSelectMaxSpread": 25,
+                },
+            },
+        },
+        sheets=[BatchSheetRequest(sheet_id="1", osskey="incoming/sheet-1.png")],
+    )
+
+
 def _write_image(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     image = np.zeros((80, 120, 3), dtype=np.uint8)
@@ -216,6 +279,45 @@ def test_process_batch_accepts_template_config_alias(tmp_path: Path) -> None:
         task_id_factory=lambda: "task-1",
     )
     service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_normalizes_java_style_runtime_config(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+
+    def fake_runner(context):
+        runtime_config = json.loads((context.workdir / "config.json").read_text(encoding="utf-8"))
+        assert runtime_config["dimensions"] == {
+            "display_height": 1682,
+            "display_width": 1190,
+            "processing_height": 1682,
+            "processing_width": 1190,
+        }
+        assert runtime_config["outputs"] == {
+            "show_image_level": 0,
+            "save_image_level": 0,
+            "save_detections": True,
+        }
+        assert runtime_config["threshold_params"]["GAMMA_LOW"] == 0.7
+        assert runtime_config["alignment_params"] == {"auto_align": False}
+        assert runtime_config["pdf_params"] == {"pdf_dpi": 144, "pdf_page": 1}
+        assert runtime_config["weak_mark_params"]["supported_field_types"] == ["QTYPE_MCQ4"]
+        assert runtime_config["weak_identifier_params"]["min_delta_from_blank"] == 25
+        assert runtime_config["weak_multi_mark_params"]["full_select_fallback_enabled"] is True
+        assert "thresholdParams" not in runtime_config
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request_with_java_style_runtime_config())
 
     assert service.process_batch("task-1").status == "completed"
 

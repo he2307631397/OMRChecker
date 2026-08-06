@@ -187,7 +187,7 @@ def create_batch(request: Request) -> dict[str, Any]:
         batch_request = BatchRecognitionRequest.from_api_json(_json_request_body(request))
         result = _BATCH_SERVICE.submit_batch(batch_request)
         _BATCH_EXECUTOR.submit(_process_batch_safely, result.task_id)
-        return result.to_callback_dict()
+        return _simple_batch_create_response(result)
     except ValueError as exc:
         return {"status": "failed", "error": str(exc)}
 
@@ -195,6 +195,14 @@ def create_batch(request: Request) -> dict[str, Any]:
 @app.post("/api/omr/batch-tasks")
 def create_batch_task(request: Request) -> dict[str, Any]:
     return create_batch(request)
+
+
+def _simple_batch_create_response(result) -> dict[str, Any]:
+    return {
+        "taskId": result.task_id,
+        "examId": result.exam_id,
+        "status": result.status,
+    }
 
 
 @app.get("/api/omr/batches")

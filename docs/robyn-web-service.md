@@ -851,25 +851,13 @@ Notes for Java integration:
 - Runtime behavior: batch recognition first copies top-level files from `storage.templateDir` into each sheet workdir. If request template/config objects are provided, the service writes them to `template.json` and `config.json` in that workdir before recognition, so the request parameters override the default template/config files. Keep non-JSON dependencies such as `reference.png` in `storage.templateDir`.
 - `recognitionConfig.config` accepts the Java-style keys shown in the real request example, for example `thresholdParams.gammaLow`, `alignmentParams.autoAlign`, `pdfParams.pdfDpi`, `weakMarkParams.supportedFieldTypes`, and `weakMultiMarkParams.fullSelectFallbackEnabled`. Before recognition, Robyn writes OMRChecker runtime keys such as `threshold_params.GAMMA_LOW`, `alignment_params.auto_align`, `pdf_params.pdf_dpi`, `weak_mark_params.supported_field_types`, and `weak_multi_mark_params.full_select_fallback_enabled`.
 
-Immediate response is the pending callback payload rendered from stored records:
+Immediate response is intentionally minimal. Use `GET /api/omr/batches/{taskId}` for details:
 
 ```json
 {
   "taskId": "batch-task-id",
   "examId": "exam-001",
-  "status": "pending",
-  "aggregateCounts": {"total": 1, "pending": 1},
-  "sheets": [
-    {
-      "sheetId": "sheet-001",
-      "osskey": "incoming/exam-001/sheet-001.pdf",
-      "sourceOsskey": "incoming/exam-001/sheet-001.pdf",
-      "status": "pending",
-      "result": {},
-      "artifacts": []
-    }
-  ],
-  "externalBatchId": "biz-batch-001"
+  "status": "pending"
 }
 ```
 

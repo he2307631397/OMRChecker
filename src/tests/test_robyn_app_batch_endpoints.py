@@ -90,20 +90,7 @@ def test_submit_valid_batch_returns_business_fields_persists_and_processes_inlin
 
     response = robyn_app.create_batch(DummyRequest(json_payload=_payload()))
 
-    assert response["taskId"] == "batch-task-1"
-    assert response["examId"] == "exam-1"
-    assert response["externalBatchId"] == "external-1"
-    assert response["status"] == "pending"
-    assert response["sheets"] == [
-        {
-            "sheetId": "sheet-1",
-            "osskey": "incoming/sheet-1.png",
-            "sourceOsskey": "incoming/sheet-1.png",
-            "status": "pending",
-            "result": {},
-            "artifacts": [],
-        }
-    ]
+    assert response == {"taskId": "batch-task-1", "examId": "exam-1", "status": "pending"}
     assert store.get_batch("batch-task-1")["exam_id"] == "exam-1"
     assert store.list_sheets("batch-task-1")[0]["status"] == "completed"
     assert len(executor.submissions) == 1
@@ -165,8 +152,7 @@ def test_batch_task_alias_uses_same_submit_handler(monkeypatch, tmp_path):
 
     response = robyn_app.create_batch_task(DummyRequest(json_payload=_payload()))
 
-    assert response["taskId"] == "batch-task-1"
-    assert response["examId"] == "exam-1"
+    assert response == {"taskId": "batch-task-1", "examId": "exam-1", "status": "pending"}
 
 
 def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):

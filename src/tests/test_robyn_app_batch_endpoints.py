@@ -179,7 +179,7 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
     )
     runner_calls = []
 
-    def fake_run_omr_directory(input_dir, output_dir):
+    def fake_run_omr_directory(input_dir, output_dir, *, template_dir=None):
         runner_calls.append((Path(input_dir), Path(output_dir)))
         checked_image = Path(output_dir) / "CheckedOMRs" / "sheet-1.png"
         checked_image.parent.mkdir(parents=True)

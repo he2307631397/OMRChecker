@@ -15,6 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from src.entry import entry_point
+from src.defaults import CONFIG_DEFAULTS
+from src.evaluation import EvaluationConfig
+from src.template import Template
+from src.utils.parsing import open_config_with_defaults
 
 DEFAULT_TEMPLATE_DIR = Path("inputs")
 DEFAULT_SERVICE_DATA_DIR = Path("service_data")
@@ -75,6 +79,7 @@ def run_omr_directory(
     input_dir: Path | str,
     output_dir: Path | str,
     *,
+    template_dir: Path | str | None = None,
     auto_align: bool = False,
     debug: bool = False,
 ) -> OmrRunResult:
@@ -91,10 +96,47 @@ def run_omr_directory(
         "autoAlign": auto_align,
         "setLayout": False,
     }
-    entry_point(input_dir, args)
+    if template_dir is None:
+        entry_point(input_dir, args)
+    else:
+        _run_omr_directory_with_template_dir(input_dir, output_dir, Path(template_dir), args)
     results_csv = find_latest_results_csv(output_dir)
     rows = read_results_csv(results_csv) if results_csv else []
     return OmrRunResult(input_dir=input_dir, output_dir=output_dir, results_csv=results_csv, rows=rows)
+
+
+def _run_omr_directory_with_template_dir(
+    input_dir: Path,
+    output_dir: Path,
+    template_dir: Path,
+    args: dict[str, Any],
+) -> None:
+    from src.entry import process_dir
+    from src.constants.common import CONFIG_FILENAME, EVALUATION_FILENAME, TEMPLATE_FILENAME
+
+    tuning_config = CONFIG_DEFAULTS
+    config_path = template_dir / CONFIG_FILENAME
+    if config_path.exists():
+        tuning_config = open_config_with_defaults(config_path)
+
+    template = None
+    template_path = template_dir / TEMPLATE_FILENAME
+    if template_path.exists():
+        template = Template(template_path, tuning_config)
+
+    evaluation_config = None
+    evaluation_path = template_dir / EVALUATION_FILENAME
+    if not args["setLayout"] and evaluation_path.exists() and template is not None:
+        evaluation_config = EvaluationConfig(template_dir, evaluation_path, template, tuning_config)
+
+    process_dir(
+        input_dir,
+        input_dir,
+        args,
+        template=template,
+        tuning_config=tuning_config,
+        evaluation_config=evaluation_config,
+    )
 
 
 def read_results_csv(results_csv: Path) -> list[dict[str, Any]]:

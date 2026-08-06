@@ -35,6 +35,7 @@ class RecognitionContext:
     source_path: Path
     workdir: Path
     request: BatchRecognitionRequest
+    template_dir: Path | None = None
 
 
 RecognitionRunner = Callable[[RecognitionContext], RecognitionOutput]
@@ -119,6 +120,9 @@ class BatchRecognitionService:
                         source_path=source_path,
                         workdir=workdir,
                         request=request,
+                        template_dir=self._template_dependency_dir(request).resolve(strict=False)
+                        if self._uses_central_template_config(request)
+                        else None,
                     )
                 )
                 result_json = output.result
@@ -314,6 +318,8 @@ class BatchRecognitionService:
             if resolved_template_dir != resolved_source and resolved_template_dir not in resolved_source.parents:
                 continue
             if source.is_file():
+                if self._uses_central_template_config(request) and source.name in {"config.json", "template.json", "evaluation.json"}:
+                    continue
                 shutil.copy2(source, workdir / source.name)
 
     def _template_dependency_dir(self, request: BatchRecognitionRequest) -> Path:

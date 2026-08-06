@@ -392,7 +392,7 @@ def test_process_batch_uses_template_code_schema_version_dependency_dir(monkeypa
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
     _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
-    config_v1 = tmp_path / "config" / "ASTS-HTTP-001" / "v1"
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
     config_v1.mkdir(parents=True)
     (config_v1 / "reference.png").write_bytes(b"versioned-reference")
     (config_v1 / "evaluation.json").write_text("{}\n", encoding="utf-8")
@@ -412,9 +412,11 @@ def test_process_batch_uses_template_code_schema_version_dependency_dir(monkeypa
     monkeypatch.chdir(tmp_path)
 
     def fake_runner(context):
+        assert context.template_dir == config_v1
         assert (context.workdir / "reference.png").read_bytes() == b"versioned-reference"
-        assert (context.workdir / "evaluation.json").read_text(encoding="utf-8") == "{}\n"
-        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == request.recognition_config[
+        assert not (context.workdir / "evaluation.json").exists()
+        assert not (context.workdir / "template.json").exists()
+        assert json.loads((config_v1 / "template.json").read_text(encoding="utf-8")) == request.recognition_config[
             "templateConfig"
         ]
         return RecognitionOutput(result={"ok": True})
@@ -435,7 +437,7 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
     _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
-    config_v1 = tmp_path / "config" / "ASTS-HTTP-001" / "v1"
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
     config_v1.mkdir(parents=True)
     (config_v1 / "reference.png").write_bytes(b"reference")
     request = BatchRecognitionRequest(
@@ -452,10 +454,13 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     monkeypatch.chdir(tmp_path)
 
     def fake_runner(context):
+        assert context.template_dir == config_v1
         assert (config_v1 / "template.json").is_file()
         assert (config_v1 / "config.json").is_file()
-        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == {"pageDimensions": [1190, 1682]}
-        runtime_config = json.loads((context.workdir / "config.json").read_text(encoding="utf-8"))
+        assert not (context.workdir / "template.json").exists()
+        assert not (context.workdir / "config.json").exists()
+        assert (context.workdir / "reference.png").read_bytes() == b"reference"
+        runtime_config = json.loads((config_v1 / "config.json").read_text(encoding="utf-8"))
         assert runtime_config["dimensions"] == {"display_height": 1682, "display_width": 1190}
         return RecognitionOutput(result={"ok": True})
 

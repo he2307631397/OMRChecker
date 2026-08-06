@@ -283,6 +283,36 @@ def test_process_batch_accepts_template_config_alias(tmp_path: Path) -> None:
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_ignores_empty_template_config_alias(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "template.json").write_text('{"pageDimensions": [1, 1]}', encoding="utf-8")
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        recognition_config={"templateConfig": {"bubbleDimensions": None, "fieldBlocks": None, "pageDimensions": None}},
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+
+    def fake_runner(context):
+        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == {"pageDimensions": [1, 1]}
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, template_dir=template_dir),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_normalizes_java_style_runtime_config(tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
@@ -322,6 +352,42 @@ def test_process_batch_normalizes_java_style_runtime_config(tmp_path: Path) -> N
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_coerces_java_numeric_runtime_config(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    request = _make_request_with_java_style_runtime_config()
+    request.recognition_config["config"]["dimensions"] = {
+        "display_height": 1682.0,
+        "display_width": 1190.0,
+        "processing_height": 1682.0,
+        "processing_width": 1190.0,
+    }
+    request.recognition_config["config"]["weakMultiMarkParams"]["excludeLabels"] = None
+
+    def fake_runner(context):
+        runtime_config = json.loads((context.workdir / "config.json").read_text(encoding="utf-8"))
+        assert runtime_config["dimensions"] == {
+            "display_height": 1682,
+            "display_width": 1190,
+            "processing_height": 1682,
+            "processing_width": 1190,
+        }
+        assert "exclude_labels" not in runtime_config["weak_multi_mark_params"]
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_uses_template_code_schema_version_dependency_dir(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
@@ -357,6 +423,46 @@ def test_process_batch_uses_template_code_schema_version_dependency_dir(monkeypa
         store=store,
         object_storage=cos,
         config=_make_config(tmp_path, template_dir=default_template_dir),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    config_v1 = tmp_path / "config" / "ASTS-HTTP-001" / "v1"
+    config_v1.mkdir(parents=True)
+    (config_v1 / "reference.png").write_bytes(b"reference")
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
+        recognition_config={
+            "templateConfig": {"pageDimensions": [1190, 1682], "bubbleDimensions": None},
+            "config": {"dimensions": {"display_height": 1682.0, "display_width": 1190.0}},
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        assert (config_v1 / "template.json").is_file()
+        assert (config_v1 / "config.json").is_file()
+        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == {"pageDimensions": [1190, 1682]}
+        runtime_config = json.loads((context.workdir / "config.json").read_text(encoding="utf-8"))
+        assert runtime_config["dimensions"] == {"display_height": 1682, "display_width": 1190}
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
         recognition_runner=fake_runner,
         task_id_factory=lambda: "task-1",
     )

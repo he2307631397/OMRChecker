@@ -93,6 +93,7 @@ class BatchRecognitionService:
         preserve_debug_artifacts = self._should_preserve_debug_artifacts(request)
         sheet_workdirs: dict[str, Path] = {}
         self.store.update_batch_status(task_id, "running")
+        self._persist_request_template_dependencies(request)
 
         any_artifact_errors = False
         for sheet_request in request.sheets:
@@ -109,7 +110,8 @@ class BatchRecognitionService:
                 source_path = workdir / "source" / Path(sheet_request.osskey).name
                 self.object_storage.download_file(sheet_request.osskey, source_path)
                 self._copy_template_dependencies(request, workdir)
-                self._write_request_template_dependencies(request, workdir)
+                if not self._uses_central_template_config(request):
+                    self._write_request_template_dependencies(request, workdir)
                 output = self.recognition_runner(
                     RecognitionContext(
                         task_id=task_id,
@@ -322,13 +324,23 @@ class BatchRecognitionService:
             return self.config.storage.template_dir
         return _safe_config_dependency_dir(request.template_version)
 
+    def _uses_central_template_config(self, request: BatchRecognitionRequest) -> bool:
+        return request.template_code is not None or request.template_version is not None
+
+    def _persist_request_template_dependencies(self, request: BatchRecognitionRequest) -> None:
+        if not self._uses_central_template_config(request):
+            return
+        self._write_request_template_dependencies(request, self._template_dependency_dir(request))
+
     def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
         template = request.recognition_config.get("template")
         if template is None:
             template = request.recognition_config.get("templateConfig")
         config = request.recognition_config.get("config")
         if isinstance(template, dict):
-            _write_json(workdir / "template.json", template)
+            normalized_template = _drop_none_values(template)
+            if normalized_template:
+                _write_json(workdir / "template.json", normalized_template)
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
 
@@ -507,7 +519,7 @@ def _normalize_runtime_config(config: dict) -> dict:
         "weakMultiMarkParams": "weak_multi_mark_params",
     }
 
-    normalized = dict(config)
+    normalized = _drop_none_values(config)
     for api_key, runtime_key in top_level_sections.items():
         if api_key in normalized:
             api_value = normalized.pop(api_key)
@@ -517,7 +529,47 @@ def _normalize_runtime_config(config: dict) -> dict:
         value = normalized.get(section)
         if isinstance(value, dict):
             normalized[section] = _rename_keys(value, key_map)
+    _coerce_integer_like_paths(
+        normalized,
+        {
+            ("dimensions", "display_height"),
+            ("dimensions", "display_width"),
+            ("dimensions", "processing_height"),
+            ("dimensions", "processing_width"),
+            ("outputs", "show_image_level"),
+            ("outputs", "save_image_level"),
+            ("threshold_params", "MIN_GAP"),
+            ("threshold_params", "MIN_JUMP"),
+            ("threshold_params", "CONFIDENT_SURPLUS"),
+            ("threshold_params", "JUMP_DELTA"),
+            ("alignment_params", "match_col"),
+            ("alignment_params", "max_steps"),
+            ("alignment_params", "stride"),
+            ("alignment_params", "thickness"),
+            ("pdf_params", "pdf_dpi"),
+            ("pdf_params", "pdf_page"),
+            ("weak_multi_mark_params", "max_marks"),
+        },
+    )
     return normalized
+
+
+def _drop_none_values(value):
+    if isinstance(value, dict):
+        return {key: _drop_none_values(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [_drop_none_values(item) for item in value]
+    return value
+
+
+def _coerce_integer_like_paths(payload: dict, paths: set[tuple[str, str]]) -> None:
+    for section, key in paths:
+        section_value = payload.get(section)
+        if not isinstance(section_value, dict) or key not in section_value:
+            continue
+        value = section_value[key]
+        if isinstance(value, float) and value.is_integer():
+            section_value[key] = int(value)
 
 
 def _rename_keys(payload: dict, key_map: dict[str, str]) -> dict:

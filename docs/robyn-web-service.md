@@ -861,6 +861,17 @@ Immediate response is intentionally minimal. Use `GET /api/omr/batches/{taskId}`
 }
 ```
 
+If request field `batchId` is supplied, the create response echoes it:
+
+```json
+{
+  "taskId": "batch-task-id",
+  "examId": "17",
+  "status": "pending",
+  "batchId": 1
+}
+```
+
 If validation fails, response shape is:
 
 ```json

@@ -97,6 +97,17 @@ def test_submit_valid_batch_returns_business_fields_persists_and_processes_inlin
     assert [call.sheet.sheet_id for call in runner_calls] == ["sheet-1"]
 
 
+def test_submit_valid_batch_echoes_batch_id_when_supplied(monkeypatch, tmp_path):
+    service, _store = _service(tmp_path)
+    monkeypatch.setattr(robyn_app, "_BATCH_SERVICE", service)
+    payload = _payload()
+    payload["batchId"] = 1
+
+    response = robyn_app.create_batch(DummyRequest(json_payload=payload))
+
+    assert response == {"taskId": "batch-task-1", "examId": "exam-1", "status": "pending", "batchId": 1}
+
+
 def test_submit_invalid_missing_fields_returns_error_400_style(monkeypatch, tmp_path):
     service, _store = _service(tmp_path)
     monkeypatch.setattr(robyn_app, "_BATCH_SERVICE", service)

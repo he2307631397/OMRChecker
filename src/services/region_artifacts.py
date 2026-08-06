@@ -61,7 +61,7 @@ def generate_region_artifacts(
         crop = image[y : y + height, x : x + width]
         filename = _artifact_filename(region, index=index, sheet_id=sheet_id)
         local_path = output_path / filename
-        if not cv2.imwrite(str(local_path), crop):
+        if not _write_image(local_path, crop):
             raise ValueError(f"unable to write region artifact: {local_path}")
 
         metadata: dict[str, object] = {
@@ -116,3 +116,23 @@ def _sanitize_filename_part(value: str) -> str:
     sanitized = _SAFE_FILENAME_PATTERN.sub("_", value.strip())
     sanitized = re.sub(r"_+", "_", sanitized).strip("_")
     return sanitized or "region"
+
+
+def _write_image(path: Path, image) -> bool:
+    """Write an image while supporting Unicode paths on Windows.
+
+    OpenCV's ``imwrite`` can fail for non-ASCII paths on some Windows builds.
+    Encoding first and writing bytes through Python keeps the existing filenames
+    while using Windows' Unicode-aware filesystem APIs.
+    """
+
+    success, encoded = cv2.imencode(path.suffix or ".png", image)
+    if not success:
+        return False
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as handle:
+            handle.write(encoded.tobytes())
+    except OSError:
+        return False
+    return True

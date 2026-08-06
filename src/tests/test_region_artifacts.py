@@ -17,6 +17,11 @@ def _write_synthetic_image(path: Path) -> None:
     assert cv2.imwrite(str(path), image)
 
 
+def _read_image(path: str | Path):
+    data = np.fromfile(str(path), dtype=np.uint8)
+    return cv2.imdecode(data, cv2.IMREAD_UNCHANGED)
+
+
 def test_crops_two_configured_large_regions_and_returns_metadata(tmp_path: Path) -> None:
     image_path = tmp_path / "aligned.png"
     _write_synthetic_image(image_path)
@@ -48,8 +53,8 @@ def test_crops_two_configured_large_regions_and_returns_metadata(tmp_path: Path)
     assert artifacts[1].metadata["regionName"] == "单选题 区域"
     assert artifacts[1].metadata["bbox"] == {"x": 60, "y": 40, "width": 50, "height": 30}
 
-    first_crop = cv2.imread(artifacts[0].metadata["localPath"])
-    second_crop = cv2.imread(artifacts[1].metadata["localPath"])
+    first_crop = _read_image(artifacts[0].metadata["localPath"])
+    second_crop = _read_image(artifacts[1].metadata["localPath"])
     assert first_crop.shape[:2] == (20, 40)
     assert second_crop.shape[:2] == (30, 50)
     assert np.all(first_crop == (0, 0, 255))
@@ -105,5 +110,5 @@ def test_filename_generation_keeps_sanitized_collisions_unique(tmp_path: Path) -
         "002_sheet_A_same_code_同名_区域.png",
     ]
     assert paths[0] != paths[1]
-    assert np.all(cv2.imread(str(paths[0])) == (0, 0, 255))
-    assert np.all(cv2.imread(str(paths[1])) == (0, 255, 0))
+    assert np.all(_read_image(paths[0]) == (0, 0, 255))
+    assert np.all(_read_image(paths[1]) == (0, 255, 0))

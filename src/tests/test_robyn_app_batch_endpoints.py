@@ -47,7 +47,7 @@ def _payload(exam_id="exam-1", external_batch_id="external-1", sheet_id="sheet-1
         "examId": exam_id,
         "externalBatchId": external_batch_id,
         "callbackUrl": "https://callback.example.test/omr",
-        "recognitionConfig": {"template": "default"},
+        "recognitionConfig": {"templateConfig": {}, "config": {}},
         "sheets": [
             {
                 "sheetId": sheet_id,
@@ -206,5 +206,5 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
 
     assert result.status == "completed"
     assert result.sheets[0].result["answers"] == {"q1": "A"}
-    assert result.sheets[0].result["checkedImagePath"].endswith("CheckedOMRs/sheet-1.png")
+    assert Path(result.sheets[0].result["checkedImagePath"]).parts[-2:] == ("CheckedOMRs", "sheet-1.png")
     assert len(runner_calls) == 1

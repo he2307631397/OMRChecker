@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import pytest
 
-from src.services.region_artifacts import RegionSpec, generate_region_artifacts
+from src.services.region_artifacts import RegionSpec, derive_archive_regions_from_template, generate_region_artifacts, load_template_archive_regions
 from src.services.service_config import ArchiveRegionConfig
 
 
@@ -112,3 +112,45 @@ def test_filename_generation_keeps_sanitized_collisions_unique(tmp_path: Path) -
     assert paths[0] != paths[1]
     assert np.all(_read_image(paths[0]) == (0, 0, 255))
     assert np.all(_read_image(paths[1]) == (0, 255, 0))
+
+
+def test_derives_archive_regions_from_template_field_blocks(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    template_path.write_text(
+        """
+        {
+          "pageDimensions": [1190, 1682],
+          "bubbleDimensions": [29, 18],
+          "fieldBlocks": {
+            "ExamId": {"fieldType": "QTYPE_INT", "fieldLabels": ["id1..8"], "origin": [777, 396], "bubbleDimensions": [30, 17], "bubblesGap": 27, "labelsGap": 44},
+            "Q1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "origin": [134, 757], "bubblesGap": 39, "labelsGap": 0},
+            "Q2": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q2"], "origin": [337, 802], "bubblesGap": 39, "labelsGap": 0},
+            "Q9": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q9"], "origin": [134, 933], "bubblesGap": 39, "labelsGap": 0, "multiSelect": true}
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    regions = derive_archive_regions_from_template(template_path, margin=10)
+
+    assert [(region.region_code, region.region_name, region.type) for region in regions] == [
+        ("candidateNumber", "准考证号区域", "DIGIT"),
+        ("singleChoice", "单选题区域", "SINGLE_CHOICE"),
+        ("multiChoice", "多选题区域", "MULTI_CHOICE"),
+    ]
+    assert regions[0].bbox == [767, 386, 358, 280]
+    assert regions[1].bbox == [124, 747, 369, 83]
+    assert regions[2].bbox == [124, 923, 166, 38]
+
+
+def test_template_regions_json_overrides_derived_regions(tmp_path: Path) -> None:
+    (tmp_path / "template.json").write_text('{"fieldBlocks": {}}', encoding="utf-8")
+    (tmp_path / "regions.json").write_text(
+        '{"archiveRegions": [{"regionCode": "custom", "regionName": "自定义区域", "type": "CUSTOM", "bbox": [1, 2, 3, 4]}]}',
+        encoding="utf-8",
+    )
+
+    regions = load_template_archive_regions(tmp_path)
+
+    assert regions == [RegionSpec(region_code="custom", region_name="自定义区域", type="CUSTOM", bbox=[1, 2, 3, 4])]

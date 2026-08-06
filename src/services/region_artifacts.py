@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import re
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, Sequence
 
 import cv2
+
+from src.constants.common import FIELD_TYPES
+from src.utils.parsing import parse_fields
 
 from .batch_models import ArtifactPayload
 
@@ -29,6 +33,66 @@ class RegionSpec:
     region_name: str
     type: str
     bbox: list[int]
+
+
+def load_template_archive_regions(template_dir: str | Path) -> list[RegionSpec]:
+    """Load or derive archive screenshot regions for one template directory.
+
+    Template-local ``regions.json`` is an optional explicit override. When it is
+    absent, regions are derived from ``template.json`` field blocks so the same
+    template definition drives both recognition and archive screenshots.
+    """
+
+    template_path = Path(template_dir) / "template.json"
+    regions_path = Path(template_dir) / "regions.json"
+    if regions_path.exists():
+        return _load_regions_json(regions_path)
+    if not template_path.exists():
+        return []
+    return derive_archive_regions_from_template(template_path)
+
+
+def derive_archive_regions_from_template(template_path: str | Path, *, margin: int = 24) -> list[RegionSpec]:
+    template = json.loads(Path(template_path).read_text(encoding="utf-8"))
+    page_dimensions = template.get("pageDimensions") or [0, 0]
+    page_width, page_height = _page_bounds(page_dimensions)
+    default_bubble_dimensions = template.get("bubbleDimensions")
+    grouped: dict[str, list[tuple[int, int, int, int]]] = {
+        "candidateNumber": [],
+        "singleChoice": [],
+        "multiChoice": [],
+    }
+
+    for field_block in (template.get("fieldBlocks") or {}).values():
+        if not isinstance(field_block, dict):
+            continue
+        region_code = _region_code_for_field_block(field_block)
+        if region_code is None:
+            continue
+        bbox = _field_block_bbox(field_block, default_bubble_dimensions)
+        if bbox is not None:
+            grouped[region_code].append(bbox)
+
+    specs = []
+    labels = {
+        "candidateNumber": ("准考证号区域", "DIGIT"),
+        "singleChoice": ("单选题区域", "SINGLE_CHOICE"),
+        "multiChoice": ("多选题区域", "MULTI_CHOICE"),
+    }
+    for region_code in ("candidateNumber", "singleChoice", "multiChoice"):
+        boxes = grouped[region_code]
+        if not boxes:
+            continue
+        region_name, region_type = labels[region_code]
+        specs.append(
+            RegionSpec(
+                region_code=region_code,
+                region_name=region_name,
+                type=region_type,
+                bbox=list(_union_bbox(boxes, margin=margin, page_width=page_width, page_height=page_height)),
+            )
+        )
+    return specs
 
 
 def generate_region_artifacts(
@@ -85,6 +149,96 @@ def generate_region_artifacts(
         )
 
     return artifacts
+
+
+def _load_regions_json(regions_path: Path) -> list[RegionSpec]:
+    raw_regions = json.loads(regions_path.read_text(encoding="utf-8"))
+    if isinstance(raw_regions, dict):
+        raw_regions = raw_regions.get("archiveRegions", [])
+    if not isinstance(raw_regions, list):
+        raise ValueError(f"regions.json must contain a list or archiveRegions object: {regions_path}")
+    return [
+        RegionSpec(
+            region_code=str(region.get("regionCode", "")),
+            region_name=str(region.get("regionName", "")),
+            type=str(region.get("type", "")),
+            bbox=[int(value) for value in region.get("bbox", [])],
+        )
+        for region in raw_regions
+        if isinstance(region, dict)
+    ]
+
+
+def _page_bounds(page_dimensions) -> tuple[int, int]:
+    if isinstance(page_dimensions, list) and len(page_dimensions) == 2:
+        try:
+            return int(page_dimensions[0]), int(page_dimensions[1])
+        except (TypeError, ValueError):
+            return 0, 0
+    return 0, 0
+
+
+def _region_code_for_field_block(field_block: dict) -> str | None:
+    field_type = field_block.get("fieldType")
+    if field_type in {"QTYPE_INT", "QTYPE_INT_FROM_1"}:
+        return "candidateNumber"
+    if isinstance(field_type, str) and field_type.startswith("QTYPE_MCQ"):
+        return "multiChoice" if field_block.get("multiSelect") is True else "singleChoice"
+    return None
+
+
+def _field_block_bbox(field_block: dict, default_bubble_dimensions) -> tuple[int, int, int, int] | None:
+    field_type = field_block.get("fieldType")
+    merged = {**FIELD_TYPES.get(field_type, {}), **field_block}
+    origin = merged.get("origin")
+    bubble_dimensions = merged.get("bubbleDimensions") or default_bubble_dimensions
+    bubble_values = merged.get("bubbleValues")
+    field_labels = merged.get("fieldLabels")
+    if not _two_numbers(origin) or not _two_numbers(bubble_dimensions) or not isinstance(bubble_values, list):
+        return None
+    try:
+        parsed_labels = parse_fields("Archive Region Field Block", field_labels or [])
+    except Exception:
+        return None
+    if not parsed_labels or not bubble_values:
+        return None
+
+    x, y = int(origin[0]), int(origin[1])
+    bubble_width, bubble_height = int(bubble_dimensions[0]), int(bubble_dimensions[1])
+    bubbles_gap = int(merged.get("bubblesGap", 0))
+    labels_gap = int(merged.get("labelsGap", 0))
+    direction = merged.get("direction", "vertical")
+    if direction == "vertical":
+        width = labels_gap * (len(parsed_labels) - 1) + bubble_width
+        height = bubbles_gap * (len(bubble_values) - 1) + bubble_height
+    else:
+        width = bubbles_gap * (len(bubble_values) - 1) + bubble_width
+        height = labels_gap * (len(parsed_labels) - 1) + bubble_height
+    return x, y, width, height
+
+
+def _two_numbers(value) -> bool:
+    return isinstance(value, list) and len(value) == 2 and all(isinstance(item, int | float) for item in value)
+
+
+def _union_bbox(
+    boxes: Sequence[tuple[int, int, int, int]],
+    *,
+    margin: int,
+    page_width: int,
+    page_height: int,
+) -> tuple[int, int, int, int]:
+    left = min(x for x, _y, _width, _height in boxes) - margin
+    top = min(y for _x, y, _width, _height in boxes) - margin
+    right = max(x + width for x, _y, width, _height in boxes) + margin
+    bottom = max(y + height for _x, y, _width, height in boxes) + margin
+    left = max(0, left)
+    top = max(0, top)
+    if page_width > 0:
+        right = min(page_width, right)
+    if page_height > 0:
+        bottom = min(page_height, bottom)
+    return left, top, max(1, right - left), max(1, bottom - top)
 
 
 def _validated_bbox(region: RegionLike, image_width: int, image_height: int) -> tuple[int, int, int, int]:

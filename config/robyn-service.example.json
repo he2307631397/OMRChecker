@@ -22,25 +22,5 @@
     "url": "https://java.example.com/omr/batch-callback",
     "maxAttempts": 3,
     "timeoutSeconds": 10
-  },
-  "archiveRegions": [
-    {
-      "regionCode": "candidateNumber",
-      "regionName": "准考证号区域",
-      "type": "DIGIT",
-      "bbox": [0, 0, 100, 40]
-    },
-    {
-      "regionCode": "singleChoice",
-      "regionName": "单选题区域",
-      "type": "SINGLE_CHOICE",
-      "bbox": [0, 50, 300, 500]
-    },
-    {
-      "regionCode": "multiChoice",
-      "regionName": "多选题区域",
-      "type": "MULTI_CHOICE",
-      "bbox": [0, 560, 300, 900]
-    }
-  ]
+  }
 }

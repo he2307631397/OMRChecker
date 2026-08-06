@@ -15,7 +15,7 @@ from .batch_models import (
     SheetRecognitionResult,
 )
 from .cos_client import ObjectStorageClient
-from .region_artifacts import generate_region_artifacts
+from .region_artifacts import generate_region_artifacts, load_template_archive_regions
 from .service_config import ServiceConfig
 from .task_store import TaskStore
 
@@ -143,10 +143,11 @@ class BatchRecognitionService:
                     if checked_image_error is not None:
                         artifact_errors.append(checked_image_error)
                         any_artifact_errors = True
-                if output.checked_image_path is not None and self.config.archive_regions:
+                archive_regions = self._archive_regions_for_request(request)
+                if output.checked_image_path is not None and archive_regions:
                     local_artifacts = self.region_artifact_generator(
                         output.checked_image_path,
-                        self.config.archive_regions,
+                        archive_regions,
                         workdir / "region_artifacts",
                         sheet_id=sheet_request.sheet_id,
                         task_id=task_id,
@@ -332,6 +333,13 @@ class BatchRecognitionService:
 
     def _uses_central_template_config(self, request: BatchRecognitionRequest) -> bool:
         return request.template_code is not None or request.template_version is not None
+
+    def _archive_regions_for_request(self, request: BatchRecognitionRequest):
+        if self._uses_central_template_config(request):
+            template_regions = load_template_archive_regions(self._template_dependency_dir(request))
+            if template_regions:
+                return template_regions
+        return self.config.archive_regions
 
     def _persist_request_template_dependencies(self, request: BatchRecognitionRequest) -> None:
         if not self._uses_central_template_config(request):

@@ -68,13 +68,12 @@ class TencentCosClient:
         )
 
     def upload_file(self, local_path: str | Path, osskey: str, content_type: str | None = None) -> None:
+        del content_type
         kwargs: dict[str, object] = {
             "Bucket": self.config.bucket,
             "LocalFilePath": str(local_path),
             "Key": osskey,
         }
-        if content_type is not None:
-            kwargs["Headers"] = {"Content-Type": content_type}
         self._get_client().upload_file(**kwargs)
 
     def _get_client(self):

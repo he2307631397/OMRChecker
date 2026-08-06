@@ -1,4 +1,5 @@
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -51,3 +52,33 @@ def test_tencent_cos_client_constructs_without_sdk_or_network_and_sdk_error_is_c
     source.write_bytes(b"data")
     with pytest.raises(RuntimeError, match="qcloud_cos SDK is required"):
         client.upload_file(source, "input.bin")
+
+
+def test_tencent_cos_client_upload_does_not_pass_unsupported_headers(monkeypatch, tmp_path):
+    calls = []
+
+    class FakeCosS3Client:
+        def __init__(self, config):
+            self.config = config
+
+        def upload_file(self, **kwargs):
+            calls.append(kwargs)
+
+    fake_sdk = SimpleNamespace(
+        CosConfig=lambda **kwargs: kwargs,
+        CosS3Client=FakeCosS3Client,
+    )
+    monkeypatch.setitem(sys.modules, "qcloud_cos", fake_sdk)
+    source = tmp_path / "checked.png"
+    source.write_bytes(b"png")
+    client = TencentCosClient(CosConfig(enabled=True, region="ap-guangzhou", bucket="bucket", secret_id="sid", secret_key="skey"))
+
+    client.upload_file(source, "checked/task/sheet/checked.png", content_type="image/png")
+
+    assert calls == [
+        {
+            "Bucket": "bucket",
+            "LocalFilePath": str(source),
+            "Key": "checked/task/sheet/checked.png",
+        }
+    ]

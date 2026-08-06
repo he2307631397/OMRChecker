@@ -7,7 +7,7 @@ from src.services.batch_models import BatchRecognitionRequest
 from src.services.batch_service import BatchRecognitionService, RecognitionOutput
 from src.services.cos_client import LocalCosClient
 from src.services.omr_service import OmrRunResult
-from src.services.service_config import DatabaseConfig, ServiceConfig, StorageConfig
+from src.services.service_config import DatabaseConfig, ServerConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
 
 
@@ -205,3 +205,9 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
     assert result.sheets[0].result["answers"] == {"q1": "A"}
     assert Path(result.sheets[0].result["checkedImagePath"]).parts[-2:] == ("CheckedOMRs", "sheet-1.png")
     assert len(runner_calls) == 1
+
+
+def test_startup_port_uses_service_config(monkeypatch):
+    monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(port=8089)))
+
+    assert robyn_app._startup_port() == 8089

@@ -581,6 +581,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _startup_port() -> int:
+    return load_service_config().server.port
+
+
 if __name__ == "__main__":
-    port = int(os.getenv("OMR_SERVICE_PORT", "8080"))
-    app.start(port=port)
+    app.start(port=_startup_port())

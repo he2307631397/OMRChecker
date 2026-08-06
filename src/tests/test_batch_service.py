@@ -533,7 +533,7 @@ def test_process_batch_derives_archive_regions_from_template_code_schema(monkeyp
     service.submit_batch(request)
 
     assert service.process_batch("task-1").status == "completed"
-    assert [(region.region_code, region.bbox) for region in captured_regions] == [("candidateNumber", [676, 276, 122, 308])]
+    assert [(region.region_code, region.bbox) for region in captured_regions] == [("candidateNumber", [164, 165, 634, 419])]
 
 
 def test_process_batch_requires_central_template_json_for_template_code(monkeypatch, tmp_path: Path) -> None:

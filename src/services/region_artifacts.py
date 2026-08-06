@@ -89,7 +89,14 @@ def derive_archive_regions_from_template(template_path: str | Path, *, margin: i
                 region_code=region_code,
                 region_name=region_name,
                 type=region_type,
-                bbox=list(_union_bbox(boxes, margin=margin, page_width=page_width, page_height=page_height)),
+                bbox=list(
+                    _union_bbox(
+                        boxes,
+                        padding=_dynamic_region_padding(region_code, margin=margin, page_width=page_width, page_height=page_height),
+                        page_width=page_width,
+                        page_height=page_height,
+                    )
+                ),
             )
         )
     return specs
@@ -224,14 +231,15 @@ def _two_numbers(value) -> bool:
 def _union_bbox(
     boxes: Sequence[tuple[int, int, int, int]],
     *,
-    margin: int,
+    padding: tuple[int, int, int, int],
     page_width: int,
     page_height: int,
 ) -> tuple[int, int, int, int]:
-    left = min(x for x, _y, _width, _height in boxes) - margin
-    top = min(y for _x, y, _width, _height in boxes) - margin
-    right = max(x + width for x, _y, width, _height in boxes) + margin
-    bottom = max(y + height for _x, y, _width, height in boxes) + margin
+    pad_left, pad_top, pad_right, pad_bottom = padding
+    left = min(x for x, _y, _width, _height in boxes) - pad_left
+    top = min(y for _x, y, _width, _height in boxes) - pad_top
+    right = max(x + width for x, _y, width, _height in boxes) + pad_right
+    bottom = max(y + height for _x, y, _width, height in boxes) + pad_bottom
     left = max(0, left)
     top = max(0, top)
     if page_width > 0:
@@ -239,6 +247,36 @@ def _union_bbox(
     if page_height > 0:
         bottom = min(page_height, bottom)
     return left, top, max(1, right - left), max(1, bottom - top)
+
+
+def _dynamic_region_padding(region_code: str, *, margin: int, page_width: int, page_height: int) -> tuple[int, int, int, int]:
+    """Return left/top/right/bottom expansion for template-derived region crops.
+
+    Template field block origins describe bubble grids. Archive screenshots need
+    a larger business area: question number/title text usually sits left/above
+    the bubbles, and admission-number templates commonly have handwritten name
+    or number areas to the left/above the fill bubbles.
+    """
+
+    if region_code == "candidateNumber":
+        return (
+            max(margin, _ratio_pixels(page_width, 0.45), 220),
+            max(margin, _ratio_pixels(page_height, 0.08), 90),
+            margin,
+            margin,
+        )
+    if region_code in {"singleChoice", "multiChoice"}:
+        return (
+            max(margin, _ratio_pixels(page_width, 0.08), 80),
+            max(margin, _ratio_pixels(page_height, 0.04), 48),
+            margin,
+            margin,
+        )
+    return margin, margin, margin, margin
+
+
+def _ratio_pixels(total: int, ratio: float) -> int:
+    return int(round(total * ratio)) if total > 0 else 0
 
 
 def _validated_bbox(region: RegionLike, image_width: int, image_height: int) -> tuple[int, int, int, int]:

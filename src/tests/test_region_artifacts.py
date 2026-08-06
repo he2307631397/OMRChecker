@@ -139,9 +139,9 @@ def test_derives_archive_regions_from_template_field_blocks(tmp_path: Path) -> N
         ("singleChoice", "单选题区域", "SINGLE_CHOICE"),
         ("multiChoice", "多选题区域", "MULTI_CHOICE"),
     ]
-    assert regions[0].bbox == [767, 386, 358, 280]
-    assert regions[1].bbox == [124, 747, 369, 83]
-    assert regions[2].bbox == [124, 923, 166, 38]
+    assert regions[0].bbox == [241, 261, 884, 405]
+    assert regions[1].bbox == [39, 690, 454, 140]
+    assert regions[2].bbox == [39, 866, 251, 95]
 
 
 def test_template_regions_json_overrides_derived_regions(tmp_path: Path) -> None:

@@ -16,7 +16,8 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
         {
             "examId": "exam-1",
             "externalBatchId": "external-1",
-            "templateVersion": "v1",
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
             "callbackUrl": "https://example.test/callback",
             "recognitionConfig": {"template": {"name": "standard"}, "flags": ["fast"]},
             "sheets": [
@@ -28,7 +29,8 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
 
     assert request.exam_id == "exam-1"
     assert request.external_batch_id == "external-1"
-    assert request.template_version == "v1"
+    assert request.template_code == "ASTS-HTTP-001"
+    assert request.schema_version == "v1"
     assert request.callback_url == "https://example.test/callback"
     assert request.recognition_config == {"template": {"name": "standard"}, "flags": ["fast"]}
     assert request.sheets[0].sheet_id == "sheet-1"
@@ -38,7 +40,8 @@ def test_batch_request_parses_camel_case_and_serializes_api_payload():
     assert request.to_api_dict() == {
         "examId": "exam-1",
         "externalBatchId": "external-1",
-        "templateVersion": "v1",
+        "templateCode": "ASTS-HTTP-001",
+        "schemaVersion": "v1",
         "callbackUrl": "https://example.test/callback",
         "recognitionConfig": {"template": {"name": "standard"}, "flags": ["fast"]},
         "sheets": [
@@ -97,7 +100,9 @@ def test_batch_request_accepts_integer_business_ids_from_complete_payload():
         ({}, "examId is required"),
         ({"examId": "   "}, "examId must be a non-empty string"),
         ({"examId": "exam-1", "callbackUrl": ""}, "callbackUrl must be a non-empty string"),
-        ({"examId": "exam-1", "templateVersion": "../v1"}, "templateVersion must be a safe template version like v1"),
+        ({"examId": "exam-1", "templateCode": "../ASTS"}, "templateCode must be a safe template path component like ASTS-HTTP-001"),
+        ({"examId": "exam-1", "schemaVersion": "v1"}, "templateCode is required when schemaVersion is supplied"),
+        ({"examId": "exam-1", "templateVersion": "../v1"}, "templateVersion must be a safe template path component like v1"),
         ({"examId": "exam-1"}, "sheets is required"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": []}, "sheets must be a non-empty list"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": [{}]}, "sheets[0].sheetId is required"),

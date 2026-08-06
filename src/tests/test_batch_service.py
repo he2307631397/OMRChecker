@@ -322,11 +322,11 @@ def test_process_batch_normalizes_java_style_runtime_config(tmp_path: Path) -> N
     assert service.process_batch("task-1").status == "completed"
 
 
-def test_process_batch_uses_template_version_dependency_dir(monkeypatch, tmp_path: Path) -> None:
+def test_process_batch_uses_template_code_schema_version_dependency_dir(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
     _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
-    config_v1 = tmp_path / "config" / "v1"
+    config_v1 = tmp_path / "config" / "ASTS-HTTP-001" / "v1"
     config_v1.mkdir(parents=True)
     (config_v1 / "reference.png").write_bytes(b"versioned-reference")
     (config_v1 / "evaluation.json").write_text("{}\n", encoding="utf-8")
@@ -337,7 +337,8 @@ def test_process_batch_uses_template_version_dependency_dir(monkeypatch, tmp_pat
         exam_id="exam-1",
         external_batch_id="external-batch-1",
         callback_url="https://callback.example.test/omr",
-        template_version="v1",
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
         recognition_config={"templateConfig": {"preProcessors": [{"options": {"reference": "reference.png"}}]}},
         sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
     )

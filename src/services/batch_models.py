@@ -37,6 +37,8 @@ class BatchRecognitionRequest:
     callback_url: str | None
     sheets: list[BatchSheetRequest]
     external_batch_id: str | None = None
+    template_code: str | None = None
+    schema_version: str | None = None
     template_version: str | None = None
     recognition_config: dict[str, Any] = field(default_factory=dict)
     debug_artifacts: bool | None = None
@@ -49,7 +51,11 @@ class BatchRecognitionRequest:
         exam_id = _required_non_empty_scalar(payload, "examId", "examId")
         callback_url = _optional_non_empty_string(payload.get("callbackUrl"), "callbackUrl")
         external_batch_id = _optional_non_empty_string(payload.get("externalBatchId"), "externalBatchId")
+        template_code = _optional_template_path_component(payload.get("templateCode"), "templateCode")
+        schema_version = _optional_template_path_component(payload.get("schemaVersion"), "schemaVersion")
         template_version = _optional_template_version(payload.get("templateVersion"), "templateVersion")
+        if schema_version is not None and template_code is None:
+            raise ValueError("templateCode is required when schemaVersion is supplied")
 
         recognition_config = payload.get("recognitionConfig", {})
         if recognition_config is None:
@@ -71,12 +77,23 @@ class BatchRecognitionRequest:
             raise ValueError("sheets must be a non-empty list")
         sheets = [BatchSheetRequest.from_api_json(sheet, index=index) for index, sheet in enumerate(raw_sheets)]
 
-        known_fields = {"examId", "callbackUrl", "externalBatchId", "templateVersion", "recognitionConfig", "sheets"}
+        known_fields = {
+            "examId",
+            "callbackUrl",
+            "externalBatchId",
+            "templateCode",
+            "schemaVersion",
+            "templateVersion",
+            "recognitionConfig",
+            "sheets",
+        }
 
         return cls(
             exam_id=exam_id,
             external_batch_id=external_batch_id,
             callback_url=callback_url,
+            template_code=template_code,
+            schema_version=schema_version,
             template_version=template_version,
             recognition_config=recognition_config,
             debug_artifacts=debug_artifacts,
@@ -94,6 +111,10 @@ class BatchRecognitionRequest:
             payload["callbackUrl"] = self.callback_url
         if self.external_batch_id is not None:
             payload["externalBatchId"] = self.external_batch_id
+        if self.template_code is not None:
+            payload["templateCode"] = self.template_code
+        if self.schema_version is not None:
+            payload["schemaVersion"] = self.schema_version
         if self.template_version is not None:
             payload["templateVersion"] = self.template_version
         payload.update(self.extra_fields)
@@ -258,14 +279,18 @@ def _optional_non_empty_string(value: Any, display_name: str) -> str | None:
 
 
 def _optional_template_version(value: Any, display_name: str) -> str | None:
-    version = _optional_non_empty_string(value, display_name)
-    if version is None:
+    return _optional_template_path_component(value, display_name, example="v1")
+
+
+def _optional_template_path_component(value: Any, display_name: str, *, example: str = "ASTS-HTTP-001") -> str | None:
+    component = _optional_non_empty_string(value, display_name)
+    if component is None:
         return None
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", version):
-        raise ValueError(f"{display_name} must be a safe template version like v1")
-    if ".." in version:
-        raise ValueError(f"{display_name} must be a safe template version like v1")
-    return version
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", component):
+        raise ValueError(f"{display_name} must be a safe template path component like {example}")
+    if ".." in component:
+        raise ValueError(f"{display_name} must be a safe template path component like {example}")
+    return component
 
 
 def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:

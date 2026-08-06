@@ -315,14 +315,12 @@ class BatchRecognitionService:
                 shutil.copy2(source, workdir / source.name)
 
     def _template_dependency_dir(self, request: BatchRecognitionRequest) -> Path:
+        if request.template_code is not None:
+            schema_version = request.schema_version or request.template_version or "v1"
+            return _safe_config_dependency_dir(request.template_code, schema_version)
         if request.template_version is None:
             return self.config.storage.template_dir
-        version_dir = Path("config") / request.template_version
-        resolved_config_root = Path("config").resolve(strict=False)
-        resolved_version_dir = version_dir.resolve(strict=False)
-        if resolved_config_root != resolved_version_dir and resolved_config_root not in resolved_version_dir.parents:
-            raise ValueError(f"templateVersion is outside config directory: {request.template_version}")
-        return version_dir
+        return _safe_config_dependency_dir(request.template_version)
 
     def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
         template = request.recognition_config.get("template")
@@ -401,6 +399,16 @@ def _safe_component(value: str) -> str:
     sanitized = sanitized.replace("..", "_")
     sanitized = re.sub(r"_+", "_", sanitized).strip("._")
     return sanitized or "item"
+
+
+def _safe_config_dependency_dir(*parts: str) -> Path:
+    config_root = Path("config")
+    dependency_dir = config_root.joinpath(*parts)
+    resolved_config_root = config_root.resolve(strict=False)
+    resolved_dependency_dir = dependency_dir.resolve(strict=False)
+    if resolved_config_root != resolved_dependency_dir and resolved_config_root not in resolved_dependency_dir.parents:
+        raise ValueError(f"template dependency directory is outside config directory: {dependency_dir}")
+    return dependency_dir
 
 
 def _write_json(path: Path, payload: dict) -> None:

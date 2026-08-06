@@ -16,7 +16,7 @@ class BatchSheetRequest:
     def from_api_json(cls, payload: Any, *, index: int = 0) -> "BatchSheetRequest":
         if not isinstance(payload, dict):
             raise ValueError(f"sheets[{index}] must be an object")
-        sheet_id = _required_non_empty_string(payload, "sheetId", f"sheets[{index}].sheetId")
+        sheet_id = _required_non_empty_scalar(payload, "sheetId", f"sheets[{index}].sheetId")
         osskey = _required_non_empty_string(payload, "osskey", f"sheets[{index}].osskey")
         metadata = payload.get("metadata")
         if metadata is not None and not isinstance(metadata, dict):
@@ -33,18 +33,19 @@ class BatchSheetRequest:
 @dataclass(frozen=True)
 class BatchRecognitionRequest:
     exam_id: str
-    callback_url: str
+    callback_url: str | None
     sheets: list[BatchSheetRequest]
     external_batch_id: str | None = None
     recognition_config: dict[str, Any] = field(default_factory=dict)
     debug_artifacts: bool | None = None
+    extra_fields: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_api_json(cls, payload: Any) -> "BatchRecognitionRequest":
         if not isinstance(payload, dict):
             raise ValueError("request body must be an object")
-        exam_id = _required_non_empty_string(payload, "examId", "examId")
-        callback_url = _required_non_empty_string(payload, "callbackUrl", "callbackUrl")
+        exam_id = _required_non_empty_scalar(payload, "examId", "examId")
+        callback_url = _optional_non_empty_string(payload.get("callbackUrl"), "callbackUrl")
         external_batch_id = _optional_non_empty_string(payload.get("externalBatchId"), "externalBatchId")
 
         recognition_config = payload.get("recognitionConfig", {})
@@ -52,7 +53,7 @@ class BatchRecognitionRequest:
             recognition_config = {}
         if not isinstance(recognition_config, dict):
             raise ValueError("recognitionConfig must be an object")
-        for runtime_field in ("template", "config"):
+        for runtime_field in ("template", "config", "templateConfig"):
             runtime_value = recognition_config.get(runtime_field)
             if runtime_value is not None and not isinstance(runtime_value, dict):
                 raise ValueError(f"recognitionConfig.{runtime_field} must be an object")
@@ -67,6 +68,8 @@ class BatchRecognitionRequest:
             raise ValueError("sheets must be a non-empty list")
         sheets = [BatchSheetRequest.from_api_json(sheet, index=index) for index, sheet in enumerate(raw_sheets)]
 
+        known_fields = {"examId", "callbackUrl", "externalBatchId", "recognitionConfig", "sheets"}
+
         return cls(
             exam_id=exam_id,
             external_batch_id=external_batch_id,
@@ -74,17 +77,20 @@ class BatchRecognitionRequest:
             recognition_config=recognition_config,
             debug_artifacts=debug_artifacts,
             sheets=sheets,
+            extra_fields={key: value for key, value in payload.items() if key not in known_fields},
         )
 
     def to_api_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "examId": self.exam_id,
-            "callbackUrl": self.callback_url,
             "recognitionConfig": self.recognition_config,
             "sheets": [sheet.to_api_dict() for sheet in self.sheets],
         }
+        if self.callback_url is not None:
+            payload["callbackUrl"] = self.callback_url
         if self.external_batch_id is not None:
             payload["externalBatchId"] = self.external_batch_id
+        payload.update(self.extra_fields)
         return payload
 
 
@@ -223,6 +229,18 @@ def _required_non_empty_string(payload: dict[str, Any], key: str, display_name: 
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{display_name} must be a non-empty string")
     return value
+
+
+def _required_non_empty_scalar(payload: dict[str, Any], key: str, display_name: str) -> str:
+    if key not in payload:
+        raise ValueError(f"{display_name} is required")
+    value = payload[key]
+    if isinstance(value, str):
+        if value.strip():
+            return value
+    elif isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    raise ValueError(f"{display_name} must be a non-empty string")
 
 
 def _optional_non_empty_string(value: Any, display_name: str) -> str | None:

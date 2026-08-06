@@ -8,7 +8,7 @@ import numpy as np
 from src.services.batch_models import BatchRecognitionRequest, BatchSheetRequest
 from src.services.batch_models import ArtifactPayload
 from src.services.cos_client import LocalCosClient
-from src.services.service_config import ArchiveRegionConfig, RecognitionConfig, ServiceConfig, StorageConfig
+from src.services.service_config import ArchiveRegionConfig, CallbackConfig, RecognitionConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
 from src.services.batch_service import BatchRecognitionService, RecognitionOutput
 
@@ -25,12 +25,14 @@ def _make_config(
     regions: list[ArchiveRegionConfig] | None = None,
     template_dir: Path | None = None,
     debug_artifacts: bool = False,
+    callback_url: str | None = None,
 ) -> ServiceConfig:
     return ServiceConfig(
         storage=StorageConfig(
             service_data_dir=tmp_path / "service_data",
             template_dir=template_dir or (tmp_path / "templates"),
         ),
+        callback=CallbackConfig(url=callback_url),
         recognition=RecognitionConfig(debug_artifacts=debug_artifacts),
         archive_regions=regions or [],
     )
@@ -43,6 +45,16 @@ def _make_request(*, sheets: list[BatchSheetRequest] | None = None) -> BatchReco
         callback_url="https://callback.example.test/omr",
         recognition_config={},
         sheets=sheets or [BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+
+
+def _make_request_without_callback() -> BatchRecognitionRequest:
+    return BatchRecognitionRequest(
+        exam_id="exam-1",
+        external_batch_id="external-batch-1",
+        callback_url=None,
+        recognition_config={},
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
     )
 
 
@@ -176,6 +188,36 @@ def test_process_batch_writes_request_template_and_config_before_recognition(tmp
     result = service.process_batch("task-1")
 
     assert result.status == "completed"
+
+
+def test_process_batch_accepts_template_config_alias(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        external_batch_id="external-batch-1",
+        callback_url="https://callback.example.test/omr",
+        recognition_config={"templateConfig": {"fieldBlocks": {"student_id": {"fieldType": "QTYPE_INT"}}}, "config": {}},
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+
+    def fake_runner(context):
+        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == request.recognition_config[
+            "templateConfig"
+        ]
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
 
 
 def test_fake_cos_smoke_terminal_payload_contains_business_artifact_fields(tmp_path: Path) -> None:
@@ -436,6 +478,36 @@ def test_process_batch_invokes_callback_client_and_records_attempt(tmp_path: Pat
     assert attempts[0]["status_code"] == 202
     assert attempts[0]["success"] is True
     assert attempts[0]["request_json"] == callback_client.payloads[0]
+
+
+def test_process_batch_uses_config_callback_url_when_request_omits_it(tmp_path: Path) -> None:
+    class RecordingCallbackClient:
+        def __init__(self):
+            self.payloads = []
+
+        def send(self, payload):
+            self.payloads.append(payload)
+            return {"status_code": 200, "response_text": "ok", "success": True}
+
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    callback_client = RecordingCallbackClient()
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, callback_url="https://config.example.test/omr-callback"),
+        recognition_runner=lambda context: RecognitionOutput(result={"ok": True}),
+        callback_client=callback_client,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request_without_callback())
+
+    service.process_batch("task-1")
+
+    assert callback_client.payloads[0]["taskId"] == "task-1"
+    assert store.get_batch("task-1")["callback_url"] == "https://config.example.test/omr-callback"
+    assert store.list_callback_attempts("task-1")[0]["target_url"] == "https://config.example.test/omr-callback"
 
 
 def test_process_batch_sanitizes_sheet_id_for_workdir_and_artifact_key(tmp_path: Path) -> None:

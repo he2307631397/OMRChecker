@@ -68,12 +68,13 @@ class BatchRecognitionService:
 
     def submit_batch(self, request: BatchRecognitionRequest) -> BatchRecognitionResult:
         task_id = self.task_id_factory()
+        callback_url = request.callback_url or self.config.callback.url
         self.store.create_batch(
             task_id=task_id,
             exam_id=request.exam_id,
             external_batch_id=request.external_batch_id,
             status="pending",
-            callback_url=request.callback_url,
+            callback_url=callback_url,
             request_json=request.to_api_dict(),
         )
         for sheet in request.sheets:
@@ -217,7 +218,8 @@ class BatchRecognitionService:
         )
 
     def _send_callback_if_configured(self, batch: dict, result: BatchRecognitionResult) -> None:
-        if self.callback_client is None or not batch.get("callback_url"):
+        target_url = batch.get("callback_url") or self.config.callback.url
+        if self.callback_client is None or not target_url:
             return
 
         payload = result.to_callback_dict()
@@ -226,7 +228,7 @@ class BatchRecognitionService:
             response_data = response if isinstance(response, dict) else {}
             self.store.add_callback_attempt(
                 task_id=result.task_id,
-                target_url=batch["callback_url"],
+                target_url=target_url,
                 status_code=response_data.get("status_code"),
                 success=bool(response_data.get("success", True)),
                 error=response_data.get("error"),
@@ -236,7 +238,7 @@ class BatchRecognitionService:
         except Exception as exc:  # noqa: BLE001 - callback failure must be recorded, not raised.
             self.store.add_callback_attempt(
                 task_id=result.task_id,
-                target_url=batch["callback_url"],
+                target_url=target_url,
                 success=False,
                 error=str(exc),
                 request_json=payload,
@@ -314,6 +316,8 @@ class BatchRecognitionService:
 
     def _write_request_template_dependencies(self, request: BatchRecognitionRequest, workdir: Path) -> None:
         template = request.recognition_config.get("template")
+        if template is None:
+            template = request.recognition_config.get("templateConfig")
         config = request.recognition_config.get("config")
         if isinstance(template, dict):
             _write_json(workdir / "template.json", template)

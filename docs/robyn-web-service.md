@@ -51,7 +51,7 @@ Use the create-task response `task_id` or `taskId` as the only identifier for la
 | Mode | Create recognition task | Query recognition task status | Completion callback |
 | --- | --- | --- | --- |
 | Single-file upload | `POST /api/omr/tasks` | `GET /api/omr/tasks/{task_id}` | Optional `callback_url` form field. |
-| COS batch | `POST /api/omr/batches` or `POST /api/omr/batch-tasks` | `GET /api/omr/batches/{taskId}` | Required `callbackUrl` JSON field. |
+| COS batch | `POST /api/omr/batches` or `POST /api/omr/batch-tasks` | `GET /api/omr/batches/{taskId}` | Callback target comes from `callback.url` config by default. Request `callbackUrl` can override it. |
 
 Polling is a compensation mechanism. The business system should still support polling because callbacks can fail or arrive late. The terminal callback payload is the same shape as the corresponding task-status query payload at completion or failure.
 
@@ -78,6 +78,7 @@ The batch API uses `load_service_config()` and reads `config/robyn-service.json`
 | `OMR_SERVICE_WORKERS` | `server.workers` in loaded config, and module executor size. |
 | `OMR_SERVICE_DATA_DIR` | `storage.serviceDataDir`. |
 | `OMR_TEMPLATE_DIR` | `storage.templateDir`. |
+| `OMR_CALLBACK_URL` | `callback.url`, the default COS batch terminal callback endpoint. |
 | `OMR_RECOGNITION_DEBUG_ARTIFACTS` | `recognition.debugArtifacts`. |
 
 Use `config/robyn-service.example.json` as the starting point for `config/robyn-service.json`.
@@ -356,7 +357,7 @@ Request body fields:
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `examId` | yes | Business exam ID. Must be a non-empty string. |
-| `callbackUrl` | yes | Terminal callback URL. Must be a non-empty string. Current validation only checks presence in batch model. |
+| `callbackUrl` | no | Terminal callback URL. If omitted, Robyn uses `callback.url` from `config/robyn-service.json` or `OMR_CALLBACK_URL`. Must be a non-empty string when supplied. |
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
 | `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` and `config`, when supplied as objects, are written as runtime `template.json` and `config.json`. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
@@ -371,13 +372,351 @@ Example:
 curl -X POST http://localhost:8080/api/omr/batches \
   -H "Content-Type: application/json" \
   -d '{
-    "examId": "exam-001",
-    "externalBatchId": "biz-batch-001",
-    "callbackUrl": "https://java.example.com/omr/batch-callback",
-    "recognitionConfig": {"debugArtifacts": false},
-    "sheets": [
-      {"sheetId": "sheet-001", "osskey": "incoming/exam-001/sheet-001.pdf"}
-    ]
+      "examId": 17,
+      "templateSpecId": 1,
+      "externalBatchId": "scan_batch_file:1785991732373",
+      "attemptNo": 1785991732373,
+      "batchId": 1,
+      "recognitionConfig": {
+          "debugArtifacts": false,
+          "config": {
+              "dimensions": {
+                  "displayHeight": 1682,
+                  "displayWidth": 1190,
+                  "processingHeight": 1682,
+                  "processingWidth": 1190
+              },
+              "outputs": {
+                  "showImageLevel": 0,
+                  "saveImageLevel": 0,
+                  "saveDetections": true
+              },
+              "thresholdParams": {
+                  "gammaLow": 0.7,
+                  "minGap": 30,
+                  "minJump": 25,
+                  "confidentSurplus": 5,
+                  "jumpDelta": 30,
+                  "pageTypeForThreshold": "white"
+              },
+              "alignmentParams": {
+                  "autoAlign": false
+              },
+              "pdfParams": {
+                  "pdfDpi": 144,
+                  "pdfPage": 1
+              },
+              "weakMarkParams": {
+                  "enabled": true,
+                  "minGap": 10,
+                  "maxMean": 215,
+                  "supportedFieldTypes": [
+                      "QTYPE_MCQ4"
+                  ],
+                  "excludeLabels": [
+
+                  ]
+              },
+              "weakIdentifierParams": {
+                  "enabled": true,
+                  "labels": [
+
+                  ],
+                  "excludeLabels": [
+
+                  ],
+                  "minGap": 20,
+                  "minDeltaFromBlank": 25,
+                  "maxMean": 205,
+                  "supportedFieldTypes": [
+                      "QTYPE_INT"
+                  ]
+              },
+              "weakMultiMarkParams": {
+                  "enabled": true,
+                  "labels": [
+
+                  ],
+                  "onlyWhenBlank": true,
+                  "minDeltaFromBlank": 10,
+                  "maxMean": 218,
+                  "maxMarks": 4,
+                  "fullSelectFallbackEnabled": true,
+                  "fullSelectMaxMean": 170,
+                  "fullSelectMinDeltaFromBlank": 35,
+                  "fullSelectMaxSpread": 25
+              }
+          },
+          "templateConfig": {
+
+          }
+      },
+      "sheets": [
+          {
+              "sheetId": 1,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_5179f1de8a1348b784f5b73c48ffdb7d.pdf"
+          },
+          {
+              "sheetId": 2,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_2612d885d2f54d1591258abfcfa22ba4.pdf"
+          },
+          {
+              "sheetId": 3,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_5a9b0d186bf04a5382298ebd2315552d.pdf"
+          },
+          {
+              "sheetId": 4,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_ebf6bf8281f04bf0865b0de3ce0709c7.pdf"
+          },
+          {
+              "sheetId": 5,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_fa0b028c1f5e4e88afce4bee73312a56.pdf"
+          },
+          {
+              "sheetId": 6,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_391771b4930b4028bd5c8a3bbf42c77f.pdf"
+          },
+          {
+              "sheetId": 7,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_871204c1959d4337b7ee38242c08196e.pdf"
+          },
+          {
+              "sheetId": 8,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_9890b12c0c6146149dc79cde9ede6b0d.pdf"
+          },
+          {
+              "sheetId": 9,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8423c661abf74de99ad6b7b218c0c7f4.pdf"
+          },
+          {
+              "sheetId": 10,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_d35b58a07c8145bfb6af294ab066e62a.pdf"
+          },
+          {
+              "sheetId": 11,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8daa4987485041ac974ac3887254d221.pdf"
+          },
+          {
+              "sheetId": 12,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8e2887f7ac9a4e7baed9656c336d4a19.pdf"
+          },
+          {
+              "sheetId": 13,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_38df99b73ab147ce88afc6905e6b38ba.pdf"
+          },
+          {
+              "sheetId": 14,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_e6f19db47b02408eb56bf376a4f33197.pdf"
+          },
+          {
+              "sheetId": 15,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_2501e0a8ff314c6e9b85de3f8f68e641.pdf"
+          },
+          {
+              "sheetId": 16,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_25ef50dd558744028ba1bd63b7cd7ed4.pdf"
+          },
+          {
+              "sheetId": 17,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_6c558cf9fb9c441b85cb3465bb61dfcd.pdf"
+          },
+          {
+              "sheetId": 18,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_06321b8b9a9f46a3ad2c38d3e2554c18.pdf"
+          },
+          {
+              "sheetId": 19,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_4515bcc92e3744578b65a3fc1ad60a6d.pdf"
+          },
+          {
+              "sheetId": 20,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_3d5a1b2918794b38931785e8f288a33c.pdf"
+          },
+          {
+              "sheetId": 21,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_baa5215adb194fc3a42477f6421bc7ce.pdf"
+          },
+          {
+              "sheetId": 22,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_64b7740267b944bc82a218b1246224b5.pdf"
+          },
+          {
+              "sheetId": 23,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_66d568d9ac474df09542d3b6edd5a99c.pdf"
+          },
+          {
+              "sheetId": 24,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_54fab7cbf758454dae794f5efc31c758.pdf"
+          },
+          {
+              "sheetId": 25,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_51b0d042862e42319176b93e788d6cc3.pdf"
+          },
+          {
+              "sheetId": 26,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_d65d28bde1cb4d50ab4d5f2cb5c9924f.pdf"
+          },
+          {
+              "sheetId": 27,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_055dc7decce8442c8e93d957086d8c51.pdf"
+          },
+          {
+              "sheetId": 28,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_a6f9c3d5b7264e39962617c36207d050.pdf"
+          },
+          {
+              "sheetId": 29,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_2c960e907829482fbb3eb466c50edced.pdf"
+          },
+          {
+              "sheetId": 30,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_e85fb6d678f64d3ebf80408f106c34c2.pdf"
+          },
+          {
+              "sheetId": 31,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_1052fb3a16804c12bbcb129c25039bb1.pdf"
+          },
+          {
+              "sheetId": 32,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_24a2f15e48fa4cb99a871b97b148deb3.pdf"
+          },
+          {
+              "sheetId": 33,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_cf4597046de640d9936d9bc1b8ebe07b.pdf"
+          },
+          {
+              "sheetId": 34,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_bd59c74dfb4442ffb5818d786a7d0f81.pdf"
+          },
+          {
+              "sheetId": 35,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_19f0efc0db7f462699f70f31b124d88b.pdf"
+          },
+          {
+              "sheetId": 36,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_e886b99489d8495cb3d32b534134ad22.pdf"
+          },
+          {
+              "sheetId": 37,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_96bc866fc2754a7ab24d6bc9c949fdb4.pdf"
+          },
+          {
+              "sheetId": 38,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_d3412ee93fc54f4f969f56c7313d961a.pdf"
+          },
+          {
+              "sheetId": 39,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_4fc603ce5e1741339728df4bbc15456f.pdf"
+          },
+          {
+              "sheetId": 40,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_3404f13cb08d45d6812d9c6c2d422002.pdf"
+          },
+          {
+              "sheetId": 41,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_b61b0b6acb9d452e8498bebb8a45e574.pdf"
+          },
+          {
+              "sheetId": 42,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_6df86763e69342b3ad4b18ba790790ea.pdf"
+          },
+          {
+              "sheetId": 43,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_e70485aeffae4d8ba43fd52b78aac8e1.pdf"
+          },
+          {
+              "sheetId": 44,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_cd020262fdc04505811fbdeaa7fbe1d2.pdf"
+          },
+          {
+              "sheetId": 45,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_ab7b9877d0424ea88c617a18c4bbd252.pdf"
+          },
+          {
+              "sheetId": 46,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_44c8d142ffe9475bb6dced8ee2a86508.pdf"
+          },
+          {
+              "sheetId": 47,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_a3fe3d48278f475ea033aaea27f68495.pdf"
+          },
+          {
+              "sheetId": 48,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_2c7209ec3ed64bfa845ded5b5bc4fd29.pdf"
+          },
+          {
+              "sheetId": 49,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_cd72a202b05d4076ae9084cf369c439d.pdf"
+          },
+          {
+              "sheetId": 50,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_ade404bfd31548229a3237aec4f59aa9.pdf"
+          },
+          {
+              "sheetId": 51,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8daf6a0b369648c8912821fc4c57459d.pdf"
+          },
+          {
+              "sheetId": 52,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_282d7e46ff6e4c0abdd16471d3c87442.pdf"
+          },
+          {
+              "sheetId": 53,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_6358288557fd4e6798f4b20d5bfaaef3.pdf"
+          },
+          {
+              "sheetId": 54,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_854e9858d59f4439951255d3ea31d86a.pdf"
+          },
+          {
+              "sheetId": 55,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_b643130c1a874286bb12fcabe0201d31.pdf"
+          },
+          {
+              "sheetId": 56,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_42a14e65da974a268dbe705575424a37.pdf"
+          },
+          {
+              "sheetId": 57,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_c9dbcc542f2e4293bab62f2f89b33d8b.pdf"
+          },
+          {
+              "sheetId": 58,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8af239a6353c41069fc53c508bdd202e.pdf"
+          },
+          {
+              "sheetId": 59,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_8917df7e89e14fc4a6e183c645d61728.pdf"
+          },
+          {
+              "sheetId": 60,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_bac60eca408643c1bac72e313dae3726.pdf"
+          },
+          {
+              "sheetId": 61,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_973170a92c1c49be9605c6d8f3f7483a.pdf"
+          },
+          {
+              "sheetId": 62,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_249d35ef100c410a8191eae51b101090.pdf"
+          },
+          {
+              "sheetId": 63,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_068954d0ebb94c7683798ce56d863e07.pdf"
+          },
+          {
+              "sheetId": 64,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_37027e406a4b4d2ca1b30e82c69fc20a.pdf"
+          },
+          {
+              "sheetId": 65,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_5db64cdb847a445987dfcb79f3d9694c.pdf"
+          },
+          {
+              "sheetId": 66,
+              "osskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/05/f_885ba914af8943dba7c1bbbed7062d56.pdf"
+          }
+      ]
   }'
 ```
 
@@ -531,7 +870,7 @@ Immediate response is the pending callback payload rendered from stored records:
 If validation fails, response shape is:
 
 ```json
-{"status": "failed", "error": "callbackUrl is required"}
+{"status": "failed", "error": "sheets is required"}
 ```
 
 ### 4. Batch background processing behavior
@@ -678,7 +1017,7 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
 | Get single task | `GET /api/omr/tasks/{task_id}` | in memory | Returns terminal result or current status. |
 | Download single CSV | `GET /api/omr/tasks/{task_id}/results-csv` | filesystem | Uses `result.results_csv`. |
 | Download checked image | `GET /api/omr/tasks/{task_id}/checked-image/{file_id}` | filesystem | Uses checked image under task output dir. |
-| Submit COS batch | `POST /api/omr/batches` | SQLite | Requires `examId`, `callbackUrl`, non-empty `sheets`. |
+| Submit COS batch | `POST /api/omr/batches` | SQLite | Requires `examId` and non-empty `sheets`. Uses configured `callback.url` unless request `callbackUrl` overrides it. |
 | Submit COS batch alias | `POST /api/omr/batch-tasks` | SQLite | Same handler as `/api/omr/batches`. |
 | List COS batches | `GET /api/omr/batches` | SQLite | Filters: `status`, `examId`/`exam_id`, `externalBatchId`/`external_batch_id`. |
 | Get COS batch | `GET /api/omr/batches/{taskId}` | SQLite | Returns callback-compatible payload. |

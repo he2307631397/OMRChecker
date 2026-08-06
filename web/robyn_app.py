@@ -49,13 +49,14 @@ _TASK_LOCK = Lock()
 
 
 class HttpCallbackClient:
-    def __init__(self, *, timeout_seconds: int = 10) -> None:
+    def __init__(self, *, callback_url: str | None = None, timeout_seconds: int = 10) -> None:
+        self.callback_url = callback_url
         self.timeout_seconds = timeout_seconds
 
     def send(self, payload: dict[str, Any]) -> dict[str, Any]:
         task_id = payload.get("taskId")
         batch = _BATCH_SERVICE.store.get_batch(str(task_id)) if task_id else None
-        url = batch.get("callback_url") if batch else None
+        url = (batch.get("callback_url") if batch else None) or self.callback_url
         if not url:
             return {"success": False, "error": "callback url not found"}
         body = json.dumps(payload).encode("utf-8")
@@ -93,7 +94,7 @@ def _build_batch_service() -> BatchRecognitionService:
         object_storage=build_cos_client(config.cos),
         config=config,
         recognition_runner=_run_batch_omr,
-        callback_client=HttpCallbackClient(timeout_seconds=config.callback.timeout_seconds),
+        callback_client=HttpCallbackClient(callback_url=config.callback.url, timeout_seconds=config.callback.timeout_seconds),
     )
 
 

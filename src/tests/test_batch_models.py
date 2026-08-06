@@ -49,7 +49,6 @@ def test_batch_request_defaults_recognition_config_to_empty_dict_when_omitted_or
     omitted = BatchRecognitionRequest.from_api_json(
         {
             "examId": "exam-1",
-            "callbackUrl": "https://example.test/callback",
             "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}],
         }
     )
@@ -65,6 +64,28 @@ def test_batch_request_defaults_recognition_config_to_empty_dict_when_omitted_or
     assert omitted.recognition_config == {}
     assert null_value.recognition_config == {}
     assert "externalBatchId" not in omitted.to_api_dict()
+    assert "callbackUrl" not in omitted.to_api_dict()
+
+
+def test_batch_request_accepts_integer_business_ids_from_complete_payload():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": 17,
+            "templateSpecId": 1,
+            "externalBatchId": "scan_batch_file:1785991732373",
+            "attemptNo": 1785991732373,
+            "batchId": 1,
+            "recognitionConfig": {"config": {}, "templateConfig": {}},
+            "sheets": [{"sheetId": 1, "osskey": "private/exam/sheet-1.pdf"}],
+        }
+    )
+
+    assert request.exam_id == "17"
+    assert request.callback_url is None
+    assert request.sheets[0].sheet_id == "1"
+    assert request.recognition_config == {"config": {}, "templateConfig": {}}
+    assert request.extra_fields == {"templateSpecId": 1, "attemptNo": 1785991732373, "batchId": 1}
+    assert request.to_api_dict()["templateSpecId"] == 1
 
 
 @pytest.mark.parametrize(
@@ -72,9 +93,8 @@ def test_batch_request_defaults_recognition_config_to_empty_dict_when_omitted_or
     [
         ({}, "examId is required"),
         ({"examId": "   "}, "examId must be a non-empty string"),
-        ({"examId": "exam-1"}, "callbackUrl is required"),
         ({"examId": "exam-1", "callbackUrl": ""}, "callbackUrl must be a non-empty string"),
-        ({"examId": "exam-1", "callbackUrl": "https://example.test/callback"}, "sheets is required"),
+        ({"examId": "exam-1"}, "sheets is required"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": []}, "sheets must be a non-empty list"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": [{}]}, "sheets[0].sheetId is required"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "sheets": [{"sheetId": "sheet-1"}]}, "sheets[0].osskey is required"),

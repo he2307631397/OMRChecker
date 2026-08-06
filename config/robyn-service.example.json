@@ -19,6 +19,7 @@
     "secretKey": "${COS_SECRET_KEY}"
   },
   "callback": {
+    "url": "https://java.example.com/omr/batch-callback",
     "maxAttempts": 3,
     "timeoutSeconds": 10
   },

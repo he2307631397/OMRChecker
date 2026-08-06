@@ -117,7 +117,7 @@ def test_submit_invalid_missing_fields_returns_error_400_style(monkeypatch, tmp_
     response = robyn_app.create_batch(DummyRequest(json_payload={"examId": "exam-1"}))
 
     assert response["status"] == "failed"
-    assert response["error"] == "callbackUrl is required"
+    assert response["error"] == "sheets is required"
 
 
 def test_get_batch_by_task_id_returns_camel_case_payload_and_unknown_returns_404(monkeypatch, tmp_path):

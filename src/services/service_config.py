@@ -42,6 +42,7 @@ class CosConfig:
 
 @dataclass(frozen=True)
 class CallbackConfig:
+    url: str | None = None
     max_attempts: int = 3
     timeout_seconds: int = 10
 
@@ -110,6 +111,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
             local_root=Path(cos.get("localRoot", CosConfig.local_root)),
         ),
         callback=CallbackConfig(
+            url=_optional_non_empty_string(callback.get("url"), "callback.url"),
             max_attempts=int(callback.get("maxAttempts", CallbackConfig.max_attempts)),
             timeout_seconds=int(callback.get("timeoutSeconds", CallbackConfig.timeout_seconds)),
         ),
@@ -164,6 +166,7 @@ def _strip_env_value_quotes(value: str) -> str:
 def _apply_environment_overrides(config: dict[str, Any]) -> None:
     server = config.setdefault("server", {})
     storage = config.setdefault("storage", {})
+    callback = config.setdefault("callback", {})
     recognition = config.setdefault("recognition", {})
 
     if "OMR_SERVICE_PORT" in os.environ:
@@ -174,6 +177,8 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]
     if "OMR_TEMPLATE_DIR" in os.environ:
         storage["templateDir"] = os.environ["OMR_TEMPLATE_DIR"]
+    if "OMR_CALLBACK_URL" in os.environ:
+        callback["url"] = os.environ["OMR_CALLBACK_URL"]
     if "OMR_RECOGNITION_DEBUG_ARTIFACTS" in os.environ:
         recognition["debugArtifacts"] = _parse_bool(
             os.environ["OMR_RECOGNITION_DEBUG_ARTIFACTS"],
@@ -191,3 +196,11 @@ def _parse_bool(value: Any, field_name: str) -> bool:
         if normalized in {"0", "false", "no", "off"}:
             return False
     raise ValueError(f"{field_name} must be a boolean")
+
+
+def _optional_non_empty_string(value: Any, field_name: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return value.strip()

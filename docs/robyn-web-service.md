@@ -358,7 +358,7 @@ Request body fields:
 | `examId` | yes | Business exam ID. Must be a non-empty string. |
 | `callbackUrl` | yes | Terminal callback URL. Must be a non-empty string. Current validation only checks presence in batch model. |
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
-| `recognitionConfig` | no | Object. Currently only `debugArtifacts` is interpreted by backend. Other keys are persisted but not used. |
+| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` and `config`, when supplied as objects, are written as runtime `template.json` and `config.json`. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
 | `sheets` | yes | Non-empty list of sheet objects. |
 | `sheets[].sheetId` | yes | Business sheet ID. |
@@ -380,6 +380,131 @@ curl -X POST http://localhost:8080/api/omr/batches \
     ]
   }'
 ```
+
+Template-parameter request example based on `docs/assets/自制模板1/template`:
+
+```json
+{
+  "examId": "exam-001",
+  "externalBatchId": "biz-batch-001",
+  "callbackUrl": "https://java.example.com/omr/batch-callback",
+  "recognitionConfig": {
+    "debugArtifacts": false,
+    "template": {
+      "pageDimensions": [1190, 1682],
+      "bubbleDimensions": [29, 18],
+      "outputColumns": [
+        "id1", "id2", "id3", "id4", "id5", "id6", "id7", "id8",
+        "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
+      ],
+      "preProcessors": [
+        {
+          "name": "FeatureBasedAlignment",
+          "options": {
+            "reference": "reference.png",
+            "maxFeatures": 2000,
+            "goodMatchPercent": 0.25,
+            "2d": true
+          }
+        }
+      ],
+      "fieldBlocks": {
+        "ExamId": {
+          "fieldType": "QTYPE_INT",
+          "fieldLabels": ["id1..8"],
+          "bubbleDimensions": [30, 17],
+          "bubblesGap": 27,
+          "labelsGap": 44,
+          "origin": [777, 396]
+        },
+        "Q1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [134, 757]},
+        "Q2": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q2"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [337, 757]},
+        "Q3": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q3"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [540, 757]},
+        "Q4": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q4"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [743, 757]},
+        "Q5": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q5"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [946, 757]},
+        "Q6": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q6"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [134, 802]},
+        "Q7": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q7"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [337, 802]},
+        "Q8": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q8"], "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [540, 802]},
+        "Q9": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q9"], "multiSelect": true, "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [134, 933]},
+        "Q10": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q10"], "multiSelect": true, "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [337, 933]},
+        "Q11": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q11"], "multiSelect": true, "bubbleDimensions": [29, 18], "bubblesGap": 39, "labelsGap": 0, "origin": [540, 933]}
+      }
+    },
+    "config": {
+      "dimensions": {
+        "display_height": 1682,
+        "display_width": 1190,
+        "processing_height": 1682,
+        "processing_width": 1190
+      },
+      "outputs": {
+        "show_image_level": 0,
+        "save_image_level": 0,
+        "save_detections": true
+      },
+      "threshold_params": {
+        "GAMMA_LOW": 0.7,
+        "MIN_GAP": 30,
+        "MIN_JUMP": 25,
+        "CONFIDENT_SURPLUS": 5,
+        "JUMP_DELTA": 30,
+        "PAGE_TYPE_FOR_THRESHOLD": "white"
+      },
+      "alignment_params": {
+        "auto_align": false
+      },
+      "pdf_params": {
+        "pdf_dpi": 144,
+        "pdf_page": 1
+      },
+      "weak_mark_params": {
+        "enabled": true,
+        "min_gap": 10,
+        "max_mean": 215,
+        "supported_field_types": ["QTYPE_MCQ4"],
+        "exclude_labels": []
+      },
+      "weak_identifier_params": {
+        "enabled": true,
+        "labels": [],
+        "exclude_labels": [],
+        "min_gap": 20,
+        "min_delta_from_blank": 25,
+        "max_mean": 205,
+        "supported_field_types": ["QTYPE_INT"]
+      },
+      "weak_multi_mark_params": {
+        "enabled": true,
+        "labels": [],
+        "only_when_blank": true,
+        "min_delta_from_blank": 10,
+        "max_mean": 218,
+        "max_marks": 4,
+        "full_select_fallback_enabled": true,
+        "full_select_max_mean": 170,
+        "full_select_min_delta_from_blank": 35,
+        "full_select_max_spread": 25
+      }
+    }
+  },
+  "sheets": [
+    {
+      "sheetId": "sheet-001",
+      "osskey": "incoming/exam-001/sheet-001.pdf",
+      "metadata": {
+        "studentId": "202608040001",
+        "studentName": "张三"
+      }
+    }
+  ]
+}
+```
+
+Notes for Java integration:
+
+- The `recognitionConfig.template` and `recognitionConfig.config` object shapes above match the verified files in `docs/assets/自制模板1/template/template.json` and `docs/assets/自制模板1/template/config.json`.
+- Current backend validation requires `recognitionConfig` to be an object and `recognitionConfig.debugArtifacts`, when supplied, to be a boolean. When `recognitionConfig.template` or `recognitionConfig.config` is supplied, each must be an object to participate in runtime file generation.
+- Runtime behavior: batch recognition first copies top-level files from `storage.templateDir` into each sheet workdir. If `recognitionConfig.template` or `recognitionConfig.config` is provided as an object, the service writes them to `template.json` and `config.json` in that workdir before recognition, so the request parameters override the default template/config files. Keep non-JSON dependencies such as `reference.png` in `storage.templateDir`.
 
 Immediate response is the pending callback payload rendered from stored records:
 

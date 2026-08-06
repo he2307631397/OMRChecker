@@ -52,6 +52,10 @@ class BatchRecognitionRequest:
             recognition_config = {}
         if not isinstance(recognition_config, dict):
             raise ValueError("recognitionConfig must be an object")
+        for runtime_field in ("template", "config"):
+            runtime_value = recognition_config.get(runtime_field)
+            if runtime_value is not None and not isinstance(runtime_value, dict):
+                raise ValueError(f"recognitionConfig.{runtime_field} must be an object")
         debug_artifacts = recognition_config.get("debugArtifacts")
         if debug_artifacts is not None and not isinstance(debug_artifacts, bool):
             raise ValueError("recognitionConfig.debugArtifacts must be a boolean")

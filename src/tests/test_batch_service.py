@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import cv2
@@ -40,8 +41,28 @@ def _make_request(*, sheets: list[BatchSheetRequest] | None = None) -> BatchReco
         exam_id="exam-1",
         external_batch_id="external-batch-1",
         callback_url="https://callback.example.test/omr",
-        recognition_config={"template": "default"},
+        recognition_config={},
         sheets=sheets or [BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+
+
+def _make_request_with_runtime_template() -> BatchRecognitionRequest:
+    return BatchRecognitionRequest(
+        exam_id="exam-1",
+        external_batch_id="external-batch-1",
+        callback_url="https://callback.example.test/omr",
+        recognition_config={
+            "template": {
+                "pageDimensions": [2480, 3508],
+                "fieldBlocks": {"student_id": {"fieldType": "QTYPE_INT"}},
+            },
+            "config": {
+                "dimensions": {"display_height": 3508, "display_width": 2480},
+                "outputs": {"show_image_level": 0},
+            },
+            "debugArtifacts": True,
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
     )
 
 
@@ -123,6 +144,38 @@ def test_process_batch_downloads_runs_uploads_artifacts_and_marks_completed(tmp_
     assert store.get_batch("task-1")["completed_at"] is not None
     assert store.list_sheets("task-1")[0]["status"] == "completed"
     assert store.list_artifacts("task-1", sheet_id="sheet-1")[0]["osskey"] == "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png"
+
+
+def test_process_batch_writes_request_template_and_config_before_recognition(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    template_dir = tmp_path / "templates"
+    template_dir.mkdir()
+    (template_dir / "template.json").write_text(json.dumps({"pageDimensions": [1, 1]}), encoding="utf-8")
+    (template_dir / "config.json").write_text(json.dumps({"outputs": {"show_image_level": 1}}), encoding="utf-8")
+
+    def fake_runner(context):
+        assert json.loads((context.workdir / "template.json").read_text(encoding="utf-8")) == context.request.recognition_config[
+            "template"
+        ]
+        assert json.loads((context.workdir / "config.json").read_text(encoding="utf-8")) == context.request.recognition_config[
+            "config"
+        ]
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, template_dir=template_dir),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(_make_request_with_runtime_template())
+
+    result = service.process_batch("task-1")
+
+    assert result.status == "completed"
 
 
 def test_fake_cos_smoke_terminal_payload_contains_business_artifact_fields(tmp_path: Path) -> None:

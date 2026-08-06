@@ -72,6 +72,7 @@ class ServiceConfig:
 
 def load_service_config(path: str | Path | None = None) -> ServiceConfig:
     """Load service configuration from JSON and environment overrides."""
+    _load_dotenv(Path(".env"))
     config_path = Path(path) if path is not None else Path("config/robyn-service.json")
     raw_config: dict[str, Any] = {}
     if config_path.exists():
@@ -137,6 +138,26 @@ def _resolve_env_placeholders(value: Any) -> Any:
         return [_resolve_env_placeholders(item) for item in value]
     if isinstance(value, str):
         return _ENV_PLACEHOLDER_PATTERN.sub(lambda match: os.environ.get(match.group(1), ""), value)
+    return value
+
+
+def _load_dotenv(path: Path) -> None:
+    if not path.is_file():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = _strip_env_value_quotes(value.strip())
+
+
+def _strip_env_value_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+        return value[1:-1]
     return value
 
 

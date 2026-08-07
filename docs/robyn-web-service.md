@@ -221,8 +221,18 @@ Completed response shape:
           "singleChoice": {
             "regionCode": "singleChoice",
             "regionName": "单选题区域",
+            "type": "SINGLE_CHOICE",
             "items": [
               {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
+          },
+          "candidateNumber": {
+            "regionCode": "candidateNumber",
+            "regionName": "准考证号区域",
+            "type": "DIGIT",
+            "items": [
+              {"field": "id1", "value": "3", "confidence": 1.0},
+              {"field": "id2", "value": "5", "confidence": 1.0}
             ]
           }
         },
@@ -935,8 +945,18 @@ Terminal response shape:
           "singleChoice": {
             "regionCode": "singleChoice",
             "regionName": "单选题区域",
+            "type": "SINGLE_CHOICE",
             "items": [
               {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
+          },
+          "candidateNumber": {
+            "regionCode": "candidateNumber",
+            "regionName": "准考证号区域",
+            "type": "DIGIT",
+            "items": [
+              {"field": "id1", "value": "3", "confidence": 1.0},
+              {"field": "id2", "value": "5", "confidence": 1.0}
             ]
           }
         },
@@ -952,6 +972,15 @@ Terminal response shape:
           "items": [
             {"field": "q1", "value": "A", "confidence": 1.0}
           ]
+        },
+        "candidateNumber": {
+          "regionCode": "candidateNumber",
+          "regionName": "准考证号区域",
+          "type": "DIGIT",
+          "items": [
+            {"field": "id1", "value": "3", "confidence": 1.0},
+            {"field": "id2", "value": "5", "confidence": 1.0}
+          ]
         }
       },
       "answers_flat": {"q1": "A"},
@@ -965,7 +994,7 @@ Terminal response shape:
 
 Notes about this response:
 
-- `answers` is grouped directly by business recognition region, for example `singleChoice` / `单选题区域`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
+- `answers` is grouped directly by business recognition region, for example `singleChoice` / `单选题区域` and `candidateNumber` / `准考证号区域` / `DIGIT`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
 - `answers_flat` preserves the previous simple `{"q1": "A"}` map for compatibility.
 - `SheetRecognitionResult.to_callback_dict()` promotes keys from `result` to the sheet top level when `result` is an object.
 - If `checkedImageOsskey` is present in stored result, it is promoted to the sheet top level and removed from the nested `result` object.

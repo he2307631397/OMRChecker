@@ -196,12 +196,16 @@ def _normalize_result_row(
     )
     id_digits = [row[key] for key in id_keys]
     flat_answers = {key: value for key, value in row.items() if re.fullmatch(r"q\d+", key)}
+    recognized_fields = {
+        **{key: row[key] for key in id_keys},
+        **flat_answers,
+    }
     answers = _group_answers_by_region_type(
-        flat_answers,
+        recognized_fields,
         field_regions=field_regions or {},
         review_confidences=review_confidences or {},
     )
-    review_required = any(value == "" for value in flat_answers.values())
+    review_required = any(value == "" for value in recognized_fields.values())
 
     return {
         "file_id": row.get("file_id", ""),
@@ -235,6 +239,7 @@ def _group_answers_by_region_type(
             {
                 "regionCode": region_code,
                 "regionName": metadata.get("regionName") or fallback_region["regionName"],
+                "type": metadata.get("type") or fallback_region["type"],
                 "items": [],
             },
         )
@@ -253,10 +258,10 @@ def _group_answers_by_region_type(
 
 def _infer_business_region(field: str) -> dict[str, str]:
     if re.fullmatch(r"q\d+", field):
-        return {"regionCode": "singleChoice", "regionName": "单选题区域"}
+        return {"regionCode": "singleChoice", "regionName": "单选题区域", "type": "SINGLE_CHOICE"}
     if re.fullmatch(r"id\d+", field):
-        return {"regionCode": "identifier", "regionName": "身份识别区域"}
-    return {"regionCode": "other", "regionName": "其他识别区域"}
+        return {"regionCode": "candidateNumber", "regionName": "准考证号区域", "type": "DIGIT"}
+    return {"regionCode": "other", "regionName": "其他识别区域", "type": "OTHER"}
 
 
 def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]:
@@ -281,6 +286,7 @@ def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]
             metadata[label] = {
                 "regionCode": merged.get("regionCode") or default_region["regionCode"],
                 "regionName": merged.get("name") or merged.get("regionName") or default_region["regionName"],
+                "type": merged.get("type") or default_region["type"],
             }
     return metadata
 
@@ -288,11 +294,11 @@ def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]
 def _default_business_region_for_field_block(field_type: str, field_block: dict[str, Any]) -> dict[str, str]:
     if field_type.startswith("QTYPE_MCQ"):
         if field_block.get("multiSelect"):
-            return {"regionCode": "multipleChoice", "regionName": "多选题区域"}
-        return {"regionCode": "singleChoice", "regionName": "单选题区域"}
+            return {"regionCode": "multipleChoice", "regionName": "多选题区域", "type": "MULTIPLE_CHOICE"}
+        return {"regionCode": "singleChoice", "regionName": "单选题区域", "type": "SINGLE_CHOICE"}
     if field_type.startswith("QTYPE_INT"):
-        return {"regionCode": "identifier", "regionName": "身份识别区域"}
-    return {"regionCode": "other", "regionName": "其他识别区域"}
+        return {"regionCode": "candidateNumber", "regionName": "准考证号区域", "type": "DIGIT"}
+    return {"regionCode": "other", "regionName": "其他识别区域", "type": "OTHER"}
 
 
 def _load_review_confidences(results_csv: Path) -> dict[str, dict[str, float]]:

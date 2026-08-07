@@ -34,8 +34,8 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
     results_dir.mkdir(parents=True)
     results_csv = results_dir / "Results_001.csv"
     results_csv.write_text(
-        "file_id,input_path,output_path,score,q1,q2\n"
-        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,2,A,\n",
+        "file_id,input_path,output_path,score,id1,id2,q1,q2\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,2,3,5,A,\n",
         encoding="utf-8",
     )
     (results_dir / "WeakFillReview.csv").write_text(
@@ -59,9 +59,16 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
               "origin": [0, 0],
               "bubblesGap": 10,
               "labelsGap": 10
+            },
+            "student_id_area": {
+              "fieldType": "QTYPE_INT",
+              "fieldLabels": ["id1..2"],
+              "origin": [0, 20],
+              "bubblesGap": 10,
+              "labelsGap": 10
             }
           },
-          "outputColumns": ["q1..2"],
+          "outputColumns": ["id1..2", "q1..2"],
           "customLabels": {}
         }
         """,
@@ -75,9 +82,19 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
         "singleChoice": {
             "regionCode": "singleChoice",
             "regionName": "单选题区域",
+            "type": "SINGLE_CHOICE",
             "items": [
                 {"field": "q1", "value": "A", "confidence": 0.876},
                 {"field": "q2", "value": "", "confidence": 0.0},
+            ],
+        },
+        "candidateNumber": {
+            "regionCode": "candidateNumber",
+            "regionName": "准考证号区域",
+            "type": "DIGIT",
+            "items": [
+                {"field": "id1", "value": "3", "confidence": 1.0},
+                {"field": "id2", "value": "5", "confidence": 1.0},
             ],
         }
     }

@@ -78,8 +78,17 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
     rows = omr_service.read_results_csv(results_csv, template_dir=template_dir)
 
     assert rows[0]["answers_flat"] == {"q1": "A", "q2": ""}
-    assert rows[0]["answers"] == {
-        "singleChoice": {
+    assert rows[0]["answers"] == [
+        {
+            "regionCode": "candidateNumber",
+            "regionName": "准考证号区域",
+            "type": "DIGIT",
+            "items": [
+                {"field": "id1", "value": "3", "confidence": 1.0},
+                {"field": "id2", "value": "5", "confidence": 1.0},
+            ],
+        },
+        {
             "regionCode": "singleChoice",
             "regionName": "单选题区域",
             "type": "SINGLE_CHOICE",
@@ -88,13 +97,4 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
                 {"field": "q2", "value": "", "confidence": 0.0},
             ],
         },
-        "candidateNumber": {
-            "regionCode": "candidateNumber",
-            "regionName": "准考证号区域",
-            "type": "DIGIT",
-            "items": [
-                {"field": "id1", "value": "3", "confidence": 1.0},
-                {"field": "id2", "value": "5", "confidence": 1.0},
-            ],
-        }
-    }
+    ]

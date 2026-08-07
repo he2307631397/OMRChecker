@@ -217,16 +217,8 @@ Completed response shape:
         "output_path": "service_data/tasks/a1b2c3.../output/CheckedOMRs/sheet.png",
         "score": "0",
         "exam_id": "",
-        "answers": {
-          "singleChoice": {
-            "regionCode": "singleChoice",
-            "regionName": "单选题区域",
-            "type": "SINGLE_CHOICE",
-            "items": [
-              {"field": "q1", "value": "A", "confidence": 1.0}
-            ]
-          },
-          "candidateNumber": {
+        "answers": [
+          {
             "regionCode": "candidateNumber",
             "regionName": "准考证号区域",
             "type": "DIGIT",
@@ -234,8 +226,16 @@ Completed response shape:
               {"field": "id1", "value": "3", "confidence": 1.0},
               {"field": "id2", "value": "5", "confidence": 1.0}
             ]
+          },
+          {
+            "regionCode": "singleChoice",
+            "regionName": "单选题区域",
+            "type": "SINGLE_CHOICE",
+            "items": [
+              {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
           }
-        },
+        ],
         "answers_flat": {"q1": "A"},
         "weak_marks": [],
         "review_required": false,
@@ -941,16 +941,8 @@ Terminal response shape:
       "status": "completed",
       "result": {
         "file_id": "sheet-001.png",
-        "answers": {
-          "singleChoice": {
-            "regionCode": "singleChoice",
-            "regionName": "单选题区域",
-            "type": "SINGLE_CHOICE",
-            "items": [
-              {"field": "q1", "value": "A", "confidence": 1.0}
-            ]
-          },
-          "candidateNumber": {
+        "answers": [
+          {
             "regionCode": "candidateNumber",
             "regionName": "准考证号区域",
             "type": "DIGIT",
@@ -958,22 +950,23 @@ Terminal response shape:
               {"field": "id1", "value": "3", "confidence": 1.0},
               {"field": "id2", "value": "5", "confidence": 1.0}
             ]
+          },
+          {
+            "regionCode": "singleChoice",
+            "regionName": "单选题区域",
+            "type": "SINGLE_CHOICE",
+            "items": [
+              {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
           }
-        },
+        ],
         "answers_flat": {"q1": "A"},
         "checkedImagePath": "service_data/tasks/.../output/CheckedOMRs/sheet-001.png"
       },
       "artifacts": [],
       "file_id": "sheet-001.png",
-      "answers": {
-        "singleChoice": {
-          "regionCode": "singleChoice",
-          "regionName": "单选题区域",
-          "items": [
-            {"field": "q1", "value": "A", "confidence": 1.0}
-          ]
-        },
-        "candidateNumber": {
+      "answers": [
+        {
           "regionCode": "candidateNumber",
           "regionName": "准考证号区域",
           "type": "DIGIT",
@@ -981,8 +974,16 @@ Terminal response shape:
             {"field": "id1", "value": "3", "confidence": 1.0},
             {"field": "id2", "value": "5", "confidence": 1.0}
           ]
+        },
+        {
+          "regionCode": "singleChoice",
+          "regionName": "单选题区域",
+          "type": "SINGLE_CHOICE",
+          "items": [
+            {"field": "q1", "value": "A", "confidence": 1.0}
+          ]
         }
-      },
+      ],
       "answers_flat": {"q1": "A"},
       "checkedImagePath": "service_data/tasks/.../output/CheckedOMRs/sheet-001.png",
       "checkedImageOsskey": "checked/batch-task-id/sheet-001/sheet-001.png"
@@ -994,7 +995,7 @@ Terminal response shape:
 
 Notes about this response:
 
-- `answers` is grouped directly by business recognition region, for example `singleChoice` / `单选题区域` and `candidateNumber` / `准考证号区域` / `DIGIT`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
+- `answers` is a business recognition region array, for example `candidateNumber` / `准考证号区域` / `DIGIT`, `singleChoice` / `单选题区域`, and `multipleChoice` / `多选题区域`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
 - `answers_flat` preserves the previous simple `{"q1": "A"}` map for compatibility.
 - `SheetRecognitionResult.to_callback_dict()` promotes keys from `result` to the sheet top level when `result` is an object.
 - If `checkedImageOsskey` is present in stored result, it is promoted to the sheet top level and removed from the nested `result` object.
@@ -1108,3 +1109,91 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
 - There is no OpenAPI/Swagger generation in the current Robyn app.
 - There is no authentication or request signing in the current implementation.
 - There is no dedicated endpoint for callback attempt history yet.
+
+### 返回结果针对优化参考；
+
+ "answers": [
+
+    {
+
+      "regionCode": "candidateNumber",
+
+      "regionName": "准考证号区域",
+
+      "type": "DIGIT",
+
+      "items": [
+
+        {
+
+          "field": "id1",
+
+          "value": "2",
+
+          "confidence": 1.0
+
+        },
+
+        {
+
+          "field": "id2",
+
+          "value": "0",
+
+          "confidence": 1.0
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      "regionCode": "singleChoice",
+
+      "regionName": "单选题区域",
+
+      "type": "SINGLE_CHOICE",
+
+      "items": [
+
+        {
+
+          "field": "q1",
+
+          "value": "A",
+
+          "confidence": 1.0
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      "regionCode": "multipleChoice",
+
+      "regionName": "多选题区域",
+
+      "type": "MULTIPLE_CHOICE",
+
+      "items": [
+
+        {
+
+          "field": "q9",
+
+          "value": "AC",
+
+          "confidence": 1.0
+
+        }
+
+      ]
+
+    }
+
+  ]

@@ -228,7 +228,7 @@ def _group_answers_by_region_type(
     *,
     field_regions: dict[str, dict[str, Any]],
     review_confidences: dict[str, float],
-) -> dict[str, dict[str, Any]]:
+) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
     for field, value in flat_answers.items():
         metadata = field_regions.get(field, {})
@@ -253,7 +253,7 @@ def _group_answers_by_region_type(
                 "confidence": round(float(confidence), 3),
             }
         )
-    return grouped
+    return list(grouped.values())
 
 
 def _infer_business_region(field: str) -> dict[str, str]:

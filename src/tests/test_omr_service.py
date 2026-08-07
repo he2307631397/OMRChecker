@@ -29,7 +29,7 @@ def test_run_omr_directory_preserves_output_directory(monkeypatch, tmp_path):
     assert (output_dir / "CheckedOMRs" / "sheet-1.png").exists()
 
 
-def test_read_results_csv_groups_answers_by_region_type_with_confidence(tmp_path):
+def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_path):
     results_dir = tmp_path / "output" / "Results"
     results_dir.mkdir(parents=True)
     results_csv = results_dir / "Results_001.csv"
@@ -72,15 +72,12 @@ def test_read_results_csv_groups_answers_by_region_type_with_confidence(tmp_path
 
     assert rows[0]["answers_flat"] == {"q1": "A", "q2": ""}
     assert rows[0]["answers"] == {
-        "QTYPE_MCQ4": [
-            {
-                "regionCode": "choice_area_1",
-                "regionName": "choice_area_1",
-                "type": "QTYPE_MCQ4",
-                "items": [
-                    {"field": "q1", "value": "A", "confidence": 0.876},
-                    {"field": "q2", "value": "", "confidence": 0.0},
-                ],
-            }
-        ]
+        "singleChoice": {
+            "regionCode": "singleChoice",
+            "regionName": "单选题区域",
+            "items": [
+                {"field": "q1", "value": "A", "confidence": 0.876},
+                {"field": "q2", "value": "", "confidence": 0.0},
+            ],
+        }
     }

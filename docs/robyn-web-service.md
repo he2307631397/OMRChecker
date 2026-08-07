@@ -218,16 +218,13 @@ Completed response shape:
         "score": "0",
         "exam_id": "",
         "answers": {
-          "QTYPE_MCQ4": [
-            {
-              "regionCode": "choice_area_1",
-              "regionName": "choice_area_1",
-              "type": "QTYPE_MCQ4",
-              "items": [
-                {"field": "q1", "value": "A", "confidence": 1.0}
-              ]
-            }
-          ]
+          "singleChoice": {
+            "regionCode": "singleChoice",
+            "regionName": "单选题区域",
+            "items": [
+              {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
+          }
         },
         "answers_flat": {"q1": "A"},
         "weak_marks": [],
@@ -935,16 +932,13 @@ Terminal response shape:
       "result": {
         "file_id": "sheet-001.png",
         "answers": {
-          "QTYPE_MCQ4": [
-            {
-              "regionCode": "choice_area_1",
-              "regionName": "choice_area_1",
-              "type": "QTYPE_MCQ4",
-              "items": [
-                {"field": "q1", "value": "A", "confidence": 1.0}
-              ]
-            }
-          ]
+          "singleChoice": {
+            "regionCode": "singleChoice",
+            "regionName": "单选题区域",
+            "items": [
+              {"field": "q1", "value": "A", "confidence": 1.0}
+            ]
+          }
         },
         "answers_flat": {"q1": "A"},
         "checkedImagePath": "service_data/tasks/.../output/CheckedOMRs/sheet-001.png"
@@ -952,16 +946,13 @@ Terminal response shape:
       "artifacts": [],
       "file_id": "sheet-001.png",
       "answers": {
-        "QTYPE_MCQ4": [
-          {
-            "regionCode": "choice_area_1",
-            "regionName": "choice_area_1",
-            "type": "QTYPE_MCQ4",
-            "items": [
-              {"field": "q1", "value": "A", "confidence": 1.0}
-            ]
-          }
-        ]
+        "singleChoice": {
+          "regionCode": "singleChoice",
+          "regionName": "单选题区域",
+          "items": [
+            {"field": "q1", "value": "A", "confidence": 1.0}
+          ]
+        }
       },
       "answers_flat": {"q1": "A"},
       "checkedImagePath": "service_data/tasks/.../output/CheckedOMRs/sheet-001.png",
@@ -974,7 +965,7 @@ Terminal response shape:
 
 Notes about this response:
 
-- `answers` is grouped by recognition region type, then by recognition region. Each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
+- `answers` is grouped directly by business recognition region, for example `singleChoice` / `单选题区域`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
 - `answers_flat` preserves the previous simple `{"q1": "A"}` map for compatibility.
 - `SheetRecognitionResult.to_callback_dict()` promotes keys from `result` to the sheet top level when `result` is an object.
 - If `checkedImageOsskey` is present in stored result, it is promoted to the sheet top level and removed from the nested `result` object.

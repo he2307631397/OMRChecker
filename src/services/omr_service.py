@@ -14,11 +14,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from src.constants.common import FIELD_TYPES
 from src.entry import entry_point
 from src.defaults import CONFIG_DEFAULTS
 from src.evaluation import EvaluationConfig
 from src.template import Template
-from src.utils.parsing import open_config_with_defaults
+from src.utils.parsing import open_config_with_defaults, open_template_with_defaults, parse_fields
 
 DEFAULT_TEMPLATE_DIR = Path("inputs")
 DEFAULT_SERVICE_DATA_DIR = Path("service_data")
@@ -101,7 +102,8 @@ def run_omr_directory(
     else:
         _run_omr_directory_with_template_dir(input_dir, output_dir, Path(template_dir), args)
     results_csv = find_latest_results_csv(output_dir)
-    rows = read_results_csv(results_csv) if results_csv else []
+    result_template_dir = Path(template_dir) if template_dir is not None else input_dir
+    rows = read_results_csv(results_csv, template_dir=result_template_dir) if results_csv else []
     return OmrRunResult(input_dir=input_dir, output_dir=output_dir, results_csv=results_csv, rows=rows)
 
 
@@ -139,13 +141,22 @@ def _run_omr_directory_with_template_dir(
     )
 
 
-def read_results_csv(results_csv: Path) -> list[dict[str, Any]]:
+def read_results_csv(results_csv: Path, *, template_dir: Path | str | None = None) -> list[dict[str, Any]]:
     """Read OMRChecker Results CSV into Java-friendly JSON rows."""
 
     with results_csv.open("r", encoding="utf-8-sig", newline="") as csv_file:
         rows = list(csv.DictReader(csv_file))
 
-    return [_normalize_result_row(row) for row in rows]
+    field_regions = _load_field_region_metadata(Path(template_dir)) if template_dir is not None else {}
+    review_confidences = _load_review_confidences(results_csv)
+    return [
+        _normalize_result_row(
+            row,
+            field_regions=field_regions,
+            review_confidences=review_confidences.get(row.get("file_id", ""), {}),
+        )
+        for row in rows
+    ]
 
 
 def find_latest_results_csv(output_dir: Path | str) -> Path | None:
@@ -173,14 +184,24 @@ def _copy_required_runtime_files(template_dir: Path, input_dir: Path) -> None:
             shutil.copy2(source, input_dir / file_name)
 
 
-def _normalize_result_row(row: dict[str, str]) -> dict[str, Any]:
+def _normalize_result_row(
+    row: dict[str, str],
+    *,
+    field_regions: dict[str, dict[str, Any]] | None = None,
+    review_confidences: dict[str, float] | None = None,
+) -> dict[str, Any]:
     id_keys = sorted(
         (key for key in row if re.fullmatch(r"id\d+", key)),
         key=lambda key: int(key[2:]),
     )
     id_digits = [row[key] for key in id_keys]
-    answers = {key: value for key, value in row.items() if re.fullmatch(r"q\d+", key)}
-    review_required = any(value == "" for value in answers.values())
+    flat_answers = {key: value for key, value in row.items() if re.fullmatch(r"q\d+", key)}
+    answers = _group_answers_by_region_type(
+        flat_answers,
+        field_regions=field_regions or {},
+        review_confidences=review_confidences or {},
+    )
+    review_required = any(value == "" for value in flat_answers.values())
 
     return {
         "file_id": row.get("file_id", ""),
@@ -189,9 +210,104 @@ def _normalize_result_row(row: dict[str, str]) -> dict[str, Any]:
         "score": row.get("score", ""),
         "exam_id": "".join(id_digits),
         "answers": answers,
+        "answers_flat": flat_answers,
         # Weak-mark details are currently emitted to logs by the core detector.
         # The field is reserved so the Java contract is stable when structured
         # weak-mark events are added.
         "weak_marks": [],
         "review_required": review_required,
     }
+
+
+def _group_answers_by_region_type(
+    flat_answers: dict[str, str],
+    *,
+    field_regions: dict[str, dict[str, Any]],
+    review_confidences: dict[str, float],
+) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, dict[str, dict[str, Any]]] = {}
+    for field, value in flat_answers.items():
+        metadata = field_regions.get(field, {})
+        region_type = metadata.get("regionType") or _infer_region_type(field)
+        region_code = metadata.get("regionCode") or region_type
+        region_bucket = grouped.setdefault(region_type, {})
+        region = region_bucket.setdefault(
+            region_code,
+            {
+                "regionCode": region_code,
+                "regionName": metadata.get("regionName") or region_code,
+                "type": region_type,
+                "items": [],
+            },
+        )
+        confidence = review_confidences.get(field)
+        if confidence is None:
+            confidence = 1.0 if value != "" else 0.0
+        region["items"].append(
+            {
+                "field": field,
+                "value": value,
+                "confidence": round(float(confidence), 3),
+            }
+        )
+    return {
+        region_type: list(regions.values())
+        for region_type, regions in grouped.items()
+    }
+
+
+def _infer_region_type(field: str) -> str:
+    if re.fullmatch(r"q\d+", field):
+        return "QTYPE_MCQ"
+    if re.fullmatch(r"id\d+", field):
+        return "QTYPE_INT"
+    return "UNKNOWN"
+
+
+def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]:
+    template_path = template_dir / "template.json"
+    if not template_path.exists():
+        return {}
+    try:
+        template = open_template_with_defaults(template_path)
+    except Exception:
+        return {}
+
+    metadata: dict[str, dict[str, Any]] = {}
+    for region_code, field_block in (template.get("fieldBlocks") or {}).items():
+        field_type = field_block.get("fieldType") or "__CUSTOM__"
+        merged = {**FIELD_TYPES.get(field_type, {}), **field_block}
+        try:
+            labels = parse_fields(f"Field Block Labels: {region_code}", merged.get("fieldLabels") or [])
+        except Exception:
+            labels = []
+        region_type = field_type if field_type != "__CUSTOM__" else "CUSTOM"
+        for label in labels:
+            metadata[label] = {
+                "regionCode": region_code,
+                "regionName": merged.get("name") or merged.get("regionName") or region_code,
+                "regionType": merged.get("regionType") or region_type,
+            }
+    return metadata
+
+
+def _load_review_confidences(results_csv: Path) -> dict[str, dict[str, float]]:
+    review_csv = results_csv.parent / "WeakFillReview.csv"
+    if not review_csv.exists():
+        return {}
+    confidences: dict[str, dict[str, float]] = {}
+    try:
+        with review_csv.open("r", encoding="utf-8-sig", newline="") as csv_file:
+            for row in csv.DictReader(csv_file):
+                file_id = row.get("file_id", "")
+                field = row.get("field", "")
+                if not file_id or not field:
+                    continue
+                try:
+                    confidence = float(row.get("confidence", ""))
+                except ValueError:
+                    continue
+                confidences.setdefault(file_id, {})[field] = confidence
+    except Exception:
+        return {}
+    return confidences

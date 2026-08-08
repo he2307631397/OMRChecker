@@ -1,499 +1,851 @@
-# PaddleOCR 集成方案分析
+# PaddleOCR 集成可行性分析与设计方案
 
-日期：2026-08-08  
-分支：`paddlocr-integration`  
-目标：在当前 OMRChecker 项目中集成 PaddleOCR 能力，同时保证现有 OMR 识别业务、接口和输出默认不受影响。
+日期：2026-08-08
+分支：`paddlocr-integration`
+项目：OMRChecker
 
-## 1. 当前项目识别链路梳理
+## 1. 第一版目标
 
-### 1.1 OMR 核心 CLI 链路
+在当前 OMRChecker 答题卡模板机制上扩展 OCR 识别能力。模板中可以同时指定 OMR 区域和 OCR 区域。OCR 引擎使用 PaddleOCR。
 
-当前 OMR 核心入口是 `src/entry.py`：
+第一版的硬性前提：**新增 OCR 不能影响现有 OMR 流程和功能**。
 
-- `entry_point(input_dir, args)` 校验输入目录后调用 `process_dir`。
-- `process_dir(...)` 递归扫描目录，读取 `config.json`、`template.json`、`evaluation.json`。
-- 对图片和 PDF 执行预处理、模板定位、填涂识别、评分和 CSV 输出。
-- 结果文件由 `setup_outputs_for_template` 管理，典型输出包括：
-  - `Results/Results_*.csv`
-  - `CheckedOMRs/*.png`
-  - `Errors/*.csv`
-  - `WeakFillReview.csv`
+具体含义：
 
-这条链路是现有 OMR 识别的事实来源，不应直接混入 OCR 逻辑。
+1. 纯 OMR 模板的识别流程不变。
+2. 纯 OMR 模板的 Results CSV 不变。
+3. 纯 OMR 模板的 checked image 归档和 COS 上传链路不变。
+4. 现有 OMR 字段仍按当前字符串结果输出，不把 OMR 结果整体改成新对象结构。
+5. OCR 只在模板区域显式声明 `engine: "paddleocr"` 时启用。
+6. OCR 的截图归档复用现有 region artifact/COS 归档思路，不另起一套和现有业务割裂的上传流程。
 
-### 1.2 服务层 OMR 封装
+第一版 OCR 重点支持三类答题卡区域：
 
-`src/services/omr_service.py` 将 CLI 识别封装成框架无关 API：
+1. **填空题得分区域**
+   - 模板提供区域坐标。
+   - `engine` 为 `paddleocr`。
+   - OCR 返回识别出的分数文本和置信度。
 
-- `prepare_upload_input_dir(...)` 为上传文件创建隔离输入和输出目录。
-- `run_omr_directory(input_dir, output_dir, template_dir=None, auto_align=False, debug=False)` 调用 `entry_point` 或 `process_dir`。
-- `read_results_csv(...)` 将 OMR CSV 转换为 Java/Robyn 接口友好的 JSON。
-- `get_checked_image_path(...)` 从输出目录中定位 checked image。
+2. **解答题得分区域**
+   - 模板提供区域坐标。
+   - `engine` 为 `paddleocr`。
+   - OCR 返回识别出的得分文本和置信度。
 
-Web 服务和测试都应继续通过该层调用 OMR，避免绕过既有稳定行为。
+3. **解答题解答区域**
+   - 模板提供区域坐标。
+   - `engine` 为 `paddleocr`。
+   - OCR 返回识别出的解答文本和置信度。
+   - 区域截图需要归档，并为后续上传 COS 保留 artifact 元数据。
 
-### 1.3 Robyn Web 服务链路
+第一版推荐规则：**一个 OCR block 对应一个业务字段**。例如 `blankScore1`、`solutionScore2`、`solutionAnswer2` 分别定义为三个独立 OCR block。这样字段边界清晰，截图归档可追溯，结果聚合也能尽量保持和 OMR 一致。
 
-`web/robyn_app.py` 提供两类接口：
+## 2. 当前实现分析
 
-1. 单任务接口：`/api/omr/tasks`
-   - 接收上传文件或内部输入目录。
-   - 使用线程池调用 `run_omr_directory`。
-   - 返回异步任务状态和结果。
+### 2.1 OMR 主流程
 
-2. 批量接口：`/api/omr/batches` 和 `/api/omr/batch-tasks`
-   - 解析 `BatchRecognitionRequest`。
-   - 通过 `BatchRecognitionService` 保存任务、下载 COS 文件、执行识别、上传 artifacts、回调业务系统。
-   - 当前 Robyn 默认 wiring 中注入 `_run_batch_omr` 作为 `recognition_runner`。
+相关文件：
 
-### 1.4 批量识别扩展点
+- `src/entry.py`
+- `src/core.py`
+- `src/template.py`
+- `src/utils/file.py`
+- `src/utils/parsing.py`
 
-`src/services/batch_service.py` 已经有较好的扩展边界：
-
-- `RecognitionRunner = Callable[[RecognitionContext], RecognitionOutput]`
-- `BatchRecognitionService(..., recognition_runner=...)`
-- `RecognitionContext` 提供：
-  - `task_id`
-  - `sheet`
-  - `source_path`
-  - `workdir`
-  - `request`
-  - `template_dir`
-- `RecognitionOutput` 提供：
-  - `result`
-  - `checked_image_path`
-
-这意味着 PaddleOCR 可以作为 runner 的增强步骤接入，而不需要修改 `BatchRecognitionService.process_batch` 的核心状态机。
-
-## 2. PaddleOCR 集成目标与非目标
-
-### 2.1 目标
-
-1. 在需要时对答题卡中的文本区域执行 OCR，例如姓名、班级、学校、主观题文字、条码旁文本等。
-2. OCR 结果以独立字段或独立 artifacts 形式返回，不改变现有 OMR 判题字段语义。
-3. OCR 默认关闭，未显式启用时，所有 CLI、Web 和批量 OMR 行为与当前完全一致。
-4. OCR 失败不导致 OMR 失败。OCR 错误应作为附加错误或警告记录。
-5. 支持按模板或请求指定 OCR 区域，避免全图 OCR 造成性能和误识别风险。
-
-### 2.2 非目标
-
-1. 不用 OCR 替代现有填涂识别算法。
-2. 不改变 `Results_*.csv` 的既有列和含义。
-3. 不把 PaddleOCR 作为基础运行依赖强制安装到默认 OMR 环境。
-4. 不在第一阶段做复杂版面分析或主观题自动评分。
-5. 不要求所有接口立即返回 OCR 结果。可优先支持 batch 服务，再扩展单任务接口。
-
-## 3. 不影响现有 OMR 的核心原则
-
-### 3.1 默认关闭
-
-新增配置必须默认禁用：
-
-```json
-{
-  "recognition": {
-    "debugArtifacts": false,
-    "ocr": {
-      "enabled": false,
-      "provider": "paddleocr"
-    }
-  }
-}
-```
-
-同时支持请求级开关：
-
-```json
-{
-  "recognitionConfig": {
-    "ocr": {
-      "enabled": true
-    }
-  }
-}
-```
-
-若服务配置和请求配置都未启用 OCR，则不导入 PaddleOCR，不初始化模型，不产生任何 OCR 输出。
-
-### 3.2 旁路增强，不进入 OMR 核心
-
-PaddleOCR 应放在服务增强层，而不是 `src/entry.py` 或模板填涂识别内部。推荐位置：
-
-```text
-Robyn batch request
-  -> BatchRecognitionService.process_batch
-    -> injected recognition_runner
-      -> run_omr_directory(...)      # 现有 OMR
-      -> optional OCR enhancer       # 新增旁路
-      -> merged JSON result          # OMR 原字段保持不变，OCR 放新增字段
-```
-
-### 3.3 OMR 输出兼容
-
-现有结果字段应保持稳定：
-
-- `file_id`
-- `input_path`
-- `output_path`
-- `score`
-- `exam_id`
-- `answers`
-- `answers_flat`
-- `weak_marks`
-- `review_required`
-- `checkedImagePath`
-- `checkedImageOsskey`
-- `regionImages`
-
-OCR 只能追加，例如：
-
-```json
-{
-  "ocr": {
-    "enabled": true,
-    "provider": "paddleocr",
-    "status": "completed",
-    "regions": [
-      {
-        "regionCode": "studentName",
-        "regionName": "姓名区域",
-        "type": "TEXT",
-        "text": "张三",
-        "confidence": 0.982,
-        "bbox": [120, 80, 260, 130]
-      }
-    ],
-    "errors": []
-  }
-}
-```
-
-### 3.4 OCR 异常隔离
-
-推荐状态策略：
-
-- OMR 成功，OCR 成功：sheet `completed`，结果包含 `ocr.status=completed`。
-- OMR 成功，OCR 失败：sheet 仍为 `completed`，结果包含 `ocr.status=failed` 和 `ocr.errors`。
-- OMR 失败：保持当前 sheet `failed` 逻辑，不额外运行 OCR，除非后续明确需要“失败图像 OCR 诊断”。
-
-这样不会因为 PaddleOCR 模型、GPU、依赖、文本区域配置问题影响现有填涂识别业务。
-
-## 4. 推荐架构
-
-### 4.1 新增模块边界
-
-建议新增独立包：
-
-```text
-src/services/ocr/
-  __init__.py
-  models.py
-  config.py
-  paddle_provider.py
-  region_resolver.py
-  enhancer.py
-```
-
-职责划分：
-
-- `models.py`
-  - 定义 `OcrRegion`, `OcrResult`, `OcrError` 等 dataclass。
-- `config.py`
-  - 从 `ServiceConfig.recognition` 和 `BatchRecognitionRequest.recognition_config` 合并 OCR 配置。
-- `paddle_provider.py`
-  - 延迟导入 PaddleOCR。
-  - 封装模型初始化和推理。
-  - 将 PaddleOCR 原始输出转换为内部稳定结构。
-- `region_resolver.py`
-  - 从模板配置、服务配置或请求配置解析 OCR 区域。
-  - 验证 bbox 合法性。
-- `enhancer.py`
-  - 接收 `RecognitionContext`、OMR result、checked/source image。
-  - 判断是否启用 OCR。
-  - 调用 provider 后把 OCR 结果追加到 result。
-
-### 4.2 Runner 组合方式
-
-保留现有 `_run_batch_omr(context)`，新增组合 runner：
+当前 OMR 单张图片核心流程在 `src/entry.py::_process_single_image()`：
 
 ```python
-def _run_batch_recognition(context: RecognitionContext) -> RecognitionOutput:
-    omr_output = _run_batch_omr(context)
-    return enhance_with_ocr_if_enabled(
-        context=context,
-        output=omr_output,
-        service_config=_BATCH_SERVICE.config,
-    )
+response_dict, final_marked, multi_marked, _ = template.image_instance_ops.read_omr_response(
+    template, image=in_omr, name=file_id, save_dir=save_dir
+)
+
+omr_response = get_concatenated_response(response_dict, template)
 ```
 
-`_build_batch_service()` 中只替换注入对象：
+随后按 `template.output_columns` 写入 Results CSV：
 
 ```python
-recognition_runner=_run_batch_recognition
+resp_array = []
+for k in template.output_columns:
+    resp_array.append(omr_response[k])
 ```
 
-关键点：
+这说明现有 OMR 结果核心是扁平字典：
 
-- 当 OCR 未启用时，`enhance_with_ocr_if_enabled` 直接返回原 `RecognitionOutput`，不复制、不改写。
-- 当 OCR 启用时，只对 `dict` 类型 result 追加 `ocr` 字段。
-- 不修改 `BatchRecognitionService.process_batch` 的任务状态、artifact 上传、callback 流程。
+```python
+response_dict[field_label] = field_value
+```
 
-### 4.3 单任务接口接入顺序
+第一版 OCR 集成不应把这条 OMR 主链路整体改成结构化对象，否则会影响 CSV、evaluation、customLabels 和历史调用方。
 
-第一阶段建议只接入 batch runner，因为 batch 已经有 `recognitionConfig`、模板依赖、COS、callback 和 artifact 体系。
+### 2.2 模板解析
 
-第二阶段再扩展 `/api/omr/tasks`：
+相关文件：
 
-- 接收 `recognitionConfig.ocr`。
-- 复用同一个 `enhance_with_ocr_if_enabled`。
-- 保持旧请求不带 `recognitionConfig` 时结果不变。
+- `src/template.py`
+- `src/constants/common.py`
+- `src/schemas/template_schema.py`
+- `src/utils/parsing.py`
 
-## 5. OCR 区域配置方案
+当前模板通过 `Template` 读取 `template.json`：
 
-### 5.1 推荐区域来源优先级
+```python
+json_object = open_template_with_defaults(template_path)
+# 中间省略默认值读取和字段解包。
+self.setup_field_blocks(field_blocks_object)
+```
 
-从高到低：
+`fieldBlocks` 中的每个 block 会被解析成 `FieldBlock`。
 
-1. 请求级 `recognitionConfig.ocr.regions`
-2. 模板目录中的 `template.json` 扩展字段
-3. 服务级 `config/robyn-service.json` 的默认 OCR 区域
+当前 `FieldBlock` 假设 block 是 OMR 气泡区域，核心字段包括：
 
-请求级适合临时实验和不同批次定制。模板级适合生产稳定配置。服务级仅适合全局默认或兜底。
+- `origin`
+- `fieldLabels`
+- `fieldType` 或 `bubbleValues`
+- `bubbleDimensions`
+- `bubblesGap`
+- `labelsGap`
+- `direction`
+- `multiSelect`
 
-### 5.2 区域配置格式建议
+然后通过 `generate_bubble_grid()` 生成 `traverse_bubbles`，供后续 OMR 阈值识别使用。
+
+### 2.3 现有归档截图和 COS 链路
+
+当前项目已经有区域截图 artifact 生成与上传机制。
+
+相关文件：
+
+- `src/services/region_artifacts.py`
+- `src/services/batch_service.py`
+- `src/services/service_config.py`
+- `src/services/cos_client.py`
+
+`region_artifacts.py` 中的 `generate_region_artifacts()` 会从 checked image 裁剪配置区域，并返回 `ArtifactPayload`：
+
+```python
+ArtifactPayload(
+    artifact_type="region_screenshot",
+    osskey=str(local_path),
+    metadata={
+        "localPath": str(local_path),
+        "regionCode": region.region_code,
+        "regionName": region.region_name,
+        "regionType": region.type,
+        "bbox": {"x": x, "y": y, "width": width, "height": height},
+        "sheetId": sheet_id,
+        "taskId": task_id,
+    },
+)
+```
+
+`BatchRecognitionService.process_batch()` 已经有上传 checked image 和 region artifacts 的逻辑：
+
+- checked image 上传到：`checked/<task_id>/<sheet_id>/<filename>`
+- region artifact 上传到：`artifacts/<task_id>/<sheet_id>/<filename>`
+- 上传成功后写入 store artifact 表。
+- 上传失败不会导致识别失败，只记录 artifact error。
+
+因此 OCR 区域截图归档不应该另起一套 COS 上传机制。建议复用或扩展现有 `region_artifacts` 思路。
+
+### 2.4 服务聚合结果
+
+相关文件：`src/services/omr_service.py`
+
+`read_results_csv()` 会把 Results CSV 转成服务返回 JSON。当前 `_normalize_result_row()` 已经把答案组织成：
 
 ```json
 {
-  "recognitionConfig": {
-    "ocr": {
-      "enabled": true,
-      "regions": [
-        {
-          "regionCode": "studentName",
-          "regionName": "姓名区域",
-          "type": "TEXT",
-          "bbox": [120, 80, 260, 130],
-          "language": "ch"
-        }
+  "file_id": "...",
+  "answers": [
+    {
+      "regionCode": "singleChoice",
+      "regionName": "单选题区域",
+      "type": "SINGLE_CHOICE",
+      "items": [
+        {"field": "q1", "value": "A", "confidence": 1.0}
       ]
     }
+  ],
+  "answers_flat": {"q1": "A"}
+}
+```
+
+这对 OCR 扩展有利，但需要一个明确改动：当前 `_normalize_result_row()` 只把 `id\d+` 和 `q\d+` 字段纳入 `answers` / `answers_flat`，因此 OCR 字段虽然可以先写入 Results CSV，但还需要扩展 `omr_service.py` 的聚合逻辑，让带有模板区域元数据的 OCR 字段也能进入服务结果，并带上 OCR 置信度和 artifact 引用。
+
+## 3. 可行性结论
+
+结论：**可行，但设计边界必须是 OCR 扩展，不是 OMR 重构。**
+
+推荐方案：
+
+1. `fieldBlocks` 增加统一 `engine` 字段。
+2. 未配置 `engine` 的旧 block 默认 `omr`。
+3. OMR block 继续走现有 OMR 识别和输出流程。
+4. OCR block 走新增 OCR 分支。
+5. OCR 的值可以进入同一个扁平 response，使主 Results CSV 能输出 OCR 字段值。
+6. 返回结构沿用当前 OMR 已实现的 `answers` / `answers_flat` 风格，只在区域或 item 上扩展 `engine`。
+7. OCR 截图归档复用现有 region artifact/COS 上传链路，方便后续审查。
+
+## 4. 推荐模板规范
+
+### 4.1 统一 `fieldBlocks`，新增 `engine`
+
+每个 `fieldBlock` 可以显式配置：
+
+`"engine": "omr"`
+
+或：
+
+`"engine": "paddleocr"`
+
+兼容策略：如果未配置 `engine`，默认视为 `"omr"`。
+
+这样现有模板不需要修改。
+
+### 4.2 OMR block 保持现有规范
+
+现有 OMR block 继续使用当前字段：
+
+```json
+{
+  "engine": "omr",
+  "fieldType": "QTYPE_MCQ4",
+  "origin": [100, 300],
+  "fieldLabels": ["q1..q50"],
+  "bubbleDimensions": [20, 20],
+  "bubblesGap": 40,
+  "labelsGap": 30
+}
+```
+
+其中 `engine` 可省略，省略时仍为 OMR。
+
+### 4.3 OCR block 通用格式
+
+OCR block 建议统一使用以下结构：
+
+```json
+{
+  "engine": "paddleocr",
+  "fieldLabels": ["blankScore1"],
+  "origin": [120, 80],
+  "dimensions": [160, 60],
+  "regionCode": "blankScore",
+  "regionName": "填空题得分区域",
+  "type": "BLANK_SCORE",
+  "ocr": {
+    "lang": "ch",
+    "det": false,
+    "rec": true,
+    "cls": true,
+    "returnConfidence": true,
+    "archiveRegion": true
   }
 }
 ```
 
 字段说明：
 
-- `regionCode`：业务稳定编码。
-- `regionName`：显示名称。
-- `type`：建议先支持 `TEXT`，后续可扩展 `NUMBER`、`HANDWRITING`。
-- `bbox`：基于 checked image 或 source image 坐标，格式 `[x1, y1, x2, y2]`。
-- `language`：传给 PaddleOCR provider 的语言或模型选择参数。
+- `engine`: 固定为 `paddleocr`，表示该区域由 PaddleOCR 识别。
+- `fieldLabels`: 第一版必须只有一个字段。
+- `origin`: 区域左上角坐标，基于模板 `pageDimensions`。
+- `dimensions`: 区域宽高。
+- `regionCode`: 服务聚合和 artifact 元数据使用。
+- `regionName`: 人类可读区域名称。
+- `type`: 业务区域类型。
+- `ocr`: 保留 OCR 细节配置，例如语言、检测、方向分类和置信度策略，不再重复配置引擎名称。
+- `ocr.returnConfidence`: 必须开启。OCR 结果必须带置信度。
+- `ocr.archiveRegion`: 是否归档区域截图。三类目标区域第一版建议默认开启。
 
-### 5.3 坐标基准
-
-推荐第一阶段使用 checked image 坐标：
-
-- OMR 已经完成预处理、旋转、对齐和模板匹配。
-- checked image 与现有归档区域截图逻辑更接近。
-- 可复用 `archiveRegions` 的思路进行区域裁剪。
-
-如果 checked image 不存在，可降级到 source image，但需要在结果中标明 `coordinateSpace=source`，避免业务侧误用。
-
-## 6. 依赖与部署策略
-
-### 6.1 可选依赖
-
-当前 `requirements.txt` 没有 PaddleOCR 相关依赖。建议不要直接加入默认运行依赖，而是新增可选文件：
-
-```text
-requirements.ocr.txt
-```
-
-内容示例：
-
-```text
--r requirements.txt
-paddleocr>=2.7.0
-paddlepaddle>=2.6.0
-```
-
-如部署 GPU 版本，应通过部署文档选择对应 PaddlePaddle 包，不要在通用 requirements 中固定 GPU 包。
-
-### 6.2 延迟导入
-
-`paddle_provider.py` 应在实际启用 OCR 时才执行：
-
-```python
-try:
-    from paddleocr import PaddleOCR
-except ImportError as exc:
-    raise OcrProviderUnavailableError(...)
-```
-
-这样默认 OMR 服务启动不依赖 PaddleOCR。
-
-### 6.3 模型初始化
-
-PaddleOCR 初始化开销较大，建议 provider 单例缓存：
-
-- 按 `(language, use_angle_cls, model_dir, device)` 作为缓存 key。
-- 服务启动时不预热，除非显式配置 `ocr.preload=true`。
-- 并发安全需要用 lock 保护首次初始化。
-
-## 7. API 返回结构建议
-
-### 7.1 Sheet result 增量字段
-
-OCR 结果放在 sheet result 内的 `ocr` 字段：
+### 4.4 填空题得分区域示例
 
 ```json
 {
-  "sheetId": "sheet-1",
-  "status": "completed",
-  "result": {
-    "file_id": "source.png",
-    "answers": [],
-    "ocr": {
-      "enabled": true,
-      "provider": "paddleocr",
-      "status": "completed",
-      "regions": [],
-      "errors": []
+  "fieldBlocks": {
+    "blankScore1": {
+      "engine": "paddleocr",
+      "fieldLabels": ["blankScore1"],
+      "origin": [980, 320],
+      "dimensions": [120, 48],
+      "regionCode": "blankScore",
+      "regionName": "填空题得分区域",
+      "type": "BLANK_SCORE",
+      "ocr": {
+        "lang": "ch",
+        "returnConfidence": true,
+        "archiveRegion": true
+      }
     }
   }
 }
 ```
 
-因为 `SheetRecognitionResult.to_callback_dict()` 会把 result dict 的顶层 key 透出到 sheet payload，业务侧也能直接读取 `sheet.ocr`。
-
-### 7.2 OCR artifacts
-
-若需要保存 OCR 区域截图，可复用 artifact 思路，新增 artifact type：
-
-- `ocr_region_screenshot`
-- `ocr_debug_image`
-- `ocr_raw_output`
-
-第一阶段建议只返回结构化文本，不上传 OCR debug artifacts，除非 `debugArtifacts=true`。
-
-## 8. 错误处理策略
-
-### 8.1 配置错误
-
-请求显式启用 OCR 但配置非法时，建议在请求解析或 runner 开始阶段失败：
-
-- `bbox` 不是四个数字。
-- `regionCode` 为空。
-- `regions` 不是数组。
-
-这属于调用方请求错误，可让该 sheet 失败或让 batch 提交返回 `ValueError`。为减少对 OMR 的影响，建议第一阶段在 batch 提交解析阶段只做类型校验，在单 sheet 处理阶段把 OCR 配置错误写入 `ocr.errors`，不影响 OMR 成功状态。
-
-### 8.2 Provider 不可用
-
-当 `ocr.enabled=true` 但环境未安装 PaddleOCR：
+### 4.5 解答题得分区域示例
 
 ```json
 {
-  "ocr": {
-    "enabled": true,
-    "provider": "paddleocr",
-    "status": "failed",
-    "regions": [],
-    "errors": [
-      {
-        "code": "OCR_PROVIDER_UNAVAILABLE",
-        "message": "PaddleOCR is not installed. Install requirements.ocr.txt to enable OCR."
+  "fieldBlocks": {
+    "solutionScore2": {
+      "engine": "paddleocr",
+      "fieldLabels": ["solutionScore2"],
+      "origin": [1010, 780],
+      "dimensions": [120, 56],
+      "regionCode": "solutionScore",
+      "regionName": "解答题得分区域",
+      "type": "SOLUTION_SCORE",
+      "ocr": {
+        "lang": "ch",
+        "returnConfidence": true,
+        "archiveRegion": true
       }
-    ]
+    }
   }
 }
 ```
 
-OMR sheet 仍应保持 `completed`。
+### 4.6 解答题解答区域示例
 
-### 8.3 推理失败
+```json
+{
+  "fieldBlocks": {
+    "solutionAnswer2": {
+      "engine": "paddleocr",
+      "fieldLabels": ["solutionAnswer2"],
+      "origin": [120, 840],
+      "dimensions": [860, 420],
+      "regionCode": "solutionAnswer",
+      "regionName": "解答题解答区域",
+      "type": "SOLUTION_ANSWER",
+      "ocr": {
+        "lang": "ch",
+        "det": true,
+        "rec": true,
+        "cls": true,
+        "returnConfidence": true,
+        "archiveRegion": true
+      }
+    }
+  }
+}
+```
 
-单个区域推理失败不应影响其他区域：
+## 5. 结果结构设计
 
-- 成功区域进入 `regions`。
-- 失败区域进入 `errors`，包含 `regionCode`。
-- 整体 `ocr.status` 可为 `partial_failed`。
+### 5.1 OMR 结果保持不变
 
-## 9. 测试策略
+这是第一版设计约束。
 
-### 9.1 回归保护：OCR 默认关闭
+当前 OMR 识别结果继续保持：
 
-必须添加测试证明默认行为不变：
+```python
+response_dict[field_label] = field_value
+```
 
-1. 不带 `recognitionConfig.ocr` 的 batch 请求，结果不包含 `ocr` 字段。
-2. `config/robyn-service.json` 默认未启用 OCR 时，不导入 PaddleOCR。
-3. 现有 `test_default_batch_service_wires_real_omr_runner` 仍通过。
-4. 现有 `test_batch_models.py` 对 `recognitionConfig` 的兼容行为仍通过。
+例如：
 
-### 9.2 OCR 启用但 provider 缺失
+```python
+response_dict["q1"] = "A"
+response_dict["id1"] = "3"
+```
 
-模拟未安装 PaddleOCR：
+不把 OMR 字段改成：
 
-- 输入：`recognitionConfig.ocr.enabled=true`
-- 期望：OMR runner 输出保留，`ocr.status=failed`，错误码为 `OCR_PROVIDER_UNAVAILABLE`。
+```python
+response_dict["q1"] = {"value": "A", "confidence": 1.0}
+```
 
-### 9.3 OCR provider mock
+原因：这会影响现有 CSV 输出、evaluation、customLabels、服务解析和历史调用方。
 
-不在单元测试中加载真实 PaddleOCR。使用 fake provider：
+### 5.2 OCR 值进入 flat response
 
-- 给定 checked image 和 bbox，返回固定文本。
-- 验证结果追加到 `ocr.regions`。
-- 验证 OMR 原字段完全不变。
+OCR 字段为了尽量和 OMR 结果格式一致，也应向主 response 写入字符串值：
 
-### 9.4 区域配置解析
+```python
+response_dict["blankScore1"] = "5"
+response_dict["solutionScore2"] = "12"
+response_dict["solutionAnswer2"] = "解：根据题意..."
+```
 
-覆盖：
+这样：
 
-- 请求级 regions 优先。
-- 模板级 regions 次之。
-- 服务级 regions 兜底。
-- 非法 bbox 被记录为 OCR 错误。
+1. `outputColumns` 可以直接输出 OCR 字段值。
+2. `customLabels` 可以复用。
+3. Results CSV 仍然是字段值表。
+4. OMR 原有字段不受影响。
 
-### 9.5 集成测试
+### 5.3 OCR 识别信息沿用当前 OMR 聚合结构扩展
 
-在安装 PaddleOCR 的环境中单独运行慢测试：
+核心原则是：**结构和当前 OMR 已实现的返回保持一致，只扩展必要字段**。
 
-- 标记为 `pytest.mark.ocr`。
-- 默认 CI 不运行。
-- 使用小图片或 fixture 验证真实 OCR provider 可以返回结果。
+主 response 仍保持扁平字段值，服务聚合结果继续使用当前 `answers` / `answers_flat` 结构。实现时需要把 `omr_service.py` 当前仅收集 `q\d+` / `id\d+` 的逻辑扩展为：除了历史 OMR 字段，也收集模板元数据中标记为 OCR 的字段。OCR 的`engine` 信息不改变结果层级，只作为区域或 item 的附加字段返回：
 
-## 10. 推荐实施步骤
+```json
+{
+  "field": "blankScore1",
+  "value": "5",
+  "confidence": 0.96,
+  "engine": "paddleocr",
+  "artifactOsskey": "artifacts/task-1/sheet-1/001_sheet-1_blankScore1_填空题得分区域.png"
+}
+```
 
-1. 增加文档和配置 schema 说明。
-2. 增加 `src/services/ocr` 模块和 dataclass。
-3. 实现 `resolve_ocr_config`，默认关闭。
-4. 实现 `OcrProvider` 协议和 fake provider 测试。
-5. 实现 `PaddleOcrProvider`，延迟导入 PaddleOCR。
-6. 实现 `enhance_with_ocr_if_enabled`。
-7. 在 `web/robyn_app.py` 中将 `_run_batch_omr` 包装为 `_run_batch_recognition`。
-8. 添加单元测试，重点验证默认关闭不影响 OMR。
-9. 增加 `requirements.ocr.txt` 和部署说明。
-10. 如需支持单任务接口，再复用 enhancer 扩展 `/api/omr/tasks`。
+输出建议：
 
-## 11. 风险与对策
+1. 主 Results CSV：只写字段值，保持 OMR 风格。
+2. 服务 result：沿用现有 `answers` / `answers_flat`，给 OCR item 补充 `engine`、`confidence`、`artifactOsskey`。
+3. Batch artifacts：写入 region screenshot artifact，后续由现有 COS 链路处理。
 
-| 风险 | 影响 | 对策 |
-| --- | --- | --- |
-| PaddleOCR 依赖重、安装复杂 | 默认服务无法启动或部署变慢 | 可选依赖、延迟导入、默认关闭 |
-| OCR 推理慢 | batch 处理耗时增加 | 只对配置区域 OCR、限制区域数量、后续支持并发或队列 |
-| OCR 错误影响 OMR | 现有业务失败 | 异常隔离，OCR 错误写入 `ocr.errors` |
-| 坐标不一致 | OCR 区域裁剪错误 | 第一阶段统一 checked image 坐标，并在结果标注 coordinateSpace |
-| 输出结构破坏业务兼容 | Java 侧解析失败 | 只追加 `ocr` 字段，不修改现有字段 |
-| 真实模型测试不稳定 | CI flaky | 默认使用 fake provider，真实 PaddleOCR 测试单独标记 |
+### 5.4 服务聚合返回
 
-## 12. 结论
+服务聚合结果建议延续当前 `answers` / `answers_flat` 风格，不改 OMR 字段含义。
 
-推荐采用“服务层旁路增强”方案：
+示例：
 
-- 不修改 `src/entry.py` 的 OMR 核心流程。
-- 不修改既有 CSV 输出和 OMR 判题字段。
-- 利用 `BatchRecognitionService` 已有 `recognition_runner` 注入点，在 Robyn batch runner 中组合 OMR 与可选 OCR。
-- OCR 默认关闭、依赖可选、异常隔离。
-- OCR 结果作为 `ocr` 增量字段返回。
+```json
+{
+  "file_id": "001.png",
+  "answers": [
+    {
+      "regionCode": "singleChoice",
+      "regionName": "单选题区域",
+      "type": "SINGLE_CHOICE",
+      "items": [
+        {"field": "q1", "value": "A", "confidence": 1.0}
+      ]
+    },
+    {
+      "regionCode": "blankScore",
+      "regionName": "填空题得分区域",
+      "type": "BLANK_SCORE",
+      "items": [
+        {
+          "field": "blankScore1",
+          "value": "5",
+          "confidence": 0.96,
+          "engine": "paddleocr",
+          "artifactOsskey": "artifacts/task-1/sheet-1/001_sheet-1_blankScore1_填空题得分区域.png"
+        }
+      ]
+    }
+  ],
+  "answers_flat": {
+    "q1": "A",
+    "blankScore1": "5"
+  }
+}
+```
 
-该方案对现有 OMR 识别业务影响最小，同时为后续文本识别、主观题处理和 OCR artifacts 留出清晰扩展空间。
+关键点：
+
+- OMR 字段仍然按当前逻辑进入 `answers` 和 `answers_flat`。
+- OMR 字段仍可按当前逻辑返回，不强制增加新字段。
+- OCR 字段在 item 上补充 `engine`，表示该区域使用 OCR 引擎识别。
+- `answers_flat` 仍是简单字段值字典。
+- artifact 上传成功后可补充 `artifactOsskey`，用于后续审查。
+
+## 6. OCR 截图归档设计
+
+### 6.1 复用现有 artifact/COS 链路
+
+当前已有 `generate_region_artifacts()` 和 `_upload_region_artifacts()`。OCR 截图归档应复用这个模式。
+
+推荐做法：
+
+1. OCR block 识别时可以从预处理后的图像裁剪区域，用于 OCR 识别。
+2. OCR block 的归档截图作为 `ArtifactPayload` 交给 batch artifact 上传链路。
+3. 上传到现有远端 key 规则：
+
+```text
+artifacts/<task_id>/<sheet_id>/<filename>.png
+```
+
+4. artifact metadata 中增加 OCR 相关字段：
+
+```json
+{
+  "localPath": "...",
+  "regionCode": "blankScore",
+  "regionName": "填空题得分区域",
+  "regionType": "BLANK_SCORE",
+  "engine": "paddleocr",
+  "field": "blankScore1",
+  "confidence": 0.96,
+  "value": "5",
+  "bbox": {"x": 980, "y": 320, "width": 120, "height": 48},
+  "sheetId": "sheet-1",
+  "taskId": "task-1"
+}
+```
+
+### 6.2 不建议第一版新增独立 COS 上传流程
+
+不建议 OCR 自己直接调用 COS client。原因：
+
+1. 现有 batch service 已经处理 artifact 上传和错误隔离。
+2. 现有上传失败是非致命错误，符合识别业务稳定性。
+3. 现有 store artifact 表可以统一查询 artifact。
+4. 独立上传会造成 checked image、OMR region screenshot、OCR screenshot 三套行为不一致。
+
+### 6.3 本地归档目录
+
+本地目录可以继续使用 batch workdir 下的 artifact 目录，例如：
+
+```text
+<workdir>/region_artifacts/
+  001_sheet-1_blankScore1_填空题得分区域.png
+  002_sheet-1_solutionScore2_解答题得分区域.png
+  003_sheet-1_solutionAnswer2_解答题解答区域.png
+```
+
+是否在 OMR CLI 输出目录下额外生成 `OCRCrops`，应作为可选 debug 行为，而不是第一版必须业务链路。第一版业务归档应以 artifact/COS 链路为准。
+
+## 7. 推荐架构设计
+
+### 7.1 新增识别引擎边界
+
+引入两个识别引擎标识：
+
+- `engine = "omr"`
+- `engine = "paddleocr"`
+
+`FieldBlock` 保留为模板区域对象，但内部按类型处理：
+
+- OMR block：继续生成 bubble grid。
+- OCR block：保存 `origin`、`dimensions`、`fieldLabels`、`regionCode`、`regionName`、`type`、`ocr_options`，不生成 bubble grid。
+
+### 7.2 识别流程调整
+
+推荐最小改造流程：
+
+1. 加载图片。
+2. 应用现有 preProcessors。
+3. resize 到 `pageDimensions`。
+4. 执行现有 auto alignment。
+5. 根据区域指定的 `engine` 分发识别：
+   - `omr` 区域走现有阈值识别逻辑。
+   - `paddleocr` 区域裁剪后调用 PaddleOCR。
+6. 每个区域识别完成后按当前 OMR 已实现的结果结构聚合：
+   - 将 `value` 写入现有 flat response。
+   - OCR item 额外带上 `engine: "paddleocr"` 和 `confidence`。
+   - OCR 区域截图生成 region artifact，交给现有 COS 上传链路。
+7. 后续 Results CSV、checked image、evaluation 尽量使用现有流程。
+
+重要约束：OMR block 的阈值统计、冲突处理、弱填涂处理、多选处理不能因为 OCR block 存在而改变。
+
+### 7.3 新增 OCR 引擎封装
+
+建议新增模块：
+
+```text
+src/ocr/
+  __init__.py
+  engine.py
+  paddleocr_engine.py
+```
+
+建议接口：
+
+```python
+class OCRResult:
+    text: str
+    confidence: float
+    raw: object | None
+
+class OCREngine:
+    def recognize(self, image, options) -> OCRResult:
+        raise NotImplementedError
+```
+
+设计要求：
+
+1. 懒加载 PaddleOCR，只在模板中存在 OCR block 时初始化。
+2. OCR 依赖作为 optional dependency，避免纯 OMR 用户被迫安装 PaddleOCR。
+3. OCR 返回文本和置信度，置信度为必填。
+4. PaddleOCR 原始结果如需保留，只作为调试信息或 artifact metadata 的可选字段，不改变主返回结构。
+
+### 7.4 OCR 坐标定义
+
+OCR block 坐标应与 OMR block 保持一致：
+
+- 坐标基于模板的 `pageDimensions`。
+- 坐标作用于 resize 和 preProcessors 之后的图像。
+- OCR block 默认不参与 OMR 气泡阈值统计。
+- OCR block 的稳定性优先依赖全局 preProcessor，例如 `CropOnMarkers`、`FeatureBasedAlignment`。
+
+## 8. 不推荐第一版支持“一块 OCR 区域拆成多个字段”
+
+例如下面这种能力不建议第一版实现：
+
+```json
+{
+  "engine": "paddleocr",
+  "origin": [100, 100],
+  "dimensions": [500, 200],
+  "fieldLabels": ["blankScore1", "blankScore2", "blankScore3"],
+  "split": {
+    "mode": "lines"
+  }
+}
+```
+
+原因：
+
+1. OCR 本身会有检测框顺序问题。
+2. 多行文本和字段标签之间需要额外映射规则。
+3. 表格、空行、印刷文本干扰会让拆分规则复杂化。
+4. 错误来源会变成 OCR 错误加拆分错误，不利于验证。
+5. 当前目标可以通过多个规范一致的 OCR block 达成。
+
+## 9. 可选方案对比
+
+### 9.1 方案 A：在 `fieldBlocks` 中扩展统一 `engine`
+
+推荐。
+
+优点：
+
+- 最大程度复用当前模板结构。
+- 最大程度复用当前输出流程。
+- OMR 和 OCR 都是答题卡上的字段区域，语义统一。
+- 填空题得分、解答题得分、解答题解答区域可以使用同一规范。
+- 可以通过默认 `engine = "omr"` 保持历史模板兼容。
+- 可复用现有 region artifact/COS 归档链路。
+
+缺点：
+
+- `FieldBlock` 需要支持 OMR/OCR 两种结构。
+- `template_schema.py` 需要使用条件 schema 区分 OMR block 和 OCR block。
+- `read_omr_response()` 需要分流识别逻辑，但不能破坏 OMR 分支。
+
+### 9.2 方案 B：新增顶层 `ocrBlocks`
+
+不推荐第一版采用。
+
+缺点：
+
+- 输出列需要同时收集 `fieldBlocks` 和 `ocrBlocks`。
+- `customLabels` 校验需要跨两个来源。
+- 模板结构变成两套字段定义，长期维护成本更高。
+- 不符合“区域已经可以通过统一 `engine` 指定识别方式”的设计方向。
+
+### 9.3 方案 C：把 OCR 做成 preProcessor
+
+不推荐。
+
+缺点：
+
+- preProcessor 的职责是图像预处理，不适合产出字段识别结果。
+- OCR 结果难以进入统一 flat response。
+- 会破坏当前架构中“预处理”和“识别”的边界。
+
+## 10. 需要修改的文件
+
+### 10.1 必改
+
+- `src/schemas/template_schema.py`
+  - 扩展 `fieldBlocks` 条件校验。
+  - 支持统一 `engine` 字段。
+  - OMR block 保持现有字段要求。
+  - OCR block 要求 `origin`、`dimensions`、`fieldLabels`。
+  - OCR block 限制 `fieldLabels` 第一版只能有一个字段。
+  - OCR block 不要求 `bubbleDimensions`、`bubblesGap`、`labelsGap`、`bubbleValues`。
+
+- `src/template.py`
+  - `FieldBlock` 增加 `engine`。
+  - OMR block 走现有 `calculate_block_dimensions()` 和 `generate_bubble_grid()`。
+  - OCR block 直接读取 `dimensions`，保存 `regionCode`、`regionName`、`type`、`ocr_options`。
+  - `validate_parsed_labels()` 对 OCR block 继续检查重名和越界。
+
+- `src/core.py`
+  - 在 `read_omr_response()` 中区分 OMR/OCR block。
+  - OMR 阈值统计只遍历 OMR block。
+  - OCR block 单独裁剪并调用 OCR 引擎。
+  - OCR `value` 写入现有 flat response。
+  - OCR `confidence`、`engine` 和 artifact 引用写入当前服务结果结构的扩展字段。
+
+- `src/services/region_artifacts.py`
+  - 扩展从 template 派生 archive regions 的能力，使 OCR block 可派生为 region artifact。
+  - 或新增 helper，将 OCR block 结果转成 `ArtifactPayload`。
+  - 保持现有 `ArtifactPayload` 和上传链路兼容。
+
+- `src/services/batch_service.py`
+  - 复用现有 `_upload_region_artifacts()` 上传 OCR region artifact。
+  - 将上传后的 `artifactOsskey` 回填到 OCR 元数据或服务聚合结果。
+  - 不改变 checked image 上传逻辑。
+
+- `src/services/omr_service.py`
+  - 聚合返回时兼容 OCR 字段区域元数据和置信度。
+  - 扩展 `_normalize_result_row()` 当前只纳入 `id\d+` / `q\d+` 的 recognized fields 规则，允许模板元数据声明的 OCR 字段进入 `answers` 和 `answers_flat`。
+  - 保持 `answers_flat` 为简单字段值字典。
+
+- `src/defaults/config.py` 和 `src/schemas/config_schema.py`
+  - 增加 OCR 默认配置和 schema。
+
+### 10.2 建议新增
+
+- `src/ocr/__init__.py`
+- `src/ocr/engine.py`
+- `src/ocr/paddleocr_engine.py`
+- `src/tests/test_ocr_template_schema.py`
+- `src/tests/test_ocr_field_block.py`
+- `src/tests/test_ocr_processing.py`
+- `src/tests/test_ocr_artifacts.py`
+- `src/tests/test_ocr_does_not_change_omr.py`
+
+## 11. 测试策略
+
+### 11.1 OMR 不变性测试
+
+这是第一优先级。
+
+覆盖点：
+
+- 现有纯 OMR sample 的 Results CSV 不变。
+- 现有纯 OMR sample 的 checked image 路径规则不变。
+- 现有 `read_results_csv()` 对纯 OMR 的返回结构不变。
+- 现有弱填涂、多选、错误文件流程不受 OCR 代码影响。
+- 未安装 PaddleOCR 时，纯 OMR 流程仍可运行。
+
+### 11.2 模板兼容性测试
+
+覆盖点：
+
+- 没有 `engine` 的旧 block 默认是 OMR。
+- 旧的 `QTYPE_MCQ4`、`QTYPE_INT` 模板继续解析成功。
+- OCR block 有 `origin`、`dimensions`、单个 `fieldLabels` 时通过。
+- OCR block 多个 `fieldLabels` 时失败。
+- OCR block 缺少 `dimensions` 时失败。
+
+### 11.3 OCR 处理测试
+
+覆盖点：
+
+- 用 fake OCR engine 代替 PaddleOCR，避免测试依赖重模型。
+- 验证裁剪区域尺寸正确。
+- 验证 OCR 结果必须包含置信度。
+- 验证 OCR `value` 写入 flat response。
+- 验证 OCR 置信度、`engine` 按当前服务结果结构返回。
+- 验证 PaddleOCR 未安装时，只有模板使用 OCR 才报出清晰错误。
+
+### 11.4 artifact/COS 归档测试
+
+覆盖点：
+
+- OCR block 可生成 `region_screenshot` artifact。
+- artifact metadata 包含 field、engine、confidence、value、bbox。
+- `_upload_region_artifacts()` 能上传 OCR artifact。
+- 上传失败不影响识别完成，只记录 artifact error。
+- 回调 payload 中可以看到 artifact 列表或对应 osskey。
+
+### 11.5 端到端回归测试
+
+覆盖点：
+
+- 纯 OMR 样例结果不变。
+- OMR + OCR 混合模板能输出主 Results CSV。
+- OCR 字段出现在 `outputColumns` 中时，主 CSV 输出 OCR 文本值。
+- OCR 字段在服务结果中带置信度。
+- OCR artifact 进入现有 artifacts/COS 链路。
+
+## 12. 风险与应对
+
+### 12.1 OMR 流程被误改
+
+风险：为了支持 OCR，把 OMR 结果整体改成结构化对象，破坏已有行为。
+
+应对：
+
+- 明确 OMR 结果保持字符串 flat response。
+- OCR 识别信息使用当前服务结果结构的扩展字段。
+- 建立 OMR 不变性回归测试。
+
+### 12.2 `read_omr_response()` 过长且耦合较重
+
+风险：直接把 OCR 逻辑塞进去会让函数更难维护，并增加 OMR 回归风险。
+
+应对：第一版建议抽出私有方法：
+
+- `_read_omr_blocks(...)`
+- `_read_ocr_blocks(...)`
+- `_build_ocr_artifacts(...)`
+- `_draw_ocr_result(...)`
+
+### 12.3 PaddleOCR 依赖重
+
+风险：安装慢，平台差异大，模型首次下载慢。
+
+应对：
+
+- OCR 作为 optional dependency。
+- 懒加载 PaddleOCR。
+- 未安装时纯 OMR 不受影响。
+- 未安装且模板使用 OCR 时给出明确错误。
+
+### 12.4 OCR 坐标稳定性
+
+风险：扫描图偏移时，OCR 裁剪区域可能错位。
+
+应对：
+
+- 推荐配合 `CropOnMarkers` 或 `FeatureBasedAlignment` 使用。
+- 文档明确 OCR 坐标基于预处理后的模板坐标。
+- 后续可增加 OCR block 独立 padding 或局部对齐能力。
+
+### 12.5 artifact 上传一致性
+
+风险：OCR 自行上传 COS，和现有 checked image / region artifact 行为不一致。
+
+应对：
+
+- OCR 截图归档复用现有 artifact payload 和 `_upload_region_artifacts()`。
+- 上传失败保持非致命。
+- artifact 元数据统一进入 store。
+
+## 13. 推荐第一版范围
+
+第一版建议做：
+
+1. `fieldBlocks` 支持统一 `engine` 字段。
+2. OCR block 一块区域对应一个字段。
+3. 支持填空题得分区域、解答题得分区域、解答题解答区域，三者模板规范保持一致。
+4. OMR block 流程和输出保持不变。
+5. PaddleOCR 懒加载封装。
+6. OCR 结果必须包含 `value` 和 `confidence`。
+7. OCR `value` 写入现有 flat response。
+8. OCR item 在当前服务结果结构上扩展 `engine`、`confidence` 和 artifact 引用。
+9. OCR 截图归档复用现有 region artifact/COS 链路。
+10. 主 Results CSV 继续只输出字段值。
+11. 纯 OMR 模板完全兼容。
+12. 支持 fake OCR engine 测试。
+13. `final_marked` 可标注 OCR 区域和识别文本，但不改变 checked image 上传规则。
+
+第一版不做：
+
+1. 一块 OCR 区域拆多个字段。
+2. 表格 OCR。
+3. 复杂正则字段映射。
+4. OCR 参与自动评分的复杂规则。
+5. PaddleOCR GPU 配置自动管理。
+6. OCR 区域自动检测。
+7. 独立于现有 artifacts 的 OCR COS 上传流程。
+8. 将所有 OMR 字段改成结构化对象。
+
+## 14. 后续扩展方向
+
+如果第一版稳定，可以再扩展：
+
+1. 多行 OCR 拆字段：`split.mode = "lines"`。
+2. 正则拆字段：`split.mode = "regex"`。
+3. OCR 置信度输出到主 CSV 的可选列。
+4. OCR 区域独立预处理。
+5. OCR block 局部定位或锚点对齐。
+6. 支持更多 OCR 引擎。
+7. 解答题文本结构化分析。
+
+## 15. 最终建议
+
+建议采用：**方案 A，在现有 `fieldBlocks` 中新增统一 `engine` 字段，第一版 OCR block 强制一块区域对应一个字段。**
+
+第一版应明确支持填空题得分区域、解答题得分区域和解答题解答区域。三类区域使用同一套模板规范：模板提供 `origin` 和 `dimensions`，识别引擎为 `paddleocr`，OCR 引擎返回 `value` 和必填 `confidence`。
+
+最重要的设计边界是：**OMR 流程和结果不变，识别时按区域指定的 `engine` 分流。** OCR 字段值进入现有 flat response，服务返回结构沿用当前 OMR 已实现的 `answers` / `answers_flat` 风格，只在 OCR item 上补充 `engine`、`confidence` 和截图 artifact 引用。OCR 截图归档复用现有 region artifact/COS 上传链路，方便后续审查，避免产生新的、不一致的归档业务流程。

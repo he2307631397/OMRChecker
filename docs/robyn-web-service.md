@@ -89,6 +89,100 @@ For Windows paths with Chinese characters, start with UTF-8 mode:
 python -X utf8 web\robyn_app.py
 ```
 
+## Docker Compose deployment on port 8088
+
+Use this path for local or server deployment when you want the Robyn API to run in Docker with CPU-only PaddleOCR support. The compose service exposes the API on host port `8088` and keeps runtime data on the host.
+
+### 1. Prepare runtime files and directories
+
+From the repository root:
+
+```bash
+cp .env.docker.example .env.docker
+mkdir -p service_data outputs inputs config
+```
+
+If you need production COS batch recognition, create `config/robyn-service.json` from `config/robyn-service.example.json` and fill in the real COS bucket, region, callback URL, and credentials. The compose file mounts `./config` read-only into the container.
+
+For local mock-COS mode, keep COS disabled in `config/robyn-service.json` or omit the file and use the service defaults.
+
+### 2. Review Docker environment
+
+The deployment defaults are defined in `.env.docker.example` and `docker-compose.yml`:
+
+```dotenv
+OMR_SERVICE_PORT=8088
+OMR_SERVICE_HOST=0.0.0.0
+OMR_SERVICE_WORKERS=1
+OMR_SERVICE_DATA_DIR=/app/service_data
+OMR_TEMPLATE_DIR=/app/inputs
+OMR_RECOGNITION_DEBUG_ARTIFACTS=false
+```
+
+`OMR_SERVICE_HOST=0.0.0.0` is required inside Docker so host port forwarding can reach Robyn. The compose file maps `8088:8088`.
+
+### 3. Build and start the service
+
+Start or redeploy the API and leave it running for manual interface testing:
+
+```bash
+docker compose up -d --build omr-api
+```
+
+For a faster restart when the image is already built:
+
+```bash
+docker compose up -d omr-api
+```
+
+Do not run `docker compose down` if you want to keep the API available for manual testing.
+
+### 4. Verify the deployment
+
+Check service state:
+
+```bash
+docker compose ps
+```
+
+Expected port mapping includes:
+
+```text
+0.0.0.0:8088->8088/tcp
+```
+
+Check health from the host:
+
+```bash
+curl http://127.0.0.1:8088/health
+```
+
+Expected response shape:
+
+```json
+{
+  "status": "ok",
+  "service": "omrchecker-robyn",
+  "workers": 1,
+  "template_dir": "/app/inputs"
+}
+```
+
+Useful troubleshooting commands:
+
+```bash
+docker compose logs -f omr-api
+docker compose config
+```
+
+### 5. Stop only when validation is finished
+
+When you no longer need the service running:
+
+```bash
+docker compose down
+```
+
 ## Health check
 
 ### `GET /health`

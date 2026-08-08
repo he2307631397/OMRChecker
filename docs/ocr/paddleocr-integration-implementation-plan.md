@@ -244,7 +244,6 @@ file_id,input_path,output_path,field,value,confidence,engine,regionCode,regionNa
           "field": "blankScore1",
           "value": "5",
           "confidence": 0.982,
-          "engine": "paddleocr",
           "artifactLocalPath": ".../001_sheet_blankScore.png"
         }
       ]
@@ -255,10 +254,11 @@ file_id,input_path,output_path,field,value,confidence,engine,regionCode,regionNa
 
 兼容性规则：
 
-1. OMR region 不强制增加 `engine`，避免改变旧契约。若需要统一，可只在 OCR region 添加 `engine`。
-2. OMR 字段默认 confidence 仍按现有逻辑：非空为 `1.0`，空为 `0.0`，weak fill review 覆盖。
-3. OCR 字段 confidence 优先来自 `OcrResults.csv`。
-4. OCR 字段进入 `answers_flat`，前提是模板元数据确认该字段属于 OCR block。
+1. OMR region 不强制增加 `engine`，避免改变旧契约。OCR region 添加区域级 `engine`。
+2. `items[]` 不重复返回 `engine`，因为同一区域内的 OCR items 继承区域级 `engine`。
+3. OMR 字段默认 confidence 仍按现有逻辑：非空为 `1.0`，空为 `0.0`，weak fill review 覆盖。
+4. OCR 字段 confidence 优先来自 `OcrResults.csv`。
+5. OCR 字段进入 `answers_flat`，前提是模板元数据确认该字段属于 OCR block。
 
 ## 5. 分阶段 TDD 实施任务
 
@@ -935,7 +935,6 @@ def test_read_results_csv_includes_template_paddleocr_fields_with_confidence(tmp
             "field": "blankScore1",
             "value": "5",
             "confidence": 0.982,
-            "engine": "paddleocr",
             "artifactLocalPath": "artifacts/sheet-1/blankScore1.png",
         }
     ]
@@ -1035,10 +1034,8 @@ def _group_answers_by_region_type(flat_answers, *, field_regions, review_confide
         if confidence is None:
             confidence = 1.0 if value != "" else 0.0
         item = {"field": field, "value": value, "confidence": round(float(confidence), 3)}
-        if metadata.get("engine") == "paddleocr":
-            item["engine"] = "paddleocr"
-            if metadata.get("artifactLocalPath"):
-                item["artifactLocalPath"] = metadata["artifactLocalPath"]
+        if metadata.get("engine") == "paddleocr" and metadata.get("artifactLocalPath"):
+            item["artifactLocalPath"] = metadata["artifactLocalPath"]
         region["items"].append(item)
     return list(grouped.values())
 ```
@@ -1163,13 +1160,39 @@ git commit -m "feat: archive PaddleOCR template regions"
 
 1. `src/ocr/engine.py` 中延迟 import `paddleocr`。
 2. 只有模板实际包含 `engine: "paddleocr"` 并调用识别时才加载 PaddleOCR。
-3. 未安装 PaddleOCR 且模板使用 OCR 时抛出明确错误：
+3. 第一版明确选择 CPU-only 运行时，不集成 GPU 版，不安装 `paddlepaddle-gpu`，不要求 CUDA/cuDNN/NVIDIA 驱动。
+4. 按当前 PaddleOCR 3.x 生态，推荐最小运行时为 CPU 版 PaddlePaddle 加 PaddleOCR 默认包：
+
+```bash
+python -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+python -m pip install paddleocr
+```
+
+5. 不默认使用 `paddleocr[all]`，因为第一版只需要通用 OCR，不需要文档解析、KIE、翻译等额外能力。
+6. 如果后续固定依赖文件，建议新增可选依赖清单，例如 `requirements-ocr-cpu.txt`，内容固定为 CPU 版。按当前 PaddleOCR 3.x 生态和 PyPI 稳定发布，第一版推荐锁定：
+
+```text
+paddlepaddle==3.2.0
+paddleocr==3.7.0
+```
+
+7. 依赖提交前必须用 CPU 环境做一次 smoke test，确认 `PaddleOCR` 可初始化并对一张小图执行通用 OCR。命令示例：
+
+```bash
+python - <<'PY'
+from paddleocr import PaddleOCR
+ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False)
+print(type(ocr).__name__)
+PY
+```
+
+8. 未安装 PaddleOCR 且模板使用 OCR 时抛出明确错误：
 
 ```text
 PaddleOCR is required for fieldBlocks with engine='paddleocr'. Install paddleocr to enable OCR recognition.
 ```
 
-4. 纯 OMR 模板测试必须在未安装 PaddleOCR 环境继续通过。
+9. 纯 OMR 模板测试必须在未安装 PaddleOCR 环境继续通过。
 
 #### 任务 7.2：可选文档更新
 
@@ -1179,13 +1202,14 @@ PaddleOCR is required for fieldBlocks with engine='paddleocr'. Install paddleocr
 docs/ocr/paddleocr-runtime.md
 ```
 
-内容只包含运行时说明，不作为第一版代码必要任务：
+内容只包含 CPU-only 运行时说明，不作为第一版代码必要任务：
 
 ```bash
-pip install paddleocr
+python -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+python -m pip install paddleocr
 ```
 
-如果部署环境需要 PaddlePaddle CPU 包，按目标 Python/平台补充官方安装命令。该任务需要根据部署环境确认，不在第一版默认提交中强制执行。
+文档中明确不使用 `paddlepaddle-gpu`，不提供 GPU/CUDA 安装步骤，避免部署方误装 GPU 版本。
 
 ## 6. 回归测试矩阵
 
@@ -1258,7 +1282,7 @@ PYTHONPATH=. .venv/bin/python -m black src/ocr src/tests/test_ocr_engine.py src/
 2. OCR block 的字段值写入 Results CSV 的对应 output column。
 3. OCR 置信度写入 `Results/OcrResults.csv`。
 4. `omr_service.read_results_csv()` 返回中，OCR 字段进入 `answers_flat`。
-5. `answers` 中 OCR region 包含 `regionCode`、`regionName`、`type`、`engine` 和 item 级 confidence。
+5. `answers` 中 OCR region 包含 `regionCode`、`regionName`、`type`、区域级 `engine`，items 只包含 field/value/confidence/artifactLocalPath，不重复返回 `engine`。
 6. OCR block 可派生 region screenshot artifact。
 7. OCR artifact 上传失败仍不导致整批识别失败，沿用现有 artifact error 记录策略。
 
@@ -1288,7 +1312,7 @@ PYTHONPATH=. .venv/bin/python -m black src/ocr src/tests/test_ocr_engine.py src/
 | 风险 | 控制措施 |
 | --- | --- |
 | OCR 改动影响旧 OMR 模板 schema | `engine` 缺省走 OMR `else` 分支，旧模板测试固定覆盖。 |
-| PaddleOCR 大依赖影响 CI | 延迟 import，不加入默认依赖，fake engine 覆盖单元测试。 |
+| PaddleOCR 大依赖影响 CI | 延迟 import，不加入默认依赖，fake engine 覆盖单元测试。OCR 可选依赖固定 CPU-only，不集成 GPU 版。 |
 | `read_omr_response()` 现有循环假设所有 block 都有 bubbles | 先拆分 `omr_field_blocks` 和 `ocr_field_blocks`，现有 bubble 逻辑只看 OMR block。 |
 | 服务聚合只识别 `id\d+` 和 `q\d+` | 新增 `_load_ocr_results()`，只把模板/OCR 辅助文件确认过的 OCR 字段纳入 answers。 |
 | OCR artifact 和现有 artifact 重复或路径不一致 | 不新增上传链路，只扩展 `derive_archive_regions_from_template()`。 |
@@ -1303,7 +1327,7 @@ PYTHONPATH=. .venv/bin/python -m black src/ocr src/tests/test_ocr_engine.py src/
 2. 不自动检测 OCR 区域位置。
 3. 不改变现有 OMR 评分逻辑。
 4. 不把所有 OMR response 改成结构化对象。
-5. 不把 PaddleOCR 加为默认强依赖。
+5. 不把 PaddleOCR 加为默认强依赖，也不集成 PaddleOCR GPU 运行时。
 6. 不支持一个 OCR block 输出多个业务字段。
 7. 不实现 OCR 结果人工复核界面。
 8. 不改变现有 COS 上传目录结构。

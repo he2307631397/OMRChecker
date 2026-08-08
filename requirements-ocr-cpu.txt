@@ -1,0 +1,4 @@
+# CPU-only PaddleOCR runtime for templates with fieldBlocks[].engine == "paddleocr".
+# Do not replace this with paddlepaddle-gpu. GPU/CUDA/cuDNN/NVIDIA driver setup is intentionally unsupported in this integration phase.
+paddlepaddle==3.2.0
+paddleocr==3.7.0

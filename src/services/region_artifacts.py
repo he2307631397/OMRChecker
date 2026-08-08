@@ -105,7 +105,7 @@ def derive_archive_regions_from_template(template_path: str | Path, *, margin: i
                 ),
             )
         )
-    return [*specs, *ocr_specs]
+    return [*specs, *ocr_specs, *_template_archive_region_specs(template)]
 
 
 def generate_region_artifacts(
@@ -170,6 +170,22 @@ def _load_regions_json(regions_path: Path) -> list[RegionSpec]:
         raw_regions = raw_regions.get("archiveRegions", [])
     if not isinstance(raw_regions, list):
         raise ValueError(f"regions.json must contain a list or archiveRegions object: {regions_path}")
+    return [
+        RegionSpec(
+            region_code=str(region.get("regionCode", "")),
+            region_name=str(region.get("regionName", "")),
+            type=str(region.get("type", "")),
+            bbox=[int(value) for value in region.get("bbox", [])],
+        )
+        for region in raw_regions
+        if isinstance(region, dict)
+    ]
+
+
+def _template_archive_region_specs(template: dict) -> list[RegionSpec]:
+    raw_regions = template.get("archiveRegions", [])
+    if not isinstance(raw_regions, list):
+        return []
     return [
         RegionSpec(
             region_code=str(region.get("regionCode", "")),

@@ -215,3 +215,32 @@ def test_template_regions_json_overrides_derived_regions(tmp_path: Path) -> None
     regions = load_template_archive_regions(tmp_path)
 
     assert regions == [RegionSpec(region_code="custom", region_name="自定义区域", type="CUSTOM", bbox=[1, 2, 3, 4])]
+
+
+def test_template_archive_regions_append_to_derived_omr_regions(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    template_path.write_text(
+        """
+        {
+          "pageDimensions": [1190, 1682],
+          "bubbleDimensions": [29, 18],
+          "fieldBlocks": {
+            "ExamId": {"fieldType": "QTYPE_INT", "fieldLabels": ["id1..8"], "origin": [777, 396], "bubbleDimensions": [30, 17], "bubblesGap": 27, "labelsGap": 44},
+            "Q1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "origin": [134, 757], "bubblesGap": 39, "labelsGap": 0}
+          },
+          "archiveRegions": [
+            {"regionCode": "FillBlankReview", "regionName": "填空题人工审核区域", "type": "FILL_BLANK_REVIEW", "bbox": [65, 1015, 1050, 160]}
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    regions = derive_archive_regions_from_template(template_path, margin=10)
+
+    assert [(region.region_code, region.region_name, region.type) for region in regions] == [
+        ("candidateNumber", "准考证号区域", "DIGIT"),
+        ("singleChoice", "单选题区域", "SINGLE_CHOICE"),
+        ("FillBlankReview", "填空题人工审核区域", "FILL_BLANK_REVIEW"),
+    ]
+    assert regions[-1].bbox == [65, 1015, 1050, 160]

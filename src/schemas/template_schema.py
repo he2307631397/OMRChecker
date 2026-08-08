@@ -188,17 +188,12 @@ TEMPLATE_SCHEMA = {
             "patternProperties": {
                 "^.*$": {
                     "type": "object",
-                    "required": [
-                        "origin",
-                        "bubblesGap",
-                        "labelsGap",
-                        "fieldLabels",
-                    ],
-                    "oneOf": [
-                        {"required": ["fieldType"]},
-                        {"required": ["bubbleValues", "direction"]},
-                    ],
+                    "required": ["origin", "fieldLabels"],
                     "properties": {
+                        "engine": {
+                            "type": "string",
+                            "enum": ["omr", "paddleocr"],
+                        },
                         "bubbleDimensions": two_positive_numbers,
                         "bubblesGap": positive_number,
                         "bubbleValues": ARRAY_OF_STRINGS,
@@ -211,11 +206,43 @@ TEMPLATE_SCHEMA = {
                         "labelsGap": positive_number,
                         "multiSelect": {"type": "boolean"},
                         "origin": two_positive_integers,
+                        "dimensions": two_positive_integers,
+                        "regionCode": {"type": "string"},
+                        "regionName": {"type": "string"},
+                        "type": {"type": "string"},
                         "fieldType": {
                             "type": "string",
                             "enum": list(FIELD_TYPES.keys()),
                         },
+                        "ocr": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "lang": {"type": "string"},
+                                "det": {"type": "boolean"},
+                                "rec": {"type": "boolean"},
+                                "cls": {"type": "boolean"},
+                                "returnConfidence": {"type": "boolean"},
+                                "archiveRegion": {"type": "boolean"},
+                            },
+                        },
                     },
+                    "allOf": [
+                        {
+                            "if": {
+                                "required": ["engine"],
+                                "properties": {"engine": {"const": "paddleocr"}},
+                            },
+                            "then": {"required": ["dimensions"]},
+                            "else": {
+                                "required": ["bubblesGap", "labelsGap"],
+                                "oneOf": [
+                                    {"required": ["fieldType"]},
+                                    {"required": ["bubbleValues", "direction"]},
+                                ],
+                            },
+                        }
+                    ],
                 }
             },
         },

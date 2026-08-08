@@ -155,6 +155,14 @@ class Template:
         self.validate_parsed_labels(field_block_object["fieldLabels"], block_instance)
 
     def pre_fill_field_block(self, field_block_object):
+        engine = field_block_object.get("engine", "omr")
+        if engine == "paddleocr":
+            return {
+                "engine": "paddleocr",
+                "ocr": {},
+                **field_block_object,
+            }
+
         if "fieldType" in field_block_object:
             field_block_object = {
                 **FIELD_TYPES[field_block_object["fieldType"]],
@@ -164,6 +172,7 @@ class Template:
             field_block_object = {**field_block_object, "fieldType": "__CUSTOM__"}
 
         return {
+            "engine": "omr",
             "direction": "vertical",
             "emptyValue": self.global_empty_val,
             "bubbleDimensions": self.bubble_dimensions,
@@ -216,6 +225,11 @@ class FieldBlock:
         self.setup_field_block(field_block_object)
 
     def setup_field_block(self, field_block_object):
+        self.engine = field_block_object.get("engine", "omr")
+        if self.engine == "paddleocr":
+            self.setup_ocr_field_block(field_block_object)
+            return
+
         # case mapping
         (
             bubble_dimensions,
@@ -251,6 +265,10 @@ class FieldBlock:
         self.field_type = field_type
         self.direction = direction
         self.multi_select = bool(multi_select)
+        self.region_code = field_block_object.get("regionCode")
+        self.region_name = field_block_object.get("regionName")
+        self.region_type = field_block_object.get("type")
+        self.ocr_options = {}
         self.calculate_block_dimensions(
             bubble_dimensions,
             bubble_values,
@@ -265,6 +283,33 @@ class FieldBlock:
             field_type,
             labels_gap,
         )
+
+    def setup_ocr_field_block(self, field_block_object):
+        field_labels = field_block_object.get("fieldLabels")
+        self.parsed_field_labels = parse_fields(
+            f"Field Block Labels: {self.name}", field_labels
+        )
+        if len(self.parsed_field_labels) != 1:
+            raise Exception(
+                f"PaddleOCR field block '{self.name}' must resolve to exactly one field label, got {self.parsed_field_labels}"
+            )
+
+        self.origin = field_block_object.get("origin")
+        self.dimensions = field_block_object.get("dimensions")
+        self.bubble_dimensions = None
+        self.field_type = "__OCR__"
+        self.direction = None
+        self.multi_select = False
+        self.empty_val = ""
+        self.region_code = field_block_object.get("regionCode") or self.name
+        self.region_name = field_block_object.get("regionName") or self.name
+        self.region_type = field_block_object.get("type") or "OCR"
+        self.ocr_options = {
+            "returnConfidence": True,
+            "archiveRegion": True,
+            **(field_block_object.get("ocr") or {}),
+        }
+        self.traverse_bubbles = []
 
     def calculate_block_dimensions(
         self,

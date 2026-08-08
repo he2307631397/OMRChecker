@@ -1,12 +1,30 @@
 import argparse
+import csv
 import json
 import os
 from csv import QUOTE_NONNUMERIC
+from pathlib import Path
 from time import localtime, strftime
 
 import pandas as pd
 
 from src.logger import logger
+
+
+OCR_RESULTS_COLUMNS = [
+    "file_id",
+    "input_path",
+    "output_path",
+    "field",
+    "value",
+    "confidence",
+    "engine",
+    "regionCode",
+    "regionName",
+    "type",
+    "bbox",
+    "artifactLocalPath",
+]
 
 
 def load_json(path, **rest):
@@ -17,6 +35,27 @@ def load_json(path, **rest):
         logger.critical(f"Error when loading json file at: '{path}'\n{error}")
         exit(1)
     return loaded
+
+
+def append_ocr_results_csv(results_dir, rows):
+    if not rows:
+        return None
+
+    results_dir = Path(results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = results_dir / "OcrResults.csv"
+    write_header = not csv_path.exists()
+    with csv_path.open("a", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=OCR_RESULTS_COLUMNS)
+        if write_header:
+            writer.writeheader()
+        for row in rows:
+            serialized = {column: row.get(column, "") for column in OCR_RESULTS_COLUMNS}
+            bbox = serialized.get("bbox")
+            if isinstance(bbox, (dict, list)):
+                serialized["bbox"] = json.dumps(bbox, ensure_ascii=False, sort_keys=True)
+            writer.writerow(serialized)
+    return csv_path
 
 
 class Paths:

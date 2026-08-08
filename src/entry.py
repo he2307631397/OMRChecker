@@ -25,7 +25,12 @@ from src.defaults import CONFIG_DEFAULTS
 from src.evaluation import EvaluationConfig, evaluate_concatenated_response
 from src.logger import console, logger
 from src.template import Template
-from src.utils.file import Paths, setup_dirs_for_paths, setup_outputs_for_template
+from src.utils.file import (
+    Paths,
+    append_ocr_results_csv,
+    setup_dirs_for_paths,
+    setup_outputs_for_template,
+)
 from src.utils.image import ImageUtils
 from src.utils.interaction import InteractionUtils, Stats
 from src.utils.parsing import get_concatenated_response, open_config_with_defaults
@@ -76,6 +81,32 @@ def append_weak_fill_review_rows(
         header=False,
         index=False,
     )
+
+
+def append_ocr_result_rows(img_name, file_path, output_path, ocr_results, paths):
+    """Append auxiliary OCR confidence rows without changing Results CSV."""
+    if not ocr_results:
+        return None
+
+    rows = []
+    for field, result in ocr_results.items():
+        rows.append(
+            {
+                "file_id": img_name,
+                "input_path": str(file_path),
+                "output_path": str(output_path),
+                "field": field,
+                "value": result.get("text", ""),
+                "confidence": result.get("confidence", 0.0),
+                "engine": result.get("engine", "paddleocr"),
+                "regionCode": result.get("regionCode", ""),
+                "regionName": result.get("regionName", ""),
+                "type": result.get("type", ""),
+                "bbox": result.get("bbox", ""),
+                "artifactLocalPath": result.get("artifactLocalPath", ""),
+            }
+        )
+    return append_ocr_results_csv(paths.results_dir, rows)
 
 
 def entry_point(input_dir, args):
@@ -383,6 +414,13 @@ def _process_single_image(
             template.image_instance_ops.last_weak_fill_reviews,
             outputs_namespace,
         )
+        append_ocr_result_rows(
+            img_name,
+            file_path,
+            new_file_path,
+            template.image_instance_ops.last_ocr_results,
+            outputs_namespace.paths,
+        )
     else:
         # multi_marked file
         logger.info(f"[{files_counter}] Found multi-marked file: '{file_id}'")
@@ -402,6 +440,13 @@ def _process_single_image(
                 new_file_path,
                 template.image_instance_ops.last_weak_fill_reviews,
                 outputs_namespace,
+            )
+            append_ocr_result_rows(
+                img_name,
+                file_path,
+                new_file_path,
+                template.image_instance_ops.last_ocr_results,
+                outputs_namespace.paths,
             )
 
     return multi_marked

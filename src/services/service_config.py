@@ -15,6 +15,7 @@ _ENV_PLACEHOLDER_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 @dataclass(frozen=True)
 class ServerConfig:
+    host: str = "127.0.0.1"
     port: int = 8080
     workers: int = 1
 
@@ -92,6 +93,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
 
     return ServiceConfig(
         server=ServerConfig(
+            host=str(server.get("host", ServerConfig.host)),
             port=int(server.get("port", ServerConfig.port)),
             workers=int(server.get("workers", ServerConfig.workers)),
         ),
@@ -172,6 +174,8 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
 
     if "OMR_SERVICE_PORT" in os.environ:
         server["port"] = int(os.environ["OMR_SERVICE_PORT"])
+    if "OMR_SERVICE_HOST" in os.environ:
+        server["host"] = os.environ["OMR_SERVICE_HOST"]
     if "OMR_SERVICE_WORKERS" in os.environ:
         server["workers"] = int(os.environ["OMR_SERVICE_WORKERS"])
     if "OMR_SERVICE_DATA_DIR" in os.environ:

@@ -1,0 +1,31 @@
+services:
+  omr-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: omrchecker-paddleocr:local
+    container_name: omrchecker-api
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      OMR_SERVICE_PORT: "8088"
+      OMR_SERVICE_HOST: 0.0.0.0
+      OMR_SERVICE_WORKERS: "1"
+      OMR_SERVICE_DATA_DIR: /app/service_data
+      OMR_TEMPLATE_DIR: /app/inputs
+      OMR_RECOGNITION_DEBUG_ARTIFACTS: "false"
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./service_data:/app/service_data
+      - ./outputs:/app/outputs
+      - ./inputs:/app/inputs:ro
+      - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

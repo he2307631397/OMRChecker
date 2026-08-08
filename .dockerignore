@@ -1,0 +1,34 @@
+.git
+.codegraph
+.venv
+.venv-*
+venv
+__pycache__
+*.pyc
+*.pyo
+*.log
+.DS_Store
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Runtime data and generated outputs
+service_data
+outputs
+outputs_*
+CheckedOMRs
+Manual
+Results
+
+# Local inputs can be mounted at runtime and are often large or private.
+inputs/*
+!inputs/.gitkeep
+
+# Large experiment/sample data not needed to run the API image
+alignment_experiments
+docs/assets
+
+# Local secrets and deployment overrides
+.env
+.env.docker
+config/robyn-service.json

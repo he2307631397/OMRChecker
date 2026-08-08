@@ -63,6 +63,26 @@ def test_load_service_config_allows_environment_port_override(tmp_path, monkeypa
     config = load_service_config(config_path)
 
     assert config.server.port == 9090
+
+
+def test_load_service_config_allows_environment_host_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("OMR_SERVICE_HOST", "0.0.0.0")
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "server": {
+                    "host": "127.0.0.1",
+                    "port": 8080,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_service_config(config_path)
+
+    assert config.server.host == "0.0.0.0"
     assert config.storage.template_dir == Path("inputs")
 
 

@@ -3,7 +3,9 @@
 # Except .github and safe environment templates
 !.github/
 !.env.example
+!.env.docker.example
 .env
+.env.docker
 
 # Everything in inputs/ and outputs/
 inputs/*

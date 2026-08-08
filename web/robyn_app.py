@@ -585,5 +585,9 @@ def _startup_port() -> int:
     return load_service_config().server.port
 
 
+def _startup_host() -> str:
+    return load_service_config().server.host
+
+
 if __name__ == "__main__":
-    app.start(port=_startup_port())
+    app.start(host=_startup_host(), port=_startup_port())

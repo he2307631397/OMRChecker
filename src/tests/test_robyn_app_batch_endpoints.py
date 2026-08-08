@@ -211,3 +211,9 @@ def test_startup_port_uses_service_config(monkeypatch):
     monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(port=8089)))
 
     assert robyn_app._startup_port() == 8089
+
+
+def test_startup_host_uses_service_config(monkeypatch):
+    monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(host="0.0.0.0")))
+
+    assert robyn_app._startup_host() == "0.0.0.0"

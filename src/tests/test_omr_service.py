@@ -98,3 +98,62 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
             ],
         },
     ]
+
+
+def test_read_results_csv_includes_template_paddleocr_fields_with_confidence(tmp_path):
+    results_dir = tmp_path / "output" / "Results"
+    results_dir.mkdir(parents=True)
+    results_csv = results_dir / "Results_001.csv"
+    results_csv.write_text(
+        "file_id,input_path,output_path,score,id1,q1,blankScore1,solutionAnswer2\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,2,3,A,5,过程文本\n",
+        encoding="utf-8",
+    )
+    (results_dir / "OcrResults.csv").write_text(
+        "file_id,input_path,output_path,field,value,confidence,engine,regionCode,regionName,type,bbox,artifactLocalPath\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,blankScore1,5,0.982,paddleocr,blankScore,填空题得分区域,BLANK_SCORE,\"{\"\"height\"\": 60, \"\"width\"\": 160, \"\"x\"\": 120, \"\"y\"\": 80}\",artifacts/sheet-1/blankScore1.png\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,solutionAnswer2,过程文本,0.876,paddleocr,solutionAnswer,解答题解答区域,SOLUTION_ANSWER,\"{\"\"height\"\": 220, \"\"width\"\": 500, \"\"x\"\": 100, \"\"y\"\": 200}\",artifacts/sheet-1/solutionAnswer2.png\n",
+        encoding="utf-8",
+    )
+    template_dir = tmp_path / "template"
+    template_dir.mkdir()
+    (template_dir / "template.json").write_text(
+        """
+        {
+          "pageDimensions": [1000, 1000],
+          "bubbleDimensions": [10, 10],
+          "emptyValue": "",
+          "preProcessors": [],
+          "fieldBlocks": {
+            "student_id_area": {"fieldType": "QTYPE_INT", "fieldLabels": ["id1"], "origin": [0, 20], "bubblesGap": 10, "labelsGap": 10},
+            "choice_area_1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "origin": [0, 0], "bubblesGap": 10, "labelsGap": 10},
+            "blank_score_1": {"engine": "paddleocr", "fieldLabels": ["blankScore1"], "origin": [120, 80], "dimensions": [160, 60], "regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "ocr": {"archiveRegion": true}},
+            "solution_answer_2": {"engine": "paddleocr", "fieldLabels": ["solutionAnswer2"], "origin": [100, 200], "dimensions": [500, 220], "regionCode": "solutionAnswer", "regionName": "解答题解答区域", "type": "SOLUTION_ANSWER", "ocr": {"archiveRegion": true}}
+          },
+          "outputColumns": ["id1", "q1", "blankScore1", "solutionAnswer2"],
+          "customLabels": {}
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    rows = omr_service.read_results_csv(results_csv, template_dir=template_dir)
+
+    assert rows[0]["answers_flat"] == {
+        "q1": "A",
+        "blankScore1": "5",
+        "solutionAnswer2": "过程文本",
+    }
+    blank_region = next(
+        region for region in rows[0]["answers"] if region["regionCode"] == "blankScore"
+    )
+    assert blank_region["engine"] == "paddleocr"
+    assert blank_region["items"] == [
+        {
+            "field": "blankScore1",
+            "value": "5",
+            "confidence": 0.982,
+            "artifactLocalPath": "artifacts/sheet-1/blankScore1.png",
+        }
+    ]
+    assert "engine" not in blank_region["items"][0]

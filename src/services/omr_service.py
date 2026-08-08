@@ -149,11 +149,13 @@ def read_results_csv(results_csv: Path, *, template_dir: Path | str | None = Non
 
     field_regions = _load_field_region_metadata(Path(template_dir)) if template_dir is not None else {}
     review_confidences = _load_review_confidences(results_csv)
+    ocr_results = _load_ocr_results(results_csv)
     return [
         _normalize_result_row(
             row,
             field_regions=field_regions,
             review_confidences=review_confidences.get(row.get("file_id", ""), {}),
+            ocr_results=ocr_results.get(row.get("file_id", ""), {}),
         )
         for row in rows
     ]
@@ -189,13 +191,24 @@ def _normalize_result_row(
     *,
     field_regions: dict[str, dict[str, Any]] | None = None,
     review_confidences: dict[str, float] | None = None,
+    ocr_results: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     id_keys = sorted(
         (key for key in row if re.fullmatch(r"id\d+", key)),
         key=lambda key: int(key[2:]),
     )
     id_digits = [row[key] for key in id_keys]
-    flat_answers = {key: value for key, value in row.items() if re.fullmatch(r"q\d+", key)}
+    ocr_results = ocr_results or {}
+    ocr_fields = {
+        key
+        for key, metadata in (field_regions or {}).items()
+        if metadata.get("engine") == "paddleocr" and key in row
+    } | {field for field in ocr_results if field in row}
+    flat_answers = {
+        key: value
+        for key, value in row.items()
+        if re.fullmatch(r"q\d+", key) or key in ocr_fields
+    }
     recognized_fields = {
         **{key: row[key] for key in id_keys},
         **flat_answers,
@@ -204,6 +217,7 @@ def _normalize_result_row(
         recognized_fields,
         field_regions=field_regions or {},
         review_confidences=review_confidences or {},
+        ocr_results=ocr_results,
     )
     review_required = any(value == "" for value in recognized_fields.values())
 
@@ -228,31 +242,47 @@ def _group_answers_by_region_type(
     *,
     field_regions: dict[str, dict[str, Any]],
     review_confidences: dict[str, float],
+    ocr_results: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     grouped: dict[str, dict[str, Any]] = {}
+    ocr_results = ocr_results or {}
     for field, value in flat_answers.items():
         metadata = field_regions.get(field, {})
+        ocr_metadata = ocr_results.get(field, {})
         fallback_region = _infer_business_region(field)
-        region_code = metadata.get("regionCode") or fallback_region["regionCode"]
+        region_code = (
+            ocr_metadata.get("regionCode")
+            or metadata.get("regionCode")
+            or fallback_region["regionCode"]
+        )
         region = grouped.setdefault(
             region_code,
             {
                 "regionCode": region_code,
-                "regionName": metadata.get("regionName") or fallback_region["regionName"],
-                "type": metadata.get("type") or fallback_region["type"],
+                "regionName": ocr_metadata.get("regionName")
+                or metadata.get("regionName")
+                or fallback_region["regionName"],
+                "type": ocr_metadata.get("type") or metadata.get("type") or fallback_region["type"],
                 "items": [],
             },
         )
-        confidence = review_confidences.get(field)
+        engine = ocr_metadata.get("engine") or metadata.get("engine")
+        if engine == "paddleocr":
+            region["engine"] = engine
+        confidence = ocr_metadata.get("confidence")
+        if confidence is None:
+            confidence = review_confidences.get(field)
         if confidence is None:
             confidence = 1.0 if value != "" else 0.0
-        region["items"].append(
-            {
-                "field": field,
-                "value": value,
-                "confidence": round(float(confidence), 3),
-            }
-        )
+        item = {
+            "field": field,
+            "value": value,
+            "confidence": round(float(confidence), 3),
+        }
+        artifact_local_path = ocr_metadata.get("artifactLocalPath")
+        if artifact_local_path:
+            item["artifactLocalPath"] = artifact_local_path
+        region["items"].append(item)
     return list(grouped.values())
 
 
@@ -282,11 +312,13 @@ def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]
         except Exception:
             labels = []
         default_region = _default_business_region_for_field_block(field_type, merged)
+        engine = merged.get("engine") or "omr"
         for label in labels:
             metadata[label] = {
                 "regionCode": merged.get("regionCode") or default_region["regionCode"],
                 "regionName": merged.get("name") or merged.get("regionName") or default_region["regionName"],
                 "type": merged.get("type") or default_region["type"],
+                "engine": engine,
             }
     return metadata
 
@@ -321,3 +353,33 @@ def _load_review_confidences(results_csv: Path) -> dict[str, dict[str, float]]:
     except Exception:
         return {}
     return confidences
+
+
+def _load_ocr_results(results_csv: Path) -> dict[str, dict[str, dict[str, Any]]]:
+    ocr_csv = results_csv.parent / "OcrResults.csv"
+    if not ocr_csv.exists():
+        return {}
+    results: dict[str, dict[str, dict[str, Any]]] = {}
+    try:
+        with ocr_csv.open("r", encoding="utf-8-sig", newline="") as csv_file:
+            for row in csv.DictReader(csv_file):
+                file_id = row.get("file_id", "")
+                field = row.get("field", "")
+                if not file_id or not field:
+                    continue
+                metadata: dict[str, Any] = {
+                    "value": row.get("value", ""),
+                    "engine": row.get("engine", ""),
+                    "regionCode": row.get("regionCode", ""),
+                    "regionName": row.get("regionName", ""),
+                    "type": row.get("type", ""),
+                    "artifactLocalPath": row.get("artifactLocalPath", ""),
+                }
+                try:
+                    metadata["confidence"] = float(row.get("confidence", ""))
+                except ValueError:
+                    pass
+                results.setdefault(file_id, {})[field] = metadata
+    except Exception:
+        return {}
+    return results

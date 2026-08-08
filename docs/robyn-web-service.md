@@ -996,6 +996,7 @@ Terminal response shape:
 Notes about this response:
 
 - `answers` is a business recognition region array, for example `candidateNumber` / `准考证号区域` / `DIGIT`, `singleChoice` / `单选题区域`, and `multipleChoice` / `多选题区域`. Each region contains an `items` result collection, and each item contains `field`, `value`, and `confidence`. A normal non-empty result defaults to `1.0`; unresolved blank defaults to `0.0`; weak-fill review confidence is reused when available.
+- PaddleOCR fields are additive to the same `answers` structure. OCR regions may include `"engine": "paddleocr"` at the region level, while `items[]` entries do not repeat `engine` and keep only field-level data such as `field`, `value`, `confidence`, and optional `artifactLocalPath`.
 - `answers_flat` preserves the previous simple `{"q1": "A"}` map for compatibility.
 - `SheetRecognitionResult.to_callback_dict()` promotes keys from `result` to the sheet top level when `result` is an object.
 - If `checkedImageOsskey` is present in stored result, it is promoted to the sheet top level and removed from the nested `result` object.

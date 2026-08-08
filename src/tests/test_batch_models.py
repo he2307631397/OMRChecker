@@ -191,6 +191,50 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
     }
 
 
+def test_result_payload_keeps_ocr_engine_on_region_not_items():
+    payload = BatchRecognitionResult(
+        task_id="task-ocr",
+        exam_id="exam-1",
+        status="completed",
+        sheets=[
+            SheetRecognitionResult(
+                sheet_id="sheet-1",
+                source_osskey="inputs/sheet-1.pdf",
+                status="completed",
+                result={
+                    "file_id": "sheet-1.png",
+                    "answers": [
+                        {
+                            "regionCode": "blankScore",
+                            "regionName": "填空题得分区域",
+                            "type": "BLANK_SCORE",
+                            "engine": "paddleocr",
+                            "items": [
+                                {
+                                    "field": "fill_blank_score_text",
+                                    "value": "15",
+                                    "confidence": 0.999,
+                                    "artifactLocalPath": "artifacts/sheet-1/fill.png",
+                                }
+                            ],
+                        }
+                    ],
+                    "answers_flat": {"fill_blank_score_text": "15"},
+                },
+            )
+        ],
+    )
+
+    sheet = payload.to_callback_dict()["sheets"][0]
+    region = sheet["answers"][0]
+    nested_region = sheet["result"]["answers"][0]
+
+    assert region["engine"] == "paddleocr"
+    assert nested_region["engine"] == "paddleocr"
+    assert "engine" not in region["items"][0]
+    assert "engine" not in nested_region["items"][0]
+
+
 def test_render_callback_payload_from_task_store_like_records_groups_sheet_artifacts():
     payload = render_callback_payload_from_records(
         batch={

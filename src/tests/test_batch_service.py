@@ -496,6 +496,15 @@ def test_process_batch_derives_archive_regions_from_template_code_schema(monkeyp
                         "bubbleDimensions": [30, 17],
                         "bubblesGap": 27,
                         "labelsGap": 44,
+                    },
+                    "blank_score_1": {
+                        "engine": "paddleocr",
+                        "fieldLabels": ["blankScore1"],
+                        "origin": [120, 80],
+                        "dimensions": [160, 60],
+                        "regionCode": "blankScore",
+                        "regionName": "填空题得分区域",
+                        "type": "BLANK_SCORE",
                     }
                 },
             }
@@ -533,7 +542,10 @@ def test_process_batch_derives_archive_regions_from_template_code_schema(monkeyp
     service.submit_batch(request)
 
     assert service.process_batch("task-1").status == "completed"
-    assert [(region.region_code, region.bbox) for region in captured_regions] == [("candidateNumber", [164, 165, 634, 419])]
+    assert [(region.region_code, region.bbox) for region in captured_regions] == [
+        ("candidateNumber", [164, 165, 634, 419]),
+        ("blankScore", [120, 80, 160, 60]),
+    ]
 
 
 def test_process_batch_requires_central_template_json_for_template_code(monkeypatch, tmp_path: Path) -> None:

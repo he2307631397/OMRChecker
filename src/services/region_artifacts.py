@@ -62,9 +62,15 @@ def derive_archive_regions_from_template(template_path: str | Path, *, margin: i
         "singleChoice": [],
         "multiChoice": [],
     }
+    ocr_specs: list[RegionSpec] = []
 
     for field_block in (template.get("fieldBlocks") or {}).values():
         if not isinstance(field_block, dict):
+            continue
+        if field_block.get("engine") == "paddleocr":
+            ocr_spec = _ocr_region_spec_for_field_block(field_block)
+            if ocr_spec is not None:
+                ocr_specs.append(ocr_spec)
             continue
         region_code = _region_code_for_field_block(field_block)
         if region_code is None:
@@ -99,7 +105,7 @@ def derive_archive_regions_from_template(template_path: str | Path, *, margin: i
                 ),
             )
         )
-    return specs
+    return [*specs, *ocr_specs]
 
 
 def generate_region_artifacts(
@@ -222,6 +228,35 @@ def _field_block_bbox(field_block: dict, default_bubble_dimensions) -> tuple[int
         width = bubbles_gap * (len(bubble_values) - 1) + bubble_width
         height = labels_gap * (len(parsed_labels) - 1) + bubble_height
     return x, y, width, height
+
+
+def _ocr_region_spec_for_field_block(field_block: dict) -> RegionSpec | None:
+    ocr_options = field_block.get("ocr") or {}
+    if isinstance(ocr_options, dict) and ocr_options.get("archiveRegion") is False:
+        return None
+
+    origin = field_block.get("origin")
+    dimensions = field_block.get("dimensions")
+    if not _two_numbers(origin) or not _two_numbers(dimensions):
+        return None
+
+    region_code = field_block.get("regionCode")
+    region_name = field_block.get("regionName") or field_block.get("name")
+    region_type = field_block.get("type")
+    if not region_code or not region_name or not region_type:
+        return None
+
+    x, y = int(origin[0]), int(origin[1])
+    width, height = int(dimensions[0]), int(dimensions[1])
+    if width <= 0 or height <= 0:
+        return None
+
+    return RegionSpec(
+        region_code=str(region_code),
+        region_name=str(region_name),
+        type=str(region_type),
+        bbox=[x, y, width, height],
+    )
 
 
 def _two_numbers(value) -> bool:

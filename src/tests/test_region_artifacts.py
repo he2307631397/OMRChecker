@@ -144,6 +144,67 @@ def test_derives_archive_regions_from_template_field_blocks(tmp_path: Path) -> N
     assert regions[2].bbox == [39, 866, 251, 95]
 
 
+def test_derives_paddleocr_archive_regions_from_template_field_blocks(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    template_path.write_text(
+        """
+        {
+          "pageDimensions": [1000, 1000],
+          "bubbleDimensions": [29, 18],
+          "fieldBlocks": {
+            "blank_score_1": {
+              "engine": "paddleocr",
+              "fieldLabels": ["blankScore1"],
+              "origin": [120, 80],
+              "dimensions": [160, 60],
+              "regionCode": "blankScore",
+              "regionName": "填空题得分区域",
+              "type": "BLANK_SCORE",
+              "ocr": {"archiveRegion": true}
+            },
+            "solution_answer_2": {
+              "engine": "paddleocr",
+              "fieldLabels": ["solutionAnswer2"],
+              "origin": [100, 200],
+              "dimensions": [500, 220],
+              "regionCode": "solutionAnswer",
+              "regionName": "解答题解答区域",
+              "type": "SOLUTION_ANSWER"
+            },
+            "internal_note": {
+              "engine": "paddleocr",
+              "fieldLabels": ["internalNote"],
+              "origin": [10, 20],
+              "dimensions": [30, 40],
+              "regionCode": "internalNote",
+              "regionName": "内部备注区域",
+              "type": "INTERNAL_NOTE",
+              "ocr": {"archiveRegion": false}
+            }
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    regions = derive_archive_regions_from_template(template_path)
+
+    assert regions == [
+        RegionSpec(
+            region_code="blankScore",
+            region_name="填空题得分区域",
+            type="BLANK_SCORE",
+            bbox=[120, 80, 160, 60],
+        ),
+        RegionSpec(
+            region_code="solutionAnswer",
+            region_name="解答题解答区域",
+            type="SOLUTION_ANSWER",
+            bbox=[100, 200, 500, 220],
+        ),
+    ]
+
+
 def test_template_regions_json_overrides_derived_regions(tmp_path: Path) -> None:
     (tmp_path / "template.json").write_text('{"fieldBlocks": {}}', encoding="utf-8")
     (tmp_path / "regions.json").write_text(

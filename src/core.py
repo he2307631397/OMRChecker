@@ -15,6 +15,8 @@ from src.constants.common import (
     TEXT_SIZE,
 )
 from src.logger import logger
+from src.ocr.engine import PaddleOcrEngine
+from src.ocr.region import crop_ocr_region
 from src.utils.image import CLAHE_HELPER, ImageUtils
 from src.utils.interaction import InteractionUtils
 
@@ -24,11 +26,13 @@ class ImageInstanceOps:
 
     save_img_list: Any = defaultdict(list)
 
-    def __init__(self, tuning_config):
+    def __init__(self, tuning_config, ocr_engine=None):
         super().__init__()
         self.tuning_config = tuning_config
         self.save_image_level = tuning_config.outputs.save_image_level
         self.last_weak_fill_reviews = []
+        self.last_ocr_results = {}
+        self.ocr_engine = ocr_engine or PaddleOcrEngine()
 
     def apply_preprocessors(self, file_path, in_omr, template):
         tuning_config = self.tuning_config
@@ -45,6 +49,25 @@ class ImageInstanceOps:
             if in_omr is None:
                 break
         return in_omr
+
+    def read_ocr_response(self, image, field_block):
+        field_label = field_block.parsed_field_labels[0]
+        crop = crop_ocr_region(image, field_block)
+        result = self.ocr_engine.recognize(crop, field_block.ocr_options)
+        x, y = field_block.origin
+        width, height = field_block.dimensions
+        self.last_ocr_results[field_label] = {
+            "text": result.text,
+            "confidence": result.confidence,
+            "engine": "paddleocr",
+            "blockName": field_block.name,
+            "bbox": [x, y, width, height],
+            "regionCode": field_block.region_code,
+            "regionName": field_block.region_name,
+            "type": field_block.region_type,
+            "raw": result.raw,
+        }
+        return field_label, result.text
 
     @staticmethod
     def get_page_blank_model(q_vals):
@@ -1126,7 +1149,8 @@ class ImageInstanceOps:
             alpha = 0.65
             omr_response = {}
             self.last_weak_fill_reviews = []
-            multi_marked, multi_roll = 0, 0
+            self.last_ocr_results = {}
+            multi_marked, multi_roll = False, False
 
             # TODO Make this part useful for visualizing status checks
             # blackVals=[0]
@@ -1260,6 +1284,11 @@ class ImageInstanceOps:
             all_q_vals, all_q_strip_arrs, all_q_std_vals = [], [], []
             total_q_strip_no = 0
             for field_block in template.field_blocks:
+                if field_block.engine == "paddleocr":
+                    field_label, text = self.read_ocr_response(img, field_block)
+                    omr_response[field_label] = text
+                    continue
+
                 box_w, box_h = field_block.bubble_dimensions
                 q_std_vals = []
                 for field_block_bubbles in field_block.traverse_bubbles:
@@ -1283,9 +1312,12 @@ class ImageInstanceOps:
                     total_q_strip_no += 1
                 all_q_std_vals.extend(q_std_vals)
 
-            global_std_thresh, _, _ = self.get_global_threshold(
-                all_q_std_vals
-            )  # , "Q-wise Std-dev Plot", plot_show=True, sort_in_plot=True)
+            if all_q_vals:
+                global_std_thresh, _, _ = self.get_global_threshold(
+                    all_q_std_vals
+                )  # , "Q-wise Std-dev Plot", plot_show=True, sort_in_plot=True)
+            else:
+                global_std_thresh = 0.0
             # plt.show()
             # hist = getPlotImg()
             # InteractionUtils.show("StdHist", hist, 0, 1,config=config)
@@ -1293,7 +1325,10 @@ class ImageInstanceOps:
             # Note: Plotting takes Significant times here --> Change Plotting args
             # to support show_image_level
             # , "Mean Intensity Histogram",plot_show=True, sort_in_plot=True)
-            global_thr, _, _ = self.get_global_threshold(all_q_vals, looseness=4)
+            if all_q_vals:
+                global_thr, _, _ = self.get_global_threshold(all_q_vals, looseness=4)
+            else:
+                global_thr = 255.0
             page_blank_model = self.get_page_blank_model(all_q_vals)
             page_blank_baseline = page_blank_model["mean"]
 
@@ -1313,6 +1348,9 @@ class ImageInstanceOps:
 
             per_omr_threshold_avg, total_q_strip_no, total_q_box_no = 0, 0, 0
             for field_block in template.field_blocks:
+                if field_block.engine == "paddleocr":
+                    continue
+
                 block_q_strip_no = 1
                 box_w, box_h = field_block.bubble_dimensions
                 shift = field_block.shift
@@ -1600,7 +1638,9 @@ class ImageInstanceOps:
                     total_q_strip_no += 1
                 # /for field_block
 
-            per_omr_threshold_avg /= total_q_strip_no
+            per_omr_threshold_avg = (
+                per_omr_threshold_avg / total_q_strip_no if total_q_strip_no else 0.0
+            )
             per_omr_threshold_avg = round(per_omr_threshold_avg, 2)
             # Translucent
             cv2.addWeighted(

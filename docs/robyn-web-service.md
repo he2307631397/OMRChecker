@@ -93,7 +93,124 @@ python -X utf8 web\robyn_app.py
 
 Use this path for local or server deployment when you want the Robyn API to run in Docker with CPU-only PaddleOCR support. The compose service exposes the API on host port `8088` and keeps runtime data on the host.
 
-### 1. Prepare runtime files and directories
+### 1. Install server host dependencies
+
+The Docker deployment automatically installs the Python application dependencies, PaddleOCR CPU runtime, and Linux image-processing libraries inside the container image when you run `docker compose up -d --build omr-api`.
+
+The server host still needs Docker Engine, the Docker Compose plugin, Git, and network access to pull base images and Python packages.
+
+#### Ubuntu or Debian server
+
+Install Docker from the official Docker APT repository:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg git
+
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+For Debian, use the Debian Docker repository URL instead:
+
+```bash
+curl -fsSL https://download.docker.com/linux/debian/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+Then run the same `sudo apt-get update` and `sudo apt-get install ...` commands above.
+
+Verify Docker and Compose:
+
+```bash
+sudo docker version
+sudo docker compose version
+```
+
+Optional: allow the current user to run Docker without `sudo`. Log out and back in after this command:
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+If the server firewall is enabled, open the API port:
+
+```bash
+sudo ufw allow 8088/tcp
+```
+
+For cloud servers, also allow inbound TCP `8088` in the provider security group or firewall.
+
+#### CentOS, RHEL, Rocky Linux, or AlmaLinux server
+
+Install Docker and the Compose plugin:
+
+```bash
+sudo dnf install -y yum-utils git
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+```
+
+Verify Docker and Compose:
+
+```bash
+sudo docker version
+sudo docker compose version
+```
+
+Optional: allow the current user to run Docker without `sudo`. Log out and back in after this command:
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+If `firewalld` is enabled, open the API port:
+
+```bash
+sudo firewall-cmd --add-port=8088/tcp --permanent
+sudo firewall-cmd --reload
+```
+
+#### Offline or restricted-network servers
+
+The first image build needs access to:
+
+- Docker Hub, for `python:3.12-slim`.
+- Debian package mirrors, for `apt-get install` inside the image.
+- PyPI, for `requirements.txt`, `paddlepaddle==3.2.0`, and `paddleocr==3.7.0`.
+
+If the server cannot access these networks, build the image on a networked machine and transfer it:
+
+```bash
+docker compose build omr-api
+docker save omrchecker-paddleocr:local | gzip > omrchecker-paddleocr-local.tar.gz
+scp omrchecker-paddleocr-local.tar.gz user@server:/path/to/deploy/
+```
+
+On the server:
+
+```bash
+gunzip -c omrchecker-paddleocr-local.tar.gz | sudo docker load
+sudo docker compose up -d omr-api
+```
+
+### 2. Prepare runtime files and directories
 
 From the repository root:
 
@@ -106,7 +223,7 @@ If you need production COS batch recognition, create `config/robyn-service.json`
 
 For local mock-COS mode, keep COS disabled in `config/robyn-service.json` or omit the file and use the service defaults.
 
-### 2. Review Docker environment
+### 3. Review Docker environment
 
 The deployment defaults are defined in `.env.docker.example` and `docker-compose.yml`:
 
@@ -121,12 +238,18 @@ OMR_RECOGNITION_DEBUG_ARTIFACTS=false
 
 `OMR_SERVICE_HOST=0.0.0.0` is required inside Docker so host port forwarding can reach Robyn. The compose file maps `8088:8088`.
 
-### 3. Build and start the service
+### 4. Build and start the service
 
 Start or redeploy the API and leave it running for manual interface testing:
 
 ```bash
 docker compose up -d --build omr-api
+```
+
+If your deployment user is not in the `docker` group, use:
+
+```bash
+sudo docker compose up -d --build omr-api
 ```
 
 For a faster restart when the image is already built:
@@ -137,13 +260,15 @@ docker compose up -d omr-api
 
 Do not run `docker compose down` if you want to keep the API available for manual testing.
 
-### 4. Verify the deployment
+### 5. Verify the deployment
 
 Check service state:
 
 ```bash
 docker compose ps
 ```
+
+If you used `sudo` to start the service, also use `sudo docker compose ps`.
 
 Expected port mapping includes:
 
@@ -175,12 +300,36 @@ docker compose logs -f omr-api
 docker compose config
 ```
 
-### 5. Stop only when validation is finished
+### 6. Stop only when validation is finished
 
 When you no longer need the service running:
 
 ```bash
 docker compose down
+```
+
+### Non-Docker direct-run dependency note
+
+If you do not use Docker and run `python web/robyn_app.py` directly on the server, dependencies are not installed automatically. You must install system packages and Python packages on the host manually. Docker deployment is recommended because it keeps these dependencies isolated.
+
+Ubuntu/Debian direct-run example:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y python3.12 python3.12-venv python3-pip git \
+  curl fonts-noto-cjk libglib2.0-0 libgl1 libgomp1 libsm6 libxext6 libxrender1 poppler-utils
+
+python3.12 -m venv .venv-ocr-prod
+. .venv-ocr-prod/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install paddlepaddle==3.2.0 paddleocr==3.7.0
+
+OMR_SERVICE_HOST=0.0.0.0 \
+OMR_SERVICE_PORT=8088 \
+OMR_SERVICE_DATA_DIR=service_data \
+OMR_TEMPLATE_DIR=inputs \
+python web/robyn_app.py
 ```
 
 ## Health check

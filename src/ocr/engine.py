@@ -64,8 +64,20 @@ class PaddleOcrEngine:
     def recognize(self, image: Any, options: dict[str, Any] | None = None) -> OcrResult:
         options = options or {}
         paddle = self._get_instance(options)
-        raw = paddle.ocr(image)
+        raw = paddle.ocr(self._ensure_three_channel_image(image))
         return normalize_paddleocr_result(raw)
+
+    @staticmethod
+    def _ensure_three_channel_image(image: Any) -> Any:
+        shape = getattr(image, "shape", None)
+        if shape is None or len(shape) != 2:
+            return image
+
+        try:
+            cv2_module = importlib.import_module("cv2")
+        except ImportError:
+            return image
+        return cv2_module.cvtColor(image, cv2_module.COLOR_GRAY2BGR)
 
     def _get_instance(self, options: dict[str, Any]) -> Any:
         lang = options.get("lang", "ch")

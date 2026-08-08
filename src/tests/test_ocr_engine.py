@@ -2,6 +2,7 @@ import importlib
 import sys
 import types
 
+import numpy as np
 import pytest
 
 from src.ocr.engine import OcrResult, PaddleOcrEngine, normalize_paddleocr_result
@@ -103,3 +104,32 @@ def test_paddleocr_engine_uses_cpu_only_constructor_and_caches_by_lang_and_cls(
         }
     ]
     assert ocr_calls == ["image-1", "image-2"]
+
+
+def test_paddleocr_engine_converts_grayscale_crops_to_three_channels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ocr_calls = []
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            pass
+
+        def ocr(self, image):
+            ocr_calls.append(image)
+            return [{"rec_texts": ["8"], "rec_scores": [0.8]}]
+
+    fake_module = types.SimpleNamespace(PaddleOCR=FakePaddleOCR)
+    real_import_module = importlib.import_module
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        lambda name: fake_module if name == "paddleocr" else real_import_module(name),
+    )
+
+    grayscale = np.zeros((10, 12), dtype=np.uint8)
+
+    result = PaddleOcrEngine().recognize(grayscale)
+
+    assert result.text == "8"
+    assert ocr_calls[0].shape == (10, 12, 3)

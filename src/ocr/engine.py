@@ -20,6 +20,19 @@ class OcrEngine(Protocol):
 def normalize_paddleocr_result(raw: Any) -> OcrResult:
     lines: list[tuple[str, float]] = []
     for page in raw or []:
+        if isinstance(page, dict):
+            texts = page.get("rec_texts") or []
+            scores = page.get("rec_scores") or []
+            for text, confidence in zip(texts, scores, strict=False):
+                if text is None:
+                    continue
+                try:
+                    confidence_value = float(confidence)
+                except (TypeError, ValueError):
+                    confidence_value = 0.0
+                lines.append((str(text), confidence_value))
+            continue
+
         for item in page or []:
             if not item or len(item) < 2:
                 continue
@@ -51,18 +64,13 @@ class PaddleOcrEngine:
     def recognize(self, image: Any, options: dict[str, Any] | None = None) -> OcrResult:
         options = options or {}
         paddle = self._get_instance(options)
-        raw = paddle.ocr(
-            image,
-            det=options.get("det", True),
-            rec=options.get("rec", True),
-            cls=options.get("cls", True),
-        )
+        raw = paddle.ocr(image)
         return normalize_paddleocr_result(raw)
 
     def _get_instance(self, options: dict[str, Any]) -> Any:
         lang = options.get("lang", "ch")
-        use_angle_cls = bool(options.get("cls", True))
-        key = (lang, use_angle_cls)
+        use_textline_orientation = bool(options.get("cls", False))
+        key = (lang, use_textline_orientation)
         if key not in self._instances:
             try:
                 paddleocr_module = importlib.import_module("paddleocr")
@@ -74,7 +82,8 @@ class PaddleOcrEngine:
 
             self._instances[key] = paddleocr_module.PaddleOCR(
                 lang=lang,
-                use_angle_cls=use_angle_cls,
-                use_gpu=False,
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=use_textline_orientation,
             )
         return self._instances[key]

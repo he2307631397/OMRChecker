@@ -20,6 +20,42 @@
         396
       ]
     },
+    "FillScoreOcr": {
+      "engine": "paddleocr",
+      "fieldLabels": [
+        "fill_score_text"
+      ],
+      "origin": [
+        780,
+        1060
+      ],
+      "dimensions": [
+        330,
+        120
+      ],
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "SolutionAnswerOcr": {
+      "engine": "paddleocr",
+      "fieldLabels": [
+        "solution_answer_text"
+      ],
+      "origin": [
+        85,
+        1190
+      ],
+      "dimensions": [
+        1020,
+        380
+      ],
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
     "Q1": {
       "bubbleDimensions": [
         29,
@@ -219,7 +255,9 @@
     "q8",
     "q9",
     "q10",
-    "q11"
+    "q11",
+    "fill_score_text",
+    "solution_answer_text"
   ],
   "pageDimensions": [
     1190,

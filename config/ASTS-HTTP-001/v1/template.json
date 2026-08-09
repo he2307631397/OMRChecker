@@ -366,26 +366,26 @@
   ],
   "archiveRegions": [
     {
-      "regionCode": "FillBlankReview",
-      "regionName": "填空题人工审核区域",
-      "type": "FILL_BLANK_REVIEW",
       "bbox": [
         65,
         1015,
         1050,
         160
-      ]
+      ],
+      "regionCode": "FillBlankReview",
+      "regionName": "填空题人工审核区域",
+      "type": "FILL_BLANK_REVIEW"
     },
     {
-      "regionCode": "SolutionQ14Review",
-      "regionName": "第14题解答题人工审核区域",
-      "type": "SOLUTION_REVIEW",
       "bbox": [
         65,
         1190,
         1050,
         445
-      ]
+      ],
+      "regionCode": "SolutionQ14Review",
+      "regionName": "第14题解答题人工审核区域",
+      "type": "SOLUTION_REVIEW"
     }
   ]
 }

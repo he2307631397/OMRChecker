@@ -27,6 +27,40 @@ zero_to_one_number = {
     "maximum": 1,
 }
 
+ocr_options_schema = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "lang": {"type": "string"},
+        "det": {"type": "boolean"},
+        "rec": {"type": "boolean"},
+        "cls": {"type": "boolean"},
+        "returnConfidence": {"type": "boolean"},
+        "archiveRegion": {"type": "boolean"},
+    },
+}
+
+field_block_ocrs_schema = {
+    "description": "OCR recognition regions parsed with PaddleOCR",
+    "type": "object",
+    "patternProperties": {
+        "^.*$": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["origin", "dimensions", "fieldLabels"],
+            "properties": {
+                "fieldLabels": {"type": "array", "items": FIELD_STRING_TYPE},
+                "origin": two_positive_integers,
+                "dimensions": two_positive_integers,
+                "regionCode": {"type": "string"},
+                "regionName": {"type": "string"},
+                "type": {"type": "string"},
+                "ocr": ocr_options_schema,
+            },
+        }
+    },
+}
+
 TEMPLATE_SCHEMA = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://github.com/Udayraj123/OMRChecker/tree/master/src/schemas/template-schema.json",
@@ -239,18 +273,7 @@ TEMPLATE_SCHEMA = {
                             "type": "string",
                             "enum": list(FIELD_TYPES.keys()),
                         },
-                        "ocr": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                "lang": {"type": "string"},
-                                "det": {"type": "boolean"},
-                                "rec": {"type": "boolean"},
-                                "cls": {"type": "boolean"},
-                                "returnConfidence": {"type": "boolean"},
-                                "archiveRegion": {"type": "boolean"},
-                            },
-                        },
+                        "ocr": ocr_options_schema,
                     },
                     "allOf": [
                         {
@@ -271,6 +294,7 @@ TEMPLATE_SCHEMA = {
                 }
             },
         },
+        "fieldBlockOcrs": field_block_ocrs_schema,
         "emptyValue": {
             "description": "The value to be used in case of empty bubble detected at global level.",
             "type": "string",

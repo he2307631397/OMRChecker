@@ -20,132 +20,6 @@
         396
       ]
     },
-    "FillBlankScoreOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "fill_blank_score_text"
-      ],
-      "origin": [
-        125,
-        1040
-      ],
-      "dimensions": [
-        95,
-        60
-      ],
-      "regionCode": "FillBlank",
-      "regionName": "填空题",
-      "type": "score",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
-    "FillQ12AnswerOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "fill_q12_answer_text"
-      ],
-      "origin": [
-        170,
-        1110
-      ],
-      "dimensions": [
-        225,
-        50
-      ],
-      "regionCode": "Q12",
-      "regionName": "第12题填空题",
-      "type": "answer",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
-    "FillQ13AnswerOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "fill_q13_answer_text"
-      ],
-      "origin": [
-        485,
-        1110
-      ],
-      "dimensions": [
-        225,
-        50
-      ],
-      "regionCode": "Q13",
-      "regionName": "第13题填空题",
-      "type": "answer",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
-    "FillQ14AnswerOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "fill_q14_answer_text"
-      ],
-      "origin": [
-        790,
-        1110
-      ],
-      "dimensions": [
-        225,
-        50
-      ],
-      "regionCode": "Q14",
-      "regionName": "第14题填空题",
-      "type": "answer",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
-    "Q14ScoreOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "q14_score_text"
-      ],
-      "origin": [
-        125,
-        1215
-      ],
-      "dimensions": [
-        95,
-        65
-      ],
-      "regionCode": "Q14",
-      "regionName": "第14题解答题",
-      "type": "score",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
-    "Q14AnswerOcr": {
-      "engine": "paddleocr",
-      "fieldLabels": [
-        "solution_q14_answer_text"
-      ],
-      "origin": [
-        85,
-        1285
-      ],
-      "dimensions": [
-        1020,
-        290
-      ],
-      "regionCode": "Q14",
-      "regionName": "第14题解答题",
-      "type": "answer",
-      "ocr": {
-        "lang": "ch",
-        "archiveRegion": true
-      }
-    },
     "Q1": {
       "bubbleDimensions": [
         29,
@@ -324,6 +198,128 @@
         134,
         933
       ]
+    }
+  },
+  "fieldBlockOcrs": {
+    "FillBlankScoreOcr": {
+      "fieldLabels": [
+        "fill_blank_score_text"
+      ],
+      "origin": [
+        125,
+        1040
+      ],
+      "dimensions": [
+        95,
+        60
+      ],
+      "regionCode": "FillBlank",
+      "regionName": "填空题",
+      "type": "score",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ12AnswerOcr": {
+      "fieldLabels": [
+        "fill_q12_answer_text"
+      ],
+      "origin": [
+        170,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q12",
+      "regionName": "第12题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ13AnswerOcr": {
+      "fieldLabels": [
+        "fill_q13_answer_text"
+      ],
+      "origin": [
+        485,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q13",
+      "regionName": "第13题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ14AnswerOcr": {
+      "fieldLabels": [
+        "fill_q14_answer_text"
+      ],
+      "origin": [
+        790,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "Q14ScoreOcr": {
+      "fieldLabels": [
+        "q14_score_text"
+      ],
+      "origin": [
+        125,
+        1215
+      ],
+      "dimensions": [
+        95,
+        65
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题解答题",
+      "type": "score",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "Q14AnswerOcr": {
+      "fieldLabels": [
+        "solution_q14_answer_text"
+      ],
+      "origin": [
+        85,
+        1285
+      ],
+      "dimensions": [
+        1020,
+        290
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题解答题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
     }
   },
   "outputColumns": [

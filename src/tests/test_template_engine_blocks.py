@@ -352,3 +352,27 @@ def test_field_block_ocrs_are_not_polluted_by_empty_omr_defaults(tmp_path: Path)
     assert len(template.field_blocks) == 1
     assert template.field_blocks[0].engine == "paddleocr"
     assert template.field_blocks[0].ocr_options["lang"] == "ch"
+
+
+def test_field_block_ocrs_reject_omr_only_defaults(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        "{}",
+        '["blankScore1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["blankScore1"],
+            "origin": [300, 100],
+            "dimensions": [160, 60],
+            "bubblesGap": null,
+            "labelsGap": null,
+            "fieldType": ""
+          }
+        }
+        """,
+    )
+
+    with pytest.raises(Exception):
+        Template(template_path, CONFIG_DEFAULTS)

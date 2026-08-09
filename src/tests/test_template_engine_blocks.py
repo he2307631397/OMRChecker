@@ -217,3 +217,138 @@ def test_field_block_ocrs_parse_as_paddleocr_blocks(tmp_path: Path) -> None:
         "lang": "ch",
     }
     assert ocr_block.traverse_bubbles == []
+
+
+def test_field_block_ocrs_require_dimensions(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        """
+        {
+          "choice_area_1": {
+            "fieldType": "QTYPE_MCQ4",
+            "fieldLabels": ["q1"],
+            "origin": [100, 100],
+            "bubblesGap": 40,
+            "labelsGap": 30
+          }
+        }
+        """,
+        '["q1", "blankScore1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["blankScore1"],
+            "origin": [300, 100]
+          }
+        }
+        """,
+    )
+
+    with pytest.raises(Exception):
+        Template(template_path, CONFIG_DEFAULTS)
+
+
+def test_field_block_ocrs_labels_cannot_overlap_omr_labels(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        """
+        {
+          "choice_area_1": {
+            "fieldType": "QTYPE_MCQ4",
+            "fieldLabels": ["q1"],
+            "origin": [100, 100],
+            "bubblesGap": 40,
+            "labelsGap": 30
+          }
+        }
+        """,
+        '["q1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["q1"],
+            "origin": [300, 100],
+            "dimensions": [160, 60]
+          }
+        }
+        """,
+    )
+
+    with pytest.raises(
+        Exception,
+        match="The field strings for field block blank_score_1 overlap with other existing fields",
+    ):
+        Template(template_path, CONFIG_DEFAULTS)
+
+
+def test_field_block_ocrs_must_stay_inside_page_dimensions(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        "{}",
+        '["blankScore1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["blankScore1"],
+            "origin": [950, 950],
+            "dimensions": [100, 100]
+          }
+        }
+        """,
+    )
+
+    with pytest.raises(
+        Exception,
+        match="Overflowing field block 'blank_score_1' with origin \\[950, 950\\] and dimensions \\[100, 100\\] in template with dimensions \\[1000, 1000\\]",
+    ):
+        Template(template_path, CONFIG_DEFAULTS)
+
+
+def test_field_blocks_remain_strict_omr_blocks(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        """
+        {
+          "choice_area_1": {
+            "fieldLabels": ["q1"],
+            "origin": [100, 100],
+            "bubblesGap": null,
+            "labelsGap": null,
+            "fieldType": ""
+          }
+        }
+        """,
+        '["q1"]',
+    )
+
+    with pytest.raises(Exception):
+        Template(template_path, CONFIG_DEFAULTS)
+
+
+def test_field_block_ocrs_are_not_polluted_by_empty_omr_defaults(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        "{}",
+        '["blankScore1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["blankScore1"],
+            "origin": [300, 100],
+            "dimensions": [160, 60],
+            "ocr": {"lang": "ch"}
+          }
+        }
+        """,
+    )
+
+    template = Template(template_path, CONFIG_DEFAULTS)
+
+    assert len(template.field_blocks) == 1
+    assert template.field_blocks[0].engine == "paddleocr"
+    assert template.field_blocks[0].ocr_options["lang"] == "ch"

@@ -26,6 +26,7 @@ class Template:
         (
             custom_labels_object,
             field_blocks_object,
+            field_block_ocrs_object,
             output_columns_array,
             pre_processors_object,
             self.bubble_dimensions,
@@ -37,6 +38,7 @@ class Template:
             [
                 "customLabels",
                 "fieldBlocks",
+                "fieldBlockOcrs",
                 "outputColumns",
                 "preProcessors",
                 "bubbleDimensions",
@@ -48,7 +50,7 @@ class Template:
 
         self.parse_output_columns(output_columns_array)
         self.setup_pre_processors(pre_processors_object, template_path.parent)
-        self.setup_field_blocks(field_blocks_object)
+        self.setup_field_blocks(field_blocks_object, field_block_ocrs_object or {})
         self.parse_custom_labels(custom_labels_object)
 
         non_custom_columns, all_custom_columns = (
@@ -76,12 +78,15 @@ class Template:
             )
             self.pre_processors.append(pre_processor_instance)
 
-    def setup_field_blocks(self, field_blocks_object):
+    def setup_field_blocks(self, field_blocks_object, field_block_ocrs_object=None):
         # Add field_blocks
         self.field_blocks = []
         self.all_parsed_labels = set()
         for block_name, field_block_object in field_blocks_object.items():
             self.parse_and_add_field_block(block_name, field_block_object)
+
+        for block_name, field_block_object in (field_block_ocrs_object or {}).items():
+            self.parse_and_add_ocr_field_block(block_name, field_block_object)
 
     def parse_custom_labels(self, custom_labels_object):
         all_parsed_custom_labels = set()
@@ -150,6 +155,16 @@ class Template:
 
     def parse_and_add_field_block(self, block_name, field_block_object):
         field_block_object = self.pre_fill_field_block(field_block_object)
+        block_instance = FieldBlock(block_name, field_block_object)
+        self.field_blocks.append(block_instance)
+        self.validate_parsed_labels(field_block_object["fieldLabels"], block_instance)
+
+    def parse_and_add_ocr_field_block(self, block_name, field_block_object):
+        field_block_object = {
+            "engine": "paddleocr",
+            "ocr": {},
+            **field_block_object,
+        }
         block_instance = FieldBlock(block_name, field_block_object)
         self.field_blocks.append(block_instance)
         self.validate_parsed_labels(field_block_object["fieldLabels"], block_instance)

@@ -6,12 +6,14 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
+from src.defaults.config import CONFIG_DEFAULTS
 from src.services.batch_models import BatchRecognitionRequest, BatchSheetRequest
 from src.services.batch_models import ArtifactPayload
 from src.services.cos_client import LocalCosClient
 from src.services.service_config import ArchiveRegionConfig, CallbackConfig, RecognitionConfig, ServiceConfig, StorageConfig
 from src.services.task_store import TaskStore
 from src.services.batch_service import BatchRecognitionService, RecognitionOutput
+from src.template import Template
 
 
 def _make_store(tmp_path: Path) -> TaskStore:
@@ -546,6 +548,62 @@ def test_process_batch_merges_template_config_with_central_template_for_field_bl
     service.submit_batch(request)
 
     assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_recognition_stage_validates_central_template_field_block_ocrs(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    monkeypatch.chdir(tmp_path)
+
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        external_batch_id="external-batch-1",
+        callback_url=None,
+        template_code="WEB-FIELD-BLOCK-OCRS",
+        schema_version="v1",
+        recognition_config={
+            "templateConfig": {
+                "pageDimensions": [1190, 1682],
+                "bubbleDimensions": [29, 18],
+                "preProcessors": [],
+                "fieldBlocks": {},
+                "fieldBlockOcrs": {
+                    "blank_score_1": {
+                        "fieldLabels": ["blankScore1"],
+                        "origin": [120, 80],
+                        "dimensions": [160, 60],
+                        "regionCode": "blankScore",
+                        "regionName": "填空题得分区域",
+                        "type": "BLANK_SCORE",
+                        "ocr": {"archiveRegion": True},
+                    }
+                },
+                "outputColumns": ["blankScore1"],
+                "customLabels": {},
+            }
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+
+    def template_validating_runner(context):
+        Template(context.template_dir / "template.json", CONFIG_DEFAULTS)
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=template_validating_runner,
+        task_id_factory=lambda: "task-1",
+    )
+
+    service.submit_batch(request)
+    result = service.process_batch("task-1")
+
+    assert result.status == "completed"
+    assert result.sheets[0].status == "completed"
+    assert result.sheets[0].error is None
 
 
 def test_process_batch_derives_archive_regions_from_template_code_schema(monkeypatch, tmp_path: Path) -> None:

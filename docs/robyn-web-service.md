@@ -337,6 +337,27 @@ OMR_TEMPLATE_DIR=inputs \
 python web/robyn_app.py
 ```
 
+Windows direct-run example from the repository root:
+
+```powershell
+winget install --id Python.Python.3.12 --source winget
+py -3.12 -m venv .venv-ocr-prod
+.\.venv-ocr-prod\Scripts\python.exe -m pip install --upgrade pip
+.\.venv-ocr-prod\Scripts\python.exe -m pip install -r requirements.txt paddlepaddle==3.2.0 paddleocr==3.7.0
+
+$env:OMR_SERVICE_HOST = "0.0.0.0"
+$env:OMR_SERVICE_PORT = "8088"
+$env:OMR_SERVICE_DATA_DIR = "service_data"
+$env:OMR_TEMPLATE_DIR = "inputs"
+.\.venv-ocr-prod\Scripts\python.exe web\robyn_app.py
+```
+
+For `cmd.exe`, use `set OMR_SERVICE_PORT=8088` style environment assignments before the final Python command. Verify the OCR runtime before starting the service:
+
+```powershell
+.\.venv-ocr-prod\Scripts\python.exe -c "import paddle, paddleocr; print(paddle.__version__); print(getattr(paddleocr, '__version__', 'unknown'))"
+```
+
 ## Health check
 
 ### `GET /health`

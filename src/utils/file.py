@@ -29,7 +29,7 @@ OCR_RESULTS_COLUMNS = [
 
 def load_json(path, **rest):
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             loaded = json.load(f, **rest)
     except json.decoder.JSONDecodeError as error:
         logger.critical(f"Error when loading json file at: '{path}'\n{error}")

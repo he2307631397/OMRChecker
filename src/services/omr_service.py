@@ -304,7 +304,7 @@ def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]
         return {}
 
     metadata: dict[str, dict[str, Any]] = {}
-    for region_code, field_block in (template.get("fieldBlocks") or {}).items():
+    for region_code, field_block in _iter_template_field_blocks(template):
         field_type = field_block.get("fieldType") or "__CUSTOM__"
         merged = {**FIELD_TYPES.get(field_type, {}), **field_block}
         try:
@@ -321,6 +321,15 @@ def _load_field_region_metadata(template_dir: Path) -> dict[str, dict[str, Any]]
                 "engine": engine,
             }
     return metadata
+
+
+def _iter_template_field_blocks(template: dict[str, Any]):
+    for region_code, field_block in (template.get("fieldBlocks") or {}).items():
+        if isinstance(field_block, dict):
+            yield region_code, field_block
+    for region_code, field_block in (template.get("fieldBlockOcrs") or {}).items():
+        if isinstance(field_block, dict):
+            yield region_code, {"engine": "paddleocr", **field_block}
 
 
 def _default_business_region_for_field_block(field_type: str, field_block: dict[str, Any]) -> dict[str, str]:

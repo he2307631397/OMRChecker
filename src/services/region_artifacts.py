@@ -79,6 +79,13 @@ def derive_archive_regions_from_template(template_path: str | Path, *, margin: i
         if bbox is not None:
             grouped[region_code].append(bbox)
 
+    for field_block in (template.get("fieldBlockOcrs") or {}).values():
+        if not isinstance(field_block, dict):
+            continue
+        ocr_spec = _ocr_region_spec_for_field_block({"engine": "paddleocr", **field_block})
+        if ocr_spec is not None:
+            ocr_specs.append(ocr_spec)
+
     specs = []
     labels = {
         "candidateNumber": ("准考证号区域", "DIGIT"),

@@ -477,7 +477,7 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     assert service.process_batch("task-1").status == "completed"
 
 
-def test_process_batch_merges_template_config_with_central_template_for_ocr_blocks(monkeypatch, tmp_path: Path) -> None:
+def test_process_batch_merges_template_config_with_central_template_for_field_block_ocrs(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")
     _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
@@ -491,9 +491,9 @@ def test_process_batch_merges_template_config_with_central_template_for_ocr_bloc
                 "bubbleDimensions": [29, 18],
                 "preProcessors": [],
                 "outputColumns": ["q14_score_text"],
-                "fieldBlocks": {
+                "fieldBlocks": {},
+                "fieldBlockOcrs": {
                     "Q14ScoreOcr": {
-                        "engine": "paddleocr",
                         "fieldLabels": ["q14_score_text"],
                         "origin": [125, 1215],
                         "dimensions": [95, 65],
@@ -515,7 +515,7 @@ def test_process_batch_merges_template_config_with_central_template_for_ocr_bloc
             "schemaVersion": "v1",
             "recognitionConfig": {
                 "templateConfig": {
-                    "fieldBlocks": {
+                    "fieldBlockOcrs": {
                         "Q14ScoreOcr": {
                             "fieldLabels": ["q14_score_text"],
                             "origin": [125, 1215],
@@ -530,8 +530,7 @@ def test_process_batch_merges_template_config_with_central_template_for_ocr_bloc
 
     def fake_runner(context):
         written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
-        q14_score = written_template["fieldBlocks"]["Q14ScoreOcr"]
-        assert q14_score["engine"] == "paddleocr"
+        q14_score = written_template["fieldBlockOcrs"]["Q14ScoreOcr"]
         assert q14_score["dimensions"] == [95, 65]
         assert q14_score["fieldLabels"] == ["q14_score_text"]
         assert q14_score["origin"] == [125, 1215]
@@ -568,9 +567,10 @@ def test_process_batch_derives_archive_regions_from_template_code_schema(monkeyp
                         "bubbleDimensions": [30, 17],
                         "bubblesGap": 27,
                         "labelsGap": 44,
-                    },
+                    }
+                },
+                "fieldBlockOcrs": {
                     "blank_score_1": {
-                        "engine": "paddleocr",
                         "fieldLabels": ["blankScore1"],
                         "origin": [120, 80],
                         "dimensions": [160, 60],

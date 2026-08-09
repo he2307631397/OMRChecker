@@ -126,9 +126,11 @@ def test_read_results_csv_includes_template_paddleocr_fields_with_confidence(tmp
           "preProcessors": [],
           "fieldBlocks": {
             "student_id_area": {"fieldType": "QTYPE_INT", "fieldLabels": ["id1"], "origin": [0, 20], "bubblesGap": 10, "labelsGap": 10},
-            "choice_area_1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "origin": [0, 0], "bubblesGap": 10, "labelsGap": 10},
-            "blank_score_1": {"engine": "paddleocr", "fieldLabels": ["blankScore1"], "origin": [120, 80], "dimensions": [160, 60], "regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "ocr": {"archiveRegion": true}},
-            "solution_answer_2": {"engine": "paddleocr", "fieldLabels": ["solutionAnswer2"], "origin": [100, 200], "dimensions": [500, 220], "regionCode": "solutionAnswer", "regionName": "解答题解答区域", "type": "SOLUTION_ANSWER", "ocr": {"archiveRegion": true}}
+            "choice_area_1": {"fieldType": "QTYPE_MCQ4", "fieldLabels": ["q1"], "origin": [0, 0], "bubblesGap": 10, "labelsGap": 10}
+          },
+          "fieldBlockOcrs": {
+            "blank_score_1": {"fieldLabels": ["blankScore1"], "origin": [120, 80], "dimensions": [160, 60], "regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "ocr": {"archiveRegion": true}},
+            "solution_answer_2": {"fieldLabels": ["solutionAnswer2"], "origin": [100, 200], "dimensions": [500, 220], "regionCode": "solutionAnswer", "regionName": "解答题解答区域", "type": "SOLUTION_ANSWER", "ocr": {"archiveRegion": true}}
           },
           "outputColumns": ["id1", "q1", "blankScore1", "solutionAnswer2"],
           "customLabels": {}

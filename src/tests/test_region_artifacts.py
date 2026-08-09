@@ -39,7 +39,7 @@ def test_crops_two_configured_large_regions_and_returns_metadata(tmp_path: Path)
         task_id="task-1",
     )
 
-    assert [artifact.artifact_type for artifact in artifacts] == ["region_screenshot", "region_screenshot"]
+    assert [artifact.artifact_type for artifact in artifacts] == ["exam_no", "single_choice"]
     assert Path(artifacts[0].metadata["localPath"]).exists()
     assert artifacts[0].metadata == {
         "localPath": artifacts[0].metadata["localPath"],

@@ -162,7 +162,7 @@ def generate_region_artifacts(
 
         artifacts.append(
             ArtifactPayload(
-                artifact_type="region_screenshot",
+                artifact_type=region.region_code,
                 osskey=str(local_path),
                 metadata=metadata,
             )

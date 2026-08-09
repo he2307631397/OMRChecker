@@ -165,7 +165,7 @@ class SheetRecognitionResult:
         region_images = [
             _region_image_payload(artifact)
             for artifact in self.artifacts
-            if artifact.artifact_type == "region_screenshot"
+            if _is_region_artifact(artifact)
         ]
         if region_images:
             payload["regionImages"] = region_images
@@ -298,6 +298,11 @@ def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:
     for sheet in sheets:
         counts[sheet.status] = counts.get(sheet.status, 0) + 1
     return counts
+
+
+def _is_region_artifact(artifact: ArtifactPayload) -> bool:
+    metadata = artifact.metadata or {}
+    return "regionCode" in metadata
 
 
 def _region_image_payload(artifact: ArtifactPayload) -> dict[str, Any]:

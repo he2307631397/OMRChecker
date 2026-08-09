@@ -131,9 +131,9 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
                 result={"answers": ["A", "B"], "score": 2},
                 artifacts=[
                     ArtifactPayload(
-                        artifact_type="region_screenshot",
+                        artifact_type="businessLarge",
                         osskey="artifacts/task-1/sheet-1/region-1.png",
-                        metadata={"region": "business-large"},
+                        metadata={"regionCode": "businessLarge", "regionName": "大题区域"},
                     )
                 ],
             ),
@@ -166,15 +166,17 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
                 "result": {"answers": ["A", "B"], "score": 2},
                 "artifacts": [
                     {
-                        "artifactType": "region_screenshot",
+                        "artifactType": "businessLarge",
                         "osskey": "artifacts/task-1/sheet-1/region-1.png",
-                        "metadata": {"region": "business-large"},
+                        "metadata": {"regionCode": "businessLarge", "regionName": "大题区域"},
                     }
                 ],
                 "regionImages": [
                     {
                         "osskey": "artifacts/task-1/sheet-1/region-1.png",
                         "uploadStatus": "uploaded",
+                        "regionCode": "businessLarge",
+                        "regionName": "大题区域",
                     }
                 ],
             },

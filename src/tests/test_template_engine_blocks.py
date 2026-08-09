@@ -6,7 +6,17 @@ from src.defaults.config import CONFIG_DEFAULTS
 from src.template import Template
 
 
-def _write_template(path: Path, field_blocks: str, output_columns: str = '[]') -> None:
+def _write_template(
+    path: Path,
+    field_blocks: str,
+    output_columns: str = '[]',
+    field_block_ocrs: str | None = None,
+) -> None:
+    field_block_ocrs_json = (
+        f',\n          "fieldBlockOcrs": {field_block_ocrs}'
+        if field_block_ocrs is not None
+        else ""
+    )
     path.write_text(
         f"""
         {{
@@ -14,7 +24,7 @@ def _write_template(path: Path, field_blocks: str, output_columns: str = '[]') -
           "bubbleDimensions": [20, 20],
           "emptyValue": "",
           "preProcessors": [],
-          "fieldBlocks": {field_blocks},
+          "fieldBlocks": {field_blocks}{field_block_ocrs_json},
           "outputColumns": {output_columns},
           "customLabels": {{}}
         }}
@@ -155,3 +165,55 @@ def test_paddleocr_block_must_resolve_to_single_field_label(tmp_path: Path) -> N
 
     with pytest.raises(Exception, match="must resolve to exactly one field label"):
         Template(template_path, CONFIG_DEFAULTS)
+
+
+def test_field_block_ocrs_parse_as_paddleocr_blocks(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        """
+        {
+          "choice_area_1": {
+            "fieldType": "QTYPE_MCQ4",
+            "fieldLabels": ["q1"],
+            "origin": [100, 100],
+            "bubblesGap": 40,
+            "labelsGap": 30
+          }
+        }
+        """,
+        '["q1", "blankScore1"]',
+        """
+        {
+          "blank_score_1": {
+            "fieldLabels": ["blankScore1"],
+            "origin": [300, 100],
+            "dimensions": [160, 60],
+            "regionCode": "blankScore",
+            "regionName": "填空题得分区域",
+            "type": "BLANK_SCORE",
+            "ocr": {"lang": "ch", "archiveRegion": true}
+          }
+        }
+        """,
+    )
+
+    template = Template(template_path, CONFIG_DEFAULTS)
+
+    assert len(template.field_blocks) == 2
+    omr_block = template.field_blocks[0]
+    ocr_block = template.field_blocks[1]
+    assert omr_block.engine == "omr"
+    assert ocr_block.engine == "paddleocr"
+    assert ocr_block.parsed_field_labels == ["blankScore1"]
+    assert ocr_block.origin == [300, 100]
+    assert ocr_block.dimensions == [160, 60]
+    assert ocr_block.region_code == "blankScore"
+    assert ocr_block.region_name == "填空题得分区域"
+    assert ocr_block.region_type == "BLANK_SCORE"
+    assert ocr_block.ocr_options == {
+        "returnConfidence": True,
+        "archiveRegion": True,
+        "lang": "ch",
+    }
+    assert ocr_block.traverse_bubbles == []

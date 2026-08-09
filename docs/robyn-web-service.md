@@ -185,6 +185,8 @@ Optional: allow the current user to run Docker without `sudo`. Log out and back 
 sudo usermod -aG docker "$USER"
 ```
 
+If production COS batch recognition is enabled, the Python dependency set must include Tencent COS SDK `cos-python-sdk-v5`, which provides the `qcloud_cos` import used by the service.
+
 If `firewalld` is enabled, open the API port:
 
 ```bash

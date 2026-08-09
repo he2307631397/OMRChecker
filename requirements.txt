@@ -9,3 +9,4 @@ screeninfo>=0.8.1
 PyMuPDF>=1.23.0
 opencv-python>=5.0.0
 robyn>=0.68.0
+cos-python-sdk-v5>=1.9.44

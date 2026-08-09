@@ -360,7 +360,8 @@ class BatchRecognitionService:
         if isinstance(template, dict):
             normalized_template = _drop_none_values(template)
             if normalized_template:
-                _write_json(workdir / "template.json", normalized_template)
+                template_path = workdir / "template.json"
+                _write_json(template_path, _merge_json_file(template_path, normalized_template))
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
 
@@ -446,6 +447,29 @@ def _safe_config_dependency_dir(*parts: str) -> Path:
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _merge_json_file(path: Path, override: dict) -> dict:
+    if not path.exists():
+        return override
+    try:
+        base = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return override
+    if not isinstance(base, dict):
+        return override
+    return _deep_merge_dicts(base, override)
+
+
+def _deep_merge_dicts(base: dict, override: dict) -> dict:
+    merged = dict(base)
+    for key, value in override.items():
+        base_value = merged.get(key)
+        if isinstance(base_value, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge_dicts(base_value, value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def _normalize_runtime_config(config: dict) -> dict:

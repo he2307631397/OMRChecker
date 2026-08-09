@@ -477,6 +477,78 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_merges_template_config_with_central_template_for_ocr_blocks(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    (config_v1 / "reference.png").write_bytes(b"reference")
+    (config_v1 / "template.json").write_text(
+        json.dumps(
+            {
+                "pageDimensions": [1190, 1682],
+                "bubbleDimensions": [29, 18],
+                "preProcessors": [],
+                "outputColumns": ["q14_score_text"],
+                "fieldBlocks": {
+                    "Q14ScoreOcr": {
+                        "engine": "paddleocr",
+                        "fieldLabels": ["q14_score_text"],
+                        "origin": [125, 1215],
+                        "dimensions": [95, 65],
+                        "regionCode": "Q14",
+                        "regionName": "第14题解答题",
+                        "type": "score",
+                        "ocr": {"lang": "ch", "archiveRegion": True},
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "callbackUrl": None,
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
+            "recognitionConfig": {
+                "templateConfig": {
+                    "fieldBlocks": {
+                        "Q14ScoreOcr": {
+                            "fieldLabels": ["q14_score_text"],
+                            "origin": [125, 1215],
+                        }
+                    }
+                }
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        q14_score = written_template["fieldBlocks"]["Q14ScoreOcr"]
+        assert q14_score["engine"] == "paddleocr"
+        assert q14_score["dimensions"] == [95, 65]
+        assert q14_score["fieldLabels"] == ["q14_score_text"]
+        assert q14_score["origin"] == [125, 1215]
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_derives_archive_regions_from_template_code_schema(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

@@ -88,7 +88,12 @@ For Windows paths with Chinese characters, start with UTF-8 mode:
 ```cmd
 python -X utf8 web\robyn_app.py
 ```
-
+```cmd
+python3 main.py
+```
+```cmd
+ python3 main.py -i inputs -o outputs
+```
 ## Docker Compose deployment on port 8088
 
 Use this path for local or server deployment when you want the Robyn API to run in Docker with CPU-only PaddleOCR support. The compose service exposes the API on host port `8088` and keeps runtime data on the host.

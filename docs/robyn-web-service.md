@@ -1382,90 +1382,195 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
 - There is no authentication or request signing in the current implementation.
 - There is no dedicated endpoint for callback attempt history yet.
 
-### 返回结果针对优化参考；
+### 回调返回结果参数整体结构优化参考；
 
- "answers": [
-
-    {
-
-      "regionCode": "candidateNumber",
-
-      "regionName": "准考证号区域",
-
-      "type": "DIGIT",
-
-      "items": [
-
-        {
-
-          "field": "id1",
-
-          "value": "2",
-
-          "confidence": 1.0
-
-        },
-
-        {
-
-          "field": "id2",
-
-          "value": "0",
-
-          "confidence": 1.0
-
-        }
-
-      ]
-
-    },
-
-    {
-
-      "regionCode": "singleChoice",
-
-      "regionName": "单选题区域",
-
-      "type": "SINGLE_CHOICE",
-
-      "items": [
-
-        {
-
-          "field": "q1",
-
-          "value": "A",
-
-          "confidence": 1.0
-
-        }
-
-      ]
-
-    },
-
-    {
-
-      "regionCode": "multipleChoice",
-
-      "regionName": "多选题区域",
-
-      "type": "MULTIPLE_CHOICE",
-
-      "items": [
-
-        {
-
-          "field": "q9",
-
-          "value": "AC",
-
-          "confidence": 1.0
-
-        }
-
-      ]
-
-    }
-
-  ]
+ {
+   "taskId": "ff1e0dc25a4e4dbd87e7eb4a1fd60f76",
+   "examId": "17",
+   "externalBatchId": "scan_batch_file:1786326808199",
+   "status": "completed",
+   "aggregateCounts": {
+     "completed": 33,
+     "total": 33
+   },
+   "sheets": [
+     {
+       "sheetId": "1",
+       "status": "completed",
+       "score": "0",
+       "sourceOsskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/07/f_4f612dd1db0d4149b9a1af30ac620aa3.pdf",
+       "checkedImageOsskey": "checked/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/f_4f612dd1db0d4149b9a1af30ac620aa3.png",
+       "exam_id": "27423564",
+       "file_id": "f_4f612dd1db0d4149b9a1af30ac620aa3.png",
+       "review_required": true,
+       "weak_marks": [],
+       "answers": [
+         {
+           "type": "DIGIT",
+           "regionCode": "candidateNumber",
+           "regionName": "准考证号区域",
+           "osskey": "artifacts/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/3/001_3_candidateNumber_准考证号区域.png",
+           "items": [
+             {
+               "field": "id1",
+               "value": "2",
+               "confidence": 1
+             },
+             {
+               "field": "id2",
+               "value": "7",
+               "confidence": 1
+             },
+             {
+               "field": "id3",
+               "value": "4",
+               "confidence": 1
+             },
+             {
+               "field": "id4",
+               "value": "2",
+               "confidence": 1
+             },
+             {
+               "field": "id5",
+               "value": "3",
+               "confidence": 1
+             },
+             {
+               "field": "id6",
+               "value": "5",
+               "confidence": 1
+             },
+             {
+               "field": "id7",
+               "value": "6",
+               "confidence": 1
+             },
+             {
+               "field": "id8",
+               "value": "4",
+               "confidence": 1
+             }
+           ]
+         },
+         {
+           "type": "SINGLE_CHOICE",
+           "regionCode": "singleChoice",
+           "regionName": "单选题区域",
+           "osskey": "artifacts/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/002_1_singleChoice_单选题区域.png",
+           "items": [
+             {
+               "field": "q1",
+               "value": "A",
+               "confidence": 1
+             },
+             {
+               "field": "q2",
+               "value": "B",
+               "confidence": 1
+             },
+             {
+               "field": "q3",
+               "value": "C",
+               "confidence": 1
+             },
+             {
+               "field": "q4",
+               "value": "A",
+               "confidence": 1
+             },
+             {
+               "field": "q5",
+               "value": "B",
+               "confidence": 1
+             },
+             {
+               "field": "q6",
+               "value": "C",
+               "confidence": 1
+             },
+             {
+               "field": "q7",
+               "value": "B",
+               "confidence": 1
+             },
+             {
+               "field": "q8",
+               "value": "D",
+               "confidence": 1
+             }
+           ]
+         },
+         {
+           "type": "MULTIPLE_CHOICE",
+           "regionCode": "multipleChoice",
+           "regionName": "多选题区域",
+           "osskey": "artifacts/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/003_1_multiChoice_多选题区域.png",
+           "items": [
+             {
+               "field": "q9",
+               "value": "AC",
+               "confidence": 1
+             },
+             {
+               "field": "q10",
+               "value": "BD",
+               "confidence": 1
+             },
+             {
+               "field": "q11",
+               "value": "AB",
+               "confidence": 1
+             }
+           ]
+         },
+         {
+           "type": "FILL_BLANK",
+           "regionCode": "fillBank",
+           "regionName": "填空题",
+           "osskey": "artifacts/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/010_1_FillBlankReview_填空题人工审核区域.png",
+           "items": [
+             {
+               "field": "score",
+               "value": "15",
+               "confidence": 1
+             },
+             {
+               "field": "q12",
+               "value": "",
+               "confidence": 0
+             },
+             {
+               "field": "q13",
+               "value": "",
+               "confidence": 0
+             },
+             {
+               "field": "q14",
+               "value": "",
+               "confidence": 0
+             }
+           ]
+         },
+         {
+           "type": "SOLUTION",
+           "regionCode": "solution",
+           "regionName": "解答题",
+           "osskey": "artifacts/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/011_1_SolutionQ14Review_第14题解答题人工审核区域.png",
+           "items": [
+             {
+               "field": "score",
+               "value": "19",
+               "confidence": 1
+             },
+             {
+               "field": "q14",
+               "value": "",
+               "confidence": 0
+             }
+           ]
+         }
+       ]
+     }
+   ]
+ }

@@ -191,7 +191,7 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
             rows=[{"file_id": "sheet-1.png", "answers": {"q1": "A"}}],
         )
 
-    monkeypatch.setattr(robyn_app, "load_service_config", lambda: service_config)
+    monkeypatch.setattr(robyn_app, "_SERVICE_CONFIG", service_config)
     monkeypatch.setattr(robyn_app, "build_cos_client", lambda _config: LocalCosClient(cos_root))
     monkeypatch.setattr(robyn_app, "run_omr_directory", fake_run_omr_directory)
 
@@ -208,12 +208,12 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
 
 
 def test_startup_port_uses_service_config(monkeypatch):
-    monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(port=8089)))
+    monkeypatch.setattr(robyn_app, "_SERVICE_CONFIG", ServiceConfig(server=ServerConfig(port=8089)))
 
     assert robyn_app._startup_port() == 8089
 
 
 def test_startup_host_uses_service_config(monkeypatch):
-    monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(host="0.0.0.0")))
+    monkeypatch.setattr(robyn_app, "_SERVICE_CONFIG", ServiceConfig(server=ServerConfig(host="0.0.0.0")))
 
     assert robyn_app._startup_host() == "0.0.0.0"

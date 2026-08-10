@@ -509,6 +509,10 @@ def test_health_response_remains_compatible():
     assert "template_dir" in response
 
 
+def test_robyn_internal_worker_config_matches_service_workers():
+    assert robyn_app.app.config.workers == robyn_app._MAX_WORKERS
+
+
 def test_public_task_hides_future_and_reports_running_status():
     class RunningFuture:
         def running(self):

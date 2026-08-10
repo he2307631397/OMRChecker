@@ -7,6 +7,8 @@ from src.services.service_config import load_service_config, resolve_worker_coun
 
 
 def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("OMR_SERVICE_WORKERS", raising=False)
     monkeypatch.setenv("COS_SECRET_ID", "sid")
     monkeypatch.setenv("COS_SECRET_KEY", "skey")
     config_path = tmp_path / "robyn-service.json"

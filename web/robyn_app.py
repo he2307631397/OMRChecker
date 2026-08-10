@@ -42,6 +42,7 @@ app = Robyn(__file__)
 
 _SERVICE_CONFIG = load_service_config()
 _MAX_WORKERS = _SERVICE_CONFIG.server.workers
+app.config.workers = _MAX_WORKERS
 _SERVICE_DATA_DIR = Path(os.getenv("OMR_SERVICE_DATA_DIR", str(DEFAULT_SERVICE_DATA_DIR)))
 _TEMPLATE_DIR = Path(os.getenv("OMR_TEMPLATE_DIR", str(DEFAULT_TEMPLATE_DIR)))
 _EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-worker")
@@ -583,11 +584,11 @@ def _now_iso() -> str:
 
 
 def _startup_port() -> int:
-    return load_service_config().server.port
+    return _SERVICE_CONFIG.server.port
 
 
 def _startup_host() -> str:
-    return load_service_config().server.host
+    return _SERVICE_CONFIG.server.host
 
 
 if __name__ == "__main__":

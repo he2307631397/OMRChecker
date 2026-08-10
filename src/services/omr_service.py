@@ -250,8 +250,10 @@ def _group_answers_by_region_type(
         metadata = field_regions.get(field, {})
         ocr_metadata = ocr_results.get(field, {})
         fallback_region = _infer_business_region(field)
+        business_projection = _business_answer_projection(field, metadata, ocr_metadata)
         region_code = (
-            ocr_metadata.get("regionCode")
+            business_projection.get("regionCode")
+            or ocr_metadata.get("regionCode")
             or metadata.get("regionCode")
             or fallback_region["regionCode"]
         )
@@ -259,10 +261,14 @@ def _group_answers_by_region_type(
             region_code,
             {
                 "regionCode": region_code,
-                "regionName": ocr_metadata.get("regionName")
+                "regionName": business_projection.get("regionName")
+                or ocr_metadata.get("regionName")
                 or metadata.get("regionName")
                 or fallback_region["regionName"],
-                "type": ocr_metadata.get("type") or metadata.get("type") or fallback_region["type"],
+                "type": business_projection.get("type")
+                or ocr_metadata.get("type")
+                or metadata.get("type")
+                or fallback_region["type"],
                 "items": [],
             },
         )
@@ -275,7 +281,7 @@ def _group_answers_by_region_type(
         if confidence is None:
             confidence = 1.0 if value != "" else 0.0
         item = {
-            "field": field,
+            "field": business_projection.get("field") or field,
             "value": value,
             "confidence": round(float(confidence), 3),
         }
@@ -284,6 +290,49 @@ def _group_answers_by_region_type(
             item["artifactLocalPath"] = artifact_local_path
         region["items"].append(item)
     return list(grouped.values())
+
+
+def _business_answer_projection(
+    field: str,
+    metadata: dict[str, Any],
+    ocr_metadata: dict[str, Any],
+) -> dict[str, str]:
+    """Map internal OCR field labels into the compact Java callback groups."""
+
+    normalized_field = field.lower()
+    region_code = str(ocr_metadata.get("regionCode") or metadata.get("regionCode") or "")
+    region_name = str(ocr_metadata.get("regionName") or metadata.get("regionName") or "")
+    region_type = str(ocr_metadata.get("type") or metadata.get("type") or "")
+    combined = " ".join([normalized_field, region_code.lower(), region_name, region_type.lower()])
+
+    if "fill" in normalized_field or "填空" in combined or "fillblank" in combined:
+        return {
+            "regionCode": "fillBank",
+            "regionName": "填空题",
+            "type": "FILL_BLANK",
+            "field": _business_item_field(field),
+        }
+
+    if "solution" in normalized_field or "解答" in combined or "solution" in combined:
+        return {
+            "regionCode": "solution",
+            "regionName": "解答题",
+            "type": "SOLUTION",
+            "field": _business_item_field(field),
+        }
+
+    return {}
+
+
+def _business_item_field(field: str) -> str:
+    """Use Java callback item field names: score fields are score, answer fields use qN."""
+
+    if "score" in field.lower():
+        return "score"
+    match = re.search(r"q(\d+)", field, flags=re.IGNORECASE)
+    if match:
+        return f"q{match.group(1)}"
+    return field
 
 
 def _infer_business_region(field: str) -> dict[str, str]:

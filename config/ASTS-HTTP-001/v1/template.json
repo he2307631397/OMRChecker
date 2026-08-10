@@ -372,9 +372,9 @@
         1050,
         160
       ],
-      "regionCode": "FillBlankReview",
-      "regionName": "填空题人工审核区域",
-      "type": "FILL_BLANK_REVIEW"
+      "regionCode": "fillBank",
+      "regionName": "填空题",
+      "type": "FILL_BLANK"
     },
     {
       "bbox": [
@@ -383,9 +383,9 @@
         1050,
         445
       ],
-      "regionCode": "SolutionQ14Review",
-      "regionName": "第14题解答题人工审核区域",
-      "type": "SOLUTION_REVIEW"
+      "regionCode": "solution",
+      "regionName": "解答题",
+      "type": "SOLUTION"
     }
   ]
 }

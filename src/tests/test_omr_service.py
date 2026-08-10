@@ -147,15 +147,84 @@ def test_read_results_csv_includes_template_paddleocr_fields_with_confidence(tmp
         "solutionAnswer2": "过程文本",
     }
     blank_region = next(
-        region for region in rows[0]["answers"] if region["regionCode"] == "blankScore"
+        region for region in rows[0]["answers"] if region["regionCode"] == "fillBank"
     )
     assert blank_region["engine"] == "paddleocr"
     assert blank_region["items"] == [
         {
-            "field": "blankScore1",
+            "field": "score",
             "value": "5",
             "confidence": 0.982,
             "artifactLocalPath": "artifacts/sheet-1/blankScore1.png",
         }
     ]
     assert "engine" not in blank_region["items"][0]
+
+
+def test_read_results_csv_groups_fill_blank_and_solution_by_business_contract(tmp_path):
+    results_dir = tmp_path / "output" / "Results"
+    results_dir.mkdir(parents=True)
+    results_csv = results_dir / "Results_001.csv"
+    results_csv.write_text(
+        "file_id,input_path,output_path,score,fill_blank_score_text,fill_q12_answer_text,fill_q13_answer_text,q14_score_text,solution_q14_answer_text\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,0,15,,,19,过程文本\n",
+        encoding="utf-8",
+    )
+    (results_dir / "OcrResults.csv").write_text(
+        "file_id,input_path,output_path,field,value,confidence,engine,regionCode,regionName,type,bbox,artifactLocalPath\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,fill_blank_score_text,15,0.99,paddleocr,FillBlank,填空题,score,,\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,fill_q12_answer_text,,0,paddleocr,Q12,第12题填空题,answer,,\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,fill_q13_answer_text,,0,paddleocr,Q13,第13题填空题,answer,,\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,q14_score_text,19,0.97,paddleocr,Q14,第14题解答题,score,,\n"
+        "sheet-1.png,input/sheet-1.png,output/CheckedOMRs/sheet-1.png,solution_q14_answer_text,过程文本,0.88,paddleocr,Q14,第14题解答题,answer,,\n",
+        encoding="utf-8",
+    )
+    template_dir = tmp_path / "template"
+    template_dir.mkdir()
+    (template_dir / "template.json").write_text(
+        """
+        {
+          "pageDimensions": [1000, 1000],
+          "bubbleDimensions": [10, 10],
+          "emptyValue": "",
+          "preProcessors": [],
+          "fieldBlocks": {},
+          "fieldBlockOcrs": {
+            "FillBlankScoreOcr": {"fieldLabels": ["fill_blank_score_text"], "origin": [0, 0], "dimensions": [10, 10], "regionCode": "FillBlank", "regionName": "填空题", "type": "score"},
+            "FillQ12AnswerOcr": {"fieldLabels": ["fill_q12_answer_text"], "origin": [0, 0], "dimensions": [10, 10], "regionCode": "Q12", "regionName": "第12题填空题", "type": "answer"},
+            "FillQ13AnswerOcr": {"fieldLabels": ["fill_q13_answer_text"], "origin": [0, 0], "dimensions": [10, 10], "regionCode": "Q13", "regionName": "第13题填空题", "type": "answer"},
+            "Q14ScoreOcr": {"fieldLabels": ["q14_score_text"], "origin": [0, 0], "dimensions": [10, 10], "regionCode": "Q14", "regionName": "第14题解答题", "type": "score"},
+            "Q14AnswerOcr": {"fieldLabels": ["solution_q14_answer_text"], "origin": [0, 0], "dimensions": [10, 10], "regionCode": "Q14", "regionName": "第14题解答题", "type": "answer"}
+          },
+          "outputColumns": ["fill_blank_score_text", "fill_q12_answer_text", "fill_q13_answer_text", "q14_score_text", "solution_q14_answer_text"],
+          "customLabels": {}
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    row = omr_service.read_results_csv(results_csv, template_dir=template_dir)[0]
+
+    fill_region = next(region for region in row["answers"] if region["regionCode"] == "fillBank")
+    solution_region = next(region for region in row["answers"] if region["regionCode"] == "solution")
+    assert fill_region == {
+        "regionCode": "fillBank",
+        "regionName": "填空题",
+        "type": "FILL_BLANK",
+        "items": [
+            {"field": "score", "value": "15", "confidence": 0.99},
+            {"field": "q12", "value": "", "confidence": 0.0},
+            {"field": "q13", "value": "", "confidence": 0.0},
+        ],
+        "engine": "paddleocr",
+    }
+    assert solution_region == {
+        "regionCode": "solution",
+        "regionName": "解答题",
+        "type": "SOLUTION",
+        "items": [
+            {"field": "score", "value": "19", "confidence": 0.97},
+            {"field": "q14", "value": "过程文本", "confidence": 0.88},
+        ],
+        "engine": "paddleocr",
+    }

@@ -151,16 +151,19 @@ class SheetRecognitionResult:
             "status": self.status,
         }
 
-        for key in (
-            "score",
-            "checkedImageOsskey",
-            "exam_id",
-            "file_id",
-            "review_required",
-            "weak_marks",
-        ):
-            if key in result:
-                payload[key] = result[key]
+        callback_fields = {
+            "score": "score",
+            "checkedImageOsskey": "checkedImageOsskey",
+            "exam_id": "examNo",
+            "examNo": "examNo",
+            "file_id": "fileId",
+            "fileId": "fileId",
+            "review_required": "review_required",
+            "weak_marks": "weak_marks",
+        }
+        for source_key, callback_key in callback_fields.items():
+            if source_key in result and callback_key not in payload:
+                payload[callback_key] = result[source_key]
 
         if "answers" in result:
             payload["answers"] = _compact_answers(result["answers"], self.artifacts)

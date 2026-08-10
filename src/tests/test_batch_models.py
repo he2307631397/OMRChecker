@@ -212,6 +212,8 @@ def test_result_payload_keeps_ocr_engine_on_region_not_items():
 
     assert region["engine"] == "ocr"
     assert "engine" not in region["items"][0]
+    assert sheet["fileId"] == "sheet-1.png"
+    assert "file_id" not in sheet
     assert "answers_flat" not in sheet
 
 
@@ -271,8 +273,8 @@ def test_result_payload_compacts_business_answers_and_attaches_region_osskeys():
         "status": "completed",
         "score": "15",
         "checkedImageOsskey": "checked/task-ocr/sheet-1.png",
-        "exam_id": "27423564",
-        "file_id": "sheet-1.png",
+        "examNo": "27423564",
+        "fileId": "sheet-1.png",
         "review_required": True,
         "weak_marks": [],
         "answers": [

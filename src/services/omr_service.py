@@ -260,6 +260,7 @@ def _group_answers_by_region_type(
         region = grouped.setdefault(
             region_code,
             {
+                "engine": _callback_region_engine(metadata, ocr_metadata),
                 "regionCode": region_code,
                 "regionName": business_projection.get("regionName")
                 or ocr_metadata.get("regionName")
@@ -272,9 +273,6 @@ def _group_answers_by_region_type(
                 "items": [],
             },
         )
-        engine = ocr_metadata.get("engine") or metadata.get("engine")
-        if engine == "paddleocr":
-            region["engine"] = engine
         confidence = ocr_metadata.get("confidence")
         if confidence is None:
             confidence = review_confidences.get(field)
@@ -322,6 +320,13 @@ def _business_answer_projection(
         }
 
     return {}
+
+
+def _callback_region_engine(metadata: dict[str, Any], ocr_metadata: dict[str, Any]) -> str:
+    engine = str(ocr_metadata.get("engine") or metadata.get("engine") or "omr").strip().lower()
+    if engine in {"paddleocr", "ocr"}:
+        return "ocr"
+    return "omr"
 
 
 def _business_item_field(field: str) -> str:

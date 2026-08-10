@@ -313,9 +313,11 @@ def _compact_answers(answers: Any, artifacts: list[ArtifactPayload]) -> Any:
 
         compact_region = {
             key: answer[key]
-            for key in ("type", "regionCode", "regionName")
+            for key in ("engine", "type", "regionCode", "regionName")
             if key in answer
         }
+        if "engine" in compact_region:
+            compact_region["engine"] = _compact_region_engine(compact_region["engine"])
         artifact = artifact_by_region.get(str(answer.get("regionCode")))
         if artifact is not None:
             compact_region["osskey"] = artifact.osskey
@@ -339,6 +341,12 @@ def _compact_answer_item(item: dict[str, Any]) -> dict[str, Any]:
         for key in ("field", "value", "confidence")
         if key in item
     }
+
+
+def _compact_region_engine(engine: Any) -> str:
+    if str(engine).strip().lower() in {"paddleocr", "ocr"}:
+        return "ocr"
+    return "omr"
 
 
 def _is_region_artifact(artifact: ArtifactPayload) -> bool:

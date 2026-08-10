@@ -210,7 +210,7 @@ def test_result_payload_keeps_ocr_engine_on_region_not_items():
     sheet = payload.to_callback_dict()["sheets"][0]
     region = sheet["answers"][0]
 
-    assert "engine" not in region
+    assert region["engine"] == "ocr"
     assert "engine" not in region["items"][0]
     assert "answers_flat" not in sheet
 
@@ -277,6 +277,7 @@ def test_result_payload_compacts_business_answers_and_attaches_region_osskeys():
         "weak_marks": [],
         "answers": [
             {
+                "engine": "ocr",
                 "type": "FILL_BLANK",
                 "regionCode": "fillBlank",
                 "regionName": "填空题",

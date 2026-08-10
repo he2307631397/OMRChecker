@@ -80,6 +80,7 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
     assert rows[0]["answers_flat"] == {"q1": "A", "q2": ""}
     assert rows[0]["answers"] == [
         {
+            "engine": "omr",
             "regionCode": "candidateNumber",
             "regionName": "准考证号区域",
             "type": "DIGIT",
@@ -89,6 +90,7 @@ def test_read_results_csv_groups_answers_by_business_region_with_confidence(tmp_
             ],
         },
         {
+            "engine": "omr",
             "regionCode": "singleChoice",
             "regionName": "单选题区域",
             "type": "SINGLE_CHOICE",
@@ -149,7 +151,7 @@ def test_read_results_csv_includes_template_paddleocr_fields_with_confidence(tmp
     blank_region = next(
         region for region in rows[0]["answers"] if region["regionCode"] == "fillBank"
     )
-    assert blank_region["engine"] == "paddleocr"
+    assert blank_region["engine"] == "ocr"
     assert blank_region["items"] == [
         {
             "field": "score",
@@ -211,20 +213,20 @@ def test_read_results_csv_groups_fill_blank_and_solution_by_business_contract(tm
         "regionCode": "fillBank",
         "regionName": "填空题",
         "type": "FILL_BLANK",
+        "engine": "ocr",
         "items": [
             {"field": "score", "value": "15", "confidence": 0.99},
             {"field": "q12", "value": "", "confidence": 0.0},
             {"field": "q13", "value": "", "confidence": 0.0},
         ],
-        "engine": "paddleocr",
     }
     assert solution_region == {
         "regionCode": "solution",
         "regionName": "解答题",
         "type": "SOLUTION",
+        "engine": "ocr",
         "items": [
             {"field": "score", "value": "19", "confidence": 0.97},
             {"field": "q14", "value": "过程文本", "confidence": 0.88},
         ],
-        "engine": "paddleocr",
     }

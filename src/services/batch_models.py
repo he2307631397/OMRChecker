@@ -303,11 +303,12 @@ def _compact_answers(answers: Any, artifacts: list[ArtifactPayload]) -> Any:
     if not isinstance(answers, list):
         return answers
 
-    artifact_by_region = {
-        str((artifact.metadata or {}).get("regionCode")): artifact
-        for artifact in artifacts
-        if _is_region_artifact(artifact)
-    }
+    artifact_by_region: dict[str, ArtifactPayload] = {}
+    for artifact in artifacts:
+        if not _is_region_artifact(artifact):
+            continue
+        for key in _region_artifact_keys(artifact):
+            artifact_by_region.setdefault(key, artifact)
     compact_answers = []
     for answer in answers:
         if not isinstance(answer, dict):
@@ -321,7 +322,10 @@ def _compact_answers(answers: Any, artifacts: list[ArtifactPayload]) -> Any:
         }
         if "engine" in compact_region:
             compact_region["engine"] = _compact_region_engine(compact_region["engine"])
-        artifact = artifact_by_region.get(str(answer.get("regionCode")))
+        artifact = next(
+            (artifact_by_region[key] for key in _answer_region_keys(answer) if key in artifact_by_region),
+            None,
+        )
         if artifact is not None:
             compact_region["osskey"] = artifact.osskey
 
@@ -350,6 +354,49 @@ def _compact_region_engine(engine: Any) -> str:
     if str(engine).strip().lower() in {"paddleocr", "ocr"}:
         return "ocr"
     return "omr"
+
+
+def _answer_region_keys(answer: dict[str, Any]) -> list[str]:
+    values = [answer.get("regionCode"), answer.get("type"), answer.get("regionName")]
+    return _region_match_keys(values)
+
+
+def _region_artifact_keys(artifact: ArtifactPayload) -> list[str]:
+    metadata = artifact.metadata or {}
+    values = [
+        metadata.get("regionCode"),
+        metadata.get("regionType"),
+        metadata.get("type"),
+        metadata.get("regionName"),
+        artifact.artifact_type,
+    ]
+    return _region_match_keys(values)
+
+
+def _region_match_keys(values: list[Any]) -> list[str]:
+    keys: list[str] = []
+    for value in values:
+        normalized = _normalize_region_key(value)
+        if normalized and normalized not in keys:
+            keys.append(normalized)
+        for alias in _business_region_aliases(normalized):
+            if alias not in keys:
+                keys.append(alias)
+    return keys
+
+
+def _normalize_region_key(value: Any) -> str:
+    return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+
+def _business_region_aliases(normalized: str) -> tuple[str, ...]:
+    if normalized in {"multichoice", "multiplechoice", "multiplechoicearea", "multichoicearea"}:
+        return ("multiplechoice", "multichoice")
+    if "fill" in normalized or "填空" in normalized:
+        return ("fillbank", "fillblank")
+    if "solution" in normalized or "解答" in normalized:
+        return ("solution",)
+    return ()
 
 
 def _is_region_artifact(artifact: ArtifactPayload) -> bool:

@@ -290,6 +290,53 @@ def test_result_payload_compacts_business_answers_and_attaches_region_osskeys():
     }
 
 
+def test_result_payload_attaches_osskeys_using_business_region_aliases():
+    payload = BatchRecognitionResult(
+        task_id="task-alias",
+        exam_id="exam-1",
+        status="completed",
+        sheets=[
+            SheetRecognitionResult(
+                sheet_id="sheet-1",
+                source_osskey="inputs/sheet-1.pdf",
+                status="completed",
+                result={
+                    "answers": [
+                        {"engine": "omr", "type": "MULTIPLE_CHOICE", "regionCode": "multipleChoice", "regionName": "多选题区域", "items": []},
+                        {"engine": "ocr", "type": "FILL_BLANK", "regionCode": "fillBank", "regionName": "填空题", "items": []},
+                        {"engine": "ocr", "type": "SOLUTION", "regionCode": "solution", "regionName": "解答题", "items": []},
+                    ],
+                },
+                artifacts=[
+                    ArtifactPayload(
+                        artifact_type="multiChoice",
+                        osskey="artifacts/task-alias/sheet-1/multi.png",
+                        metadata={"regionCode": "multiChoice", "regionName": "多选题区域", "regionType": "MULTI_CHOICE"},
+                    ),
+                    ArtifactPayload(
+                        artifact_type="FillBlankReview",
+                        osskey="artifacts/task-alias/sheet-1/fill.png",
+                        metadata={"regionCode": "FillBlankReview", "regionName": "填空题人工审核区域", "regionType": "FILL_BLANK_REVIEW"},
+                    ),
+                    ArtifactPayload(
+                        artifact_type="SolutionQ14Review",
+                        osskey="artifacts/task-alias/sheet-1/solution.png",
+                        metadata={"regionCode": "SolutionQ14Review", "regionName": "第14题解答题人工审核区域", "regionType": "SOLUTION_REVIEW"},
+                    ),
+                ],
+            )
+        ],
+    )
+
+    answers = payload.to_callback_dict()["sheets"][0]["answers"]
+
+    assert [answer["osskey"] for answer in answers] == [
+        "artifacts/task-alias/sheet-1/multi.png",
+        "artifacts/task-alias/sheet-1/fill.png",
+        "artifacts/task-alias/sheet-1/solution.png",
+    ]
+
+
 def test_render_callback_payload_from_task_store_like_records_groups_sheet_artifacts():
     payload = render_callback_payload_from_records(
         batch={

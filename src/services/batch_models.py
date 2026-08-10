@@ -144,31 +144,29 @@ class SheetRecognitionResult:
     error: str | None = None
 
     def to_callback_dict(self) -> dict[str, Any]:
-        result = self.result
-        if isinstance(result, dict) and "checkedImageOsskey" in result:
-            result = {
-                key: value
-                for key, value in result.items()
-                if key != "checkedImageOsskey"
-            }
+        result = self.result if isinstance(self.result, dict) else {}
         payload: dict[str, Any] = {
             "sheetId": self.sheet_id,
-            "osskey": self.source_osskey,
             "sourceOsskey": self.source_osskey,
             "status": self.status,
-            "result": result,
-            "artifacts": [artifact.to_callback_dict() for artifact in self.artifacts],
         }
-        if isinstance(self.result, dict):
-            for key, value in self.result.items():
-                payload.setdefault(key, value)
-        region_images = [
-            _region_image_payload(artifact)
-            for artifact in self.artifacts
-            if _is_region_artifact(artifact)
-        ]
-        if region_images:
-            payload["regionImages"] = region_images
+
+        for key in (
+            "score",
+            "checkedImageOsskey",
+            "exam_id",
+            "file_id",
+            "review_required",
+            "weak_marks",
+        ):
+            if key in result:
+                payload[key] = result[key]
+
+        if "answers" in result:
+            payload["answers"] = _compact_answers(result["answers"], self.artifacts)
+
+        if "artifactErrors" in result:
+            payload["artifactErrors"] = result["artifactErrors"]
         if self.error is not None:
             payload["error"] = self.error
         return payload
@@ -201,8 +199,6 @@ class BatchRecognitionResult:
             payload["externalBatchId"] = self.external_batch_id
         if self.error is not None:
             payload["error"] = self.error
-        if self.artifacts:
-            payload["artifacts"] = [artifact.to_callback_dict() for artifact in self.artifacts]
         return payload
 
 
@@ -300,23 +296,51 @@ def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:
     return counts
 
 
+def _compact_answers(answers: Any, artifacts: list[ArtifactPayload]) -> Any:
+    if not isinstance(answers, list):
+        return answers
+
+    artifact_by_region = {
+        str((artifact.metadata or {}).get("regionCode")): artifact
+        for artifact in artifacts
+        if _is_region_artifact(artifact)
+    }
+    compact_answers = []
+    for answer in answers:
+        if not isinstance(answer, dict):
+            compact_answers.append(answer)
+            continue
+
+        compact_region = {
+            key: answer[key]
+            for key in ("type", "regionCode", "regionName")
+            if key in answer
+        }
+        artifact = artifact_by_region.get(str(answer.get("regionCode")))
+        if artifact is not None:
+            compact_region["osskey"] = artifact.osskey
+
+        items = answer.get("items")
+        if isinstance(items, list):
+            compact_region["items"] = [
+                _compact_answer_item(item)
+                for item in items
+                if isinstance(item, dict)
+            ]
+        elif "items" in answer:
+            compact_region["items"] = items
+        compact_answers.append(compact_region)
+    return compact_answers
+
+
+def _compact_answer_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: item[key]
+        for key in ("field", "value", "confidence")
+        if key in item
+    }
+
+
 def _is_region_artifact(artifact: ArtifactPayload) -> bool:
     metadata = artifact.metadata or {}
     return "regionCode" in metadata
-
-
-def _region_image_payload(artifact: ArtifactPayload) -> dict[str, Any]:
-    metadata = artifact.metadata or {}
-    payload: dict[str, Any] = {
-        "osskey": artifact.osskey,
-        "uploadStatus": "uploaded",
-    }
-    if "regionCode" in metadata:
-        payload["regionCode"] = metadata["regionCode"]
-    if "regionName" in metadata:
-        payload["regionName"] = metadata["regionName"]
-    if "regionType" in metadata:
-        payload["type"] = metadata["regionType"]
-    if "bbox" in metadata:
-        payload["bbox"] = metadata["bbox"]
-    return payload

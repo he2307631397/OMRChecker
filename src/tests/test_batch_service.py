@@ -171,11 +171,8 @@ def test_submit_batch_persists_batch_and_sheets_and_returns_business_fields(tmp_
         "sheets": [
             {
                 "sheetId": "sheet-1",
-                "osskey": "incoming/sheet-1.png",
                 "sourceOsskey": "incoming/sheet-1.png",
                 "status": "pending",
-                "result": {},
-                "artifacts": [],
             }
         ],
     }
@@ -215,8 +212,9 @@ def test_process_batch_downloads_runs_uploads_artifacts_and_marks_completed(tmp_
     assert runner_calls[0].source_path.read_bytes() == (tmp_path / "cos" / "incoming" / "sheet-1.png").read_bytes()
     callback = result.to_callback_dict()
     assert callback["status"] == "completed"
-    assert callback["sheets"][0]["result"] == {"score": 98}
-    assert callback["sheets"][0]["artifacts"][0]["osskey"] == "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png"
+    assert callback["sheets"][0]["score"] == 98
+    assert "result" not in callback["sheets"][0]
+    assert "artifacts" not in callback["sheets"][0]
     assert (tmp_path / "cos" / "artifacts" / "task-1" / "sheet-1" / "001_sheet-1_exam_no_准考证号区域.png").is_file()
     assert store.get_batch("task-1")["status"] == "completed"
     assert store.get_batch("task-1")["completed_at"] is not None
@@ -730,9 +728,9 @@ def test_fake_cos_smoke_terminal_payload_contains_business_artifact_fields(tmp_p
     sheet = payload["sheets"][0]
     assert payload["examId"] == "exam-1"
     assert sheet["sheetId"] == "sheet-1"
-    assert sheet["osskey"] == "incoming/sheet-1.png"
+    assert sheet["sourceOsskey"] == "incoming/sheet-1.png"
     assert sheet["answers"] == {"q1": "A"}
-    assert sheet["regionImages"][0]["osskey"] == "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png"
+    assert "regionImages" not in sheet
     assert sheet["checkedImageOsskey"] == "checked/task-1/sheet-1/sheet-1.png"
     assert (tmp_path / "cos" / "checked" / "task-1" / "sheet-1" / "sheet-1.png").is_file()
 
@@ -808,7 +806,7 @@ def test_artifact_upload_failure_is_non_fatal_and_reflected_in_result_metadata(t
     assert sheet["result_json"]["score"] == 98
     assert sheet["result_json"]["artifactErrors"] == [
         {
-            "artifactType": "region_screenshot",
+            "artifactType": "exam_no",
             "localPath": sheet["result_json"]["artifactErrors"][0]["localPath"],
             "osskey": "artifacts/task-1/sheet-1/001_sheet-1_exam_no_准考证号区域.png",
             "error": "upload denied",

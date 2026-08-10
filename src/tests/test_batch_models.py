@@ -158,35 +158,15 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
         "sheets": [
             {
                 "sheetId": "sheet-1",
-                "osskey": "inputs/sheet-1.pdf",
                 "sourceOsskey": "inputs/sheet-1.pdf",
                 "status": "completed",
                 "answers": ["A", "B"],
                 "score": 2,
-                "result": {"answers": ["A", "B"], "score": 2},
-                "artifacts": [
-                    {
-                        "artifactType": "businessLarge",
-                        "osskey": "artifacts/task-1/sheet-1/region-1.png",
-                        "metadata": {"regionCode": "businessLarge", "regionName": "大题区域"},
-                    }
-                ],
-                "regionImages": [
-                    {
-                        "osskey": "artifacts/task-1/sheet-1/region-1.png",
-                        "uploadStatus": "uploaded",
-                        "regionCode": "businessLarge",
-                        "regionName": "大题区域",
-                    }
-                ],
             },
             {
                 "sheetId": "sheet-2",
-                "osskey": "inputs/sheet-2.pdf",
                 "sourceOsskey": "inputs/sheet-2.pdf",
                 "status": "failed",
-                "result": [],
-                "artifacts": [],
                 "error": "unreadable",
             },
         ],
@@ -229,12 +209,82 @@ def test_result_payload_keeps_ocr_engine_on_region_not_items():
 
     sheet = payload.to_callback_dict()["sheets"][0]
     region = sheet["answers"][0]
-    nested_region = sheet["result"]["answers"][0]
 
-    assert region["engine"] == "paddleocr"
-    assert nested_region["engine"] == "paddleocr"
+    assert "engine" not in region
     assert "engine" not in region["items"][0]
-    assert "engine" not in nested_region["items"][0]
+    assert "answers_flat" not in sheet
+
+
+def test_result_payload_compacts_business_answers_and_attaches_region_osskeys():
+    payload = BatchRecognitionResult(
+        task_id="task-ocr",
+        exam_id="exam-1",
+        status="completed",
+        sheets=[
+            SheetRecognitionResult(
+                sheet_id="sheet-1",
+                source_osskey="inputs/sheet-1.pdf",
+                status="completed",
+                result={
+                    "score": "15",
+                    "checkedImageOsskey": "checked/task-ocr/sheet-1.png",
+                    "file_id": "sheet-1.png",
+                    "exam_id": "27423564",
+                    "review_required": True,
+                    "weak_marks": [],
+                    "answers": [
+                        {
+                            "regionCode": "fillBlank",
+                            "regionName": "填空题",
+                            "type": "FILL_BLANK",
+                            "engine": "paddleocr",
+                            "items": [
+                                {
+                                    "field": "score",
+                                    "value": "15",
+                                    "confidence": 0.999,
+                                    "artifactLocalPath": "local.png",
+                                }
+                            ],
+                        }
+                    ],
+                    "answers_flat": {"score": "15"},
+                    "input_path": "local-input.png",
+                    "output_path": "local-output.png",
+                },
+                artifacts=[
+                    ArtifactPayload(
+                        artifact_type="fillBlank",
+                        osskey="artifacts/task-ocr/sheet-1/fill.png",
+                        metadata={"regionCode": "fillBlank", "bbox": {"x": 1}},
+                    )
+                ],
+            )
+        ],
+    )
+
+    sheet = payload.to_callback_dict()["sheets"][0]
+
+    assert sheet == {
+        "sheetId": "sheet-1",
+        "sourceOsskey": "inputs/sheet-1.pdf",
+        "status": "completed",
+        "score": "15",
+        "checkedImageOsskey": "checked/task-ocr/sheet-1.png",
+        "exam_id": "27423564",
+        "file_id": "sheet-1.png",
+        "review_required": True,
+        "weak_marks": [],
+        "answers": [
+            {
+                "type": "FILL_BLANK",
+                "regionCode": "fillBlank",
+                "regionName": "填空题",
+                "osskey": "artifacts/task-ocr/sheet-1/fill.png",
+                "items": [{"field": "score", "value": "15", "confidence": 0.999}],
+            }
+        ],
+    }
 
 
 def test_render_callback_payload_from_task_store_like_records_groups_sheet_artifacts():
@@ -274,16 +324,8 @@ def test_render_callback_payload_from_task_store_like_records_groups_sheet_artif
     assert payload["externalBatchId"] == "external-1"
     assert payload["sheets"][0]["sheetId"] == "sheet-1"
     assert payload["sheets"][0]["sourceOsskey"] == "inputs/sheet-1.pdf"
-    assert payload["sheets"][0]["artifacts"] == [
-        {
-            "artifactType": "marked_image",
-            "osskey": "artifacts/task-1/sheet-1/marked.png",
-            "metadata": {"width": 1200},
-        }
-    ]
-    assert payload["artifacts"] == [
-        {"artifactType": "summary", "osskey": "artifacts/task-1/summary.json"}
-    ]
+    assert "artifacts" not in payload["sheets"][0]
+    assert "artifacts" not in payload
 
 
 def test_batch_request_debug_artifacts_override_parses_true():

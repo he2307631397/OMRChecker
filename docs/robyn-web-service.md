@@ -75,7 +75,7 @@ The batch API uses `load_service_config()` and reads `config/robyn-service.json`
 | Variable | Overrides |
 | --- | --- |
 | `OMR_SERVICE_PORT` | `server.port` for process startup. |
-| `OMR_SERVICE_WORKERS` | `server.workers` in loaded config, and module executor size. |
+| `OMR_SERVICE_WORKERS` | `server.workers` in loaded config, and module executor size. Use `auto` or omit it to size conservatively from CPU count. |
 | `OMR_SERVICE_DATA_DIR` | `storage.serviceDataDir`. |
 | `OMR_TEMPLATE_DIR` | `storage.templateDir`. |
 | `OMR_CALLBACK_URL` | `callback.url`, the default COS batch terminal callback endpoint. |
@@ -237,7 +237,7 @@ The deployment defaults are defined in `.env.docker.example` and `docker-compose
 ```dotenv
 OMR_SERVICE_PORT=8088
 OMR_SERVICE_HOST=0.0.0.0
-OMR_SERVICE_WORKERS=1
+OMR_SERVICE_WORKERS=auto
 OMR_SERVICE_DATA_DIR=/app/service_data
 OMR_TEMPLATE_DIR=/app/inputs
 OMR_RECOGNITION_DEBUG_ARTIFACTS=false

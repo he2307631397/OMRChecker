@@ -130,7 +130,6 @@ def test_read_omr_response_dispatches_paddleocr_block(tmp_path: Path) -> None:
             "regionCode": "blank_score_1",
             "regionName": "blank_score_1",
             "type": "OCR",
-            "raw": {"fake": True},
         }
     }
 

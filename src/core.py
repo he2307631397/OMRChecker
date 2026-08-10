@@ -65,7 +65,6 @@ class ImageInstanceOps:
             "regionCode": field_block.region_code,
             "regionName": field_block.region_name,
             "type": field_block.region_type,
-            "raw": result.raw,
         }
         return field_label, result.text
 

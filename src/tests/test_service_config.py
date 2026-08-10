@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from src.services.service_config import load_service_config
+from src.services.service_config import load_service_config, resolve_worker_count
 
 
 def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
@@ -63,6 +63,44 @@ def test_load_service_config_allows_environment_port_override(tmp_path, monkeypa
     config = load_service_config(config_path)
 
     assert config.server.port == 9090
+
+
+def test_load_service_config_auto_sizes_workers_when_omitted(tmp_path, monkeypatch):
+    monkeypatch.delenv("OMR_SERVICE_WORKERS", raising=False)
+    monkeypatch.setattr("src.services.service_config.os.cpu_count", lambda: 12)
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text("{}", encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.server.workers == 4
+
+
+def test_load_service_config_accepts_auto_worker_value(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.services.service_config.os.cpu_count", lambda: 6)
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"server": {"workers": "auto"}}', encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.server.workers == 3
+
+
+def test_load_service_config_accepts_auto_worker_environment_override(tmp_path, monkeypatch):
+    monkeypatch.setenv("OMR_SERVICE_WORKERS", "auto")
+    monkeypatch.setattr("src.services.service_config.os.cpu_count", lambda: 8)
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"server": {"workers": 1}}', encoding="utf-8")
+
+    config = load_service_config(config_path)
+
+    assert config.server.workers == 4
+
+
+def test_resolve_worker_count_keeps_explicit_values(monkeypatch):
+    monkeypatch.setattr("src.services.service_config.os.cpu_count", lambda: 12)
+
+    assert resolve_worker_count(8) == 8
 
 
 def test_load_service_config_allows_environment_host_override(tmp_path, monkeypatch):

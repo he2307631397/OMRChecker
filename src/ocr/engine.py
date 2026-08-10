@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import threading
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -58,14 +59,40 @@ def normalize_paddleocr_result(raw: Any) -> OcrResult:
 
 
 class PaddleOcrEngine:
+    _thread_local = threading.local()
+
     def __init__(self) -> None:
-        self._instances: dict[tuple[str, bool], Any] = {}
+        self._instances = self._thread_instances()
 
     def recognize(self, image: Any, options: dict[str, Any] | None = None) -> OcrResult:
         options = options or {}
         paddle = self._get_instance(options)
-        raw = paddle.ocr(self._ensure_three_channel_image(image))
+        raw = self._call_paddle_ocr(paddle, self._ensure_three_channel_image(image), options)
         return normalize_paddleocr_result(raw)
+
+    @classmethod
+    def _thread_instances(cls) -> dict[tuple[str, bool], Any]:
+        instances = getattr(cls._thread_local, "instances", None)
+        if instances is None:
+            instances = {}
+            cls._thread_local.instances = instances
+        return instances
+
+    @staticmethod
+    def _call_paddle_ocr(paddle: Any, image: Any, options: dict[str, Any]) -> Any:
+        call_options = {
+            key: bool(options[key])
+            for key in ("det", "rec", "cls")
+            if key in options
+        }
+        if not call_options:
+            return paddle.ocr(image)
+        try:
+            return paddle.ocr(image, **call_options)
+        except TypeError as exc:
+            if "unexpected" not in str(exc) and "keyword" not in str(exc):
+                raise
+            return paddle.ocr(image)
 
     @staticmethod
     def _ensure_three_channel_image(image: Any) -> Any:

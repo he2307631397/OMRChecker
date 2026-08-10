@@ -40,7 +40,8 @@ from src.services.task_store import TaskStore
 
 app = Robyn(__file__)
 
-_MAX_WORKERS = int(os.getenv("OMR_SERVICE_WORKERS", "1"))
+_SERVICE_CONFIG = load_service_config()
+_MAX_WORKERS = _SERVICE_CONFIG.server.workers
 _SERVICE_DATA_DIR = Path(os.getenv("OMR_SERVICE_DATA_DIR", str(DEFAULT_SERVICE_DATA_DIR)))
 _TEMPLATE_DIR = Path(os.getenv("OMR_TEMPLATE_DIR", str(DEFAULT_TEMPLATE_DIR)))
 _EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-worker")
@@ -85,7 +86,7 @@ def _sqlite_path_from_url(url: str) -> Path:
 
 
 def _build_batch_service() -> BatchRecognitionService:
-    config = load_service_config()
+    config = _SERVICE_CONFIG
     db_path = _sqlite_path_from_url(config.database.url or "sqlite:///service_data/omr_service.db")
     store = TaskStore(db_path)
     store.initialize()

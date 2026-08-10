@@ -8,6 +8,13 @@ import pytest
 from src.ocr.engine import OcrResult, PaddleOcrEngine, normalize_paddleocr_result
 
 
+@pytest.fixture(autouse=True)
+def clear_thread_local_ocr_instances():
+    PaddleOcrEngine._thread_local.instances = {}
+    yield
+    PaddleOcrEngine._thread_local.instances = {}
+
+
 def test_normalize_paddleocr_empty_result() -> None:
     assert normalize_paddleocr_result([]) == OcrResult(text="", confidence=0.0, raw=[])
 
@@ -104,6 +111,51 @@ def test_paddleocr_engine_uses_cpu_only_constructor_and_caches_by_lang_and_cls(
         }
     ]
     assert ocr_calls == ["image-1", "image-2"]
+
+
+def test_paddleocr_engine_reuses_thread_local_instances_across_engine_objects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    constructed_options = []
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            constructed_options.append(kwargs)
+
+        def ocr(self, image):
+            return [{"rec_texts": [str(image)], "rec_scores": [0.9]}]
+
+    fake_module = types.SimpleNamespace(PaddleOCR=FakePaddleOCR)
+    monkeypatch.setattr(importlib, "import_module", lambda name: fake_module)
+
+    first = PaddleOcrEngine().recognize("1", {"lang": "en"})
+    second = PaddleOcrEngine().recognize("2", {"lang": "en"})
+
+    assert first.text == "1"
+    assert second.text == "2"
+    assert len(constructed_options) == 1
+
+
+def test_paddleocr_engine_passes_runtime_detection_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ocr_call_options = []
+
+    class FakePaddleOCR:
+        def __init__(self, **kwargs):
+            pass
+
+        def ocr(self, image, **kwargs):
+            ocr_call_options.append(kwargs)
+            return [{"rec_texts": ["9"], "rec_scores": [0.9]}]
+
+    fake_module = types.SimpleNamespace(PaddleOCR=FakePaddleOCR)
+    monkeypatch.setattr(importlib, "import_module", lambda name: fake_module)
+
+    result = PaddleOcrEngine().recognize("image", {"det": False, "rec": True, "cls": False})
+
+    assert result.text == "9"
+    assert ocr_call_options == [{"det": False, "rec": True, "cls": False}]
 
 
 def test_paddleocr_engine_converts_grayscale_crops_to_three_channels(

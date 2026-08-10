@@ -17,7 +17,7 @@ _ENV_PLACEHOLDER_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8080
-    workers: int = 1
+    workers: int = 0
 
 
 @dataclass(frozen=True)
@@ -95,7 +95,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
         server=ServerConfig(
             host=str(server.get("host", ServerConfig.host)),
             port=int(server.get("port", ServerConfig.port)),
-            workers=int(server.get("workers", ServerConfig.workers)),
+            workers=resolve_worker_count(server.get("workers", ServerConfig.workers)),
         ),
         storage=StorageConfig(
             service_data_dir=Path(storage.get("serviceDataDir", StorageConfig.service_data_dir)),
@@ -134,6 +134,27 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
             for region in resolved_config.get("archiveRegions", [])
         ],
     )
+
+
+def resolve_worker_count(value: Any = None) -> int:
+    """Return a safe worker count for CPU-bound OMR/OCR recognition.
+
+    ``0``, ``"auto"`` and omitted values mean auto-size from available CPUs.
+    PaddleOCR already uses native compute threads, so the default is deliberately
+    conservative to avoid oversubscribing production servers.
+    """
+
+    if value is None:
+        requested = 0
+    elif isinstance(value, str) and value.strip().lower() == "auto":
+        requested = 0
+    else:
+        requested = int(value)
+    if requested > 0:
+        return requested
+
+    cpu_count = os.cpu_count() or 1
+    return max(1, min(4, cpu_count // 2 or 1))
 
 
 def _resolve_env_placeholders(value: Any) -> Any:
@@ -177,7 +198,7 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
     if "OMR_SERVICE_HOST" in os.environ:
         server["host"] = os.environ["OMR_SERVICE_HOST"]
     if "OMR_SERVICE_WORKERS" in os.environ:
-        server["workers"] = int(os.environ["OMR_SERVICE_WORKERS"])
+        server["workers"] = os.environ["OMR_SERVICE_WORKERS"]
     if "OMR_SERVICE_DATA_DIR" in os.environ:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]
     if "OMR_TEMPLATE_DIR" in os.environ:

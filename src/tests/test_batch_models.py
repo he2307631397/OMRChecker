@@ -337,6 +337,56 @@ def test_result_payload_attaches_osskeys_using_business_region_aliases():
     ]
 
 
+def test_result_payload_prefers_largest_review_region_over_small_ocr_crops():
+    payload = BatchRecognitionResult(
+        task_id="task-largest",
+        exam_id="exam-1",
+        status="completed",
+        sheets=[
+            SheetRecognitionResult(
+                sheet_id="sheet-1",
+                source_osskey="inputs/sheet-1.pdf",
+                status="completed",
+                result={
+                    "answers": [
+                        {"engine": "ocr", "type": "FILL_BLANK", "regionCode": "fillBank", "regionName": "填空题", "items": []},
+                        {"engine": "ocr", "type": "SOLUTION", "regionCode": "solution", "regionName": "解答题", "items": []},
+                    ],
+                },
+                artifacts=[
+                    ArtifactPayload(
+                        artifact_type="FillBlank",
+                        osskey="artifacts/task-largest/sheet-1/fill-score-small.png",
+                        metadata={"regionCode": "FillBlank", "regionName": "填空题", "regionType": "score", "bbox": {"width": 95, "height": 60}},
+                    ),
+                    ArtifactPayload(
+                        artifact_type="FillBlankReview",
+                        osskey="artifacts/task-largest/sheet-1/fill-review-large.png",
+                        metadata={"regionCode": "FillBlankReview", "regionName": "填空题人工审核区域", "regionType": "FILL_BLANK_REVIEW", "bbox": {"width": 1050, "height": 160}},
+                    ),
+                    ArtifactPayload(
+                        artifact_type="Q14",
+                        osskey="artifacts/task-largest/sheet-1/solution-score-small.png",
+                        metadata={"regionCode": "Q14", "regionName": "第14题解答题", "regionType": "score", "bbox": {"width": 95, "height": 65}},
+                    ),
+                    ArtifactPayload(
+                        artifact_type="SolutionQ14Review",
+                        osskey="artifacts/task-largest/sheet-1/solution-review-large.png",
+                        metadata={"regionCode": "SolutionQ14Review", "regionName": "第14题解答题人工审核区域", "regionType": "SOLUTION_REVIEW", "bbox": {"width": 1050, "height": 445}},
+                    ),
+                ],
+            )
+        ],
+    )
+
+    answers = payload.to_callback_dict()["sheets"][0]["answers"]
+
+    assert [answer["osskey"] for answer in answers] == [
+        "artifacts/task-largest/sheet-1/fill-review-large.png",
+        "artifacts/task-largest/sheet-1/solution-review-large.png",
+    ]
+
+
 def test_render_callback_payload_from_task_store_like_records_groups_sheet_artifacts():
     payload = render_callback_payload_from_records(
         batch={

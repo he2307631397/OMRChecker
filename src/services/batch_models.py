@@ -308,7 +308,9 @@ def _compact_answers(answers: Any, artifacts: list[ArtifactPayload]) -> Any:
         if not _is_region_artifact(artifact):
             continue
         for key in _region_artifact_keys(artifact):
-            artifact_by_region.setdefault(key, artifact)
+            existing = artifact_by_region.get(key)
+            if existing is None or _region_artifact_area(artifact) > _region_artifact_area(existing):
+                artifact_by_region[key] = artifact
     compact_answers = []
     for answer in answers:
         if not isinstance(answer, dict):
@@ -371,6 +373,24 @@ def _region_artifact_keys(artifact: ArtifactPayload) -> list[str]:
         artifact.artifact_type,
     ]
     return _region_match_keys(values)
+
+
+def _region_artifact_area(artifact: ArtifactPayload) -> int:
+    metadata = artifact.metadata or {}
+    bbox = metadata.get("bbox")
+    if isinstance(bbox, dict):
+        width = bbox.get("width")
+        height = bbox.get("height")
+    elif isinstance(bbox, list) and len(bbox) == 4:
+        width = bbox[2]
+        height = bbox[3]
+    else:
+        return 0
+    if not isinstance(width, int | float) or not isinstance(height, int | float):
+        return 0
+    if width <= 0 or height <= 0:
+        return 0
+    return int(width * height)
 
 
 def _region_match_keys(values: list[Any]) -> list[str]:

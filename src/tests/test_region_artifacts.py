@@ -139,7 +139,7 @@ def test_derives_archive_regions_from_template_field_blocks(tmp_path: Path) -> N
         ("singleChoice", "单选题区域", "SINGLE_CHOICE"),
         ("multiChoice", "多选题区域", "MULTI_CHOICE"),
     ]
-    assert regions[0].bbox == [241, 261, 884, 405]
+    assert regions[0].bbox == [468, 261, 657, 405]
     assert regions[1].bbox == [39, 690, 454, 140]
     assert regions[2].bbox == [39, 866, 251, 95]
 

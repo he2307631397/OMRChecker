@@ -318,7 +318,7 @@ def _dynamic_region_padding(region_code: str, *, margin: int, page_width: int, p
 
     if region_code == "candidateNumber":
         return (
-            max(margin, _ratio_pixels(page_width, 0.45), 220),
+            max(margin, _ratio_pixels(page_width, 0.26), 220),
             max(margin, _ratio_pixels(page_height, 0.08), 90),
             margin,
             margin,

@@ -206,12 +206,12 @@
         "fill_blank_score_text"
       ],
       "origin": [
-        125,
-        1040
+        66,
+        1025
       ],
       "dimensions": [
-        95,
-        60
+        159,
+        132
       ],
       "regionCode": "FillBlank",
       "regionName": "填空题",
@@ -286,12 +286,12 @@
         "q14_score_text"
       ],
       "origin": [
-        125,
-        1215
+        66,
+        1211
       ],
       "dimensions": [
-        95,
-        65
+        159,
+        99
       ],
       "regionCode": "Q14",
       "regionName": "第14题解答题",
@@ -368,24 +368,24 @@
     {
       "bbox": [
         65,
-        1015,
+        1025,
         1050,
-        160
+        135
       ],
-      "regionCode": "fillBank",
-      "regionName": "填空题",
-      "type": "FILL_BLANK"
+      "regionCode": "FillBlankReview",
+      "regionName": "填空题人工审核区域",
+      "type": "FILL_BLANK_REVIEW"
     },
     {
       "bbox": [
         65,
-        1190,
+        1211,
         1050,
-        445
+        428
       ],
-      "regionCode": "solution",
-      "regionName": "解答题",
-      "type": "SOLUTION"
+      "regionCode": "SolutionQ14Review",
+      "regionName": "第14题解答题人工审核区域",
+      "type": "SOLUTION_REVIEW"
     }
   ]
 }

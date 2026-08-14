@@ -6,18 +6,18 @@
   "fieldBlocks": {
     "ExamId": {
       "bubbleDimensions": [
-        30,
+        28,
         17
       ],
-      "bubblesGap": 27,
+      "bubblesGap": 26,
       "fieldLabels": [
         "id1..8"
       ],
       "fieldType": "QTYPE_INT",
-      "labelsGap": 44,
+      "labelsGap": 42,
       "origin": [
-        777,
-        396
+        764,
+        417
       ]
     },
     "Q1": {

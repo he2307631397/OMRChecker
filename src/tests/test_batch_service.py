@@ -822,6 +822,50 @@ def test_one_sheet_recognition_failure_marks_sheet_failed_and_batch_partial_fail
     assert sheets["sheet-2"]["error"] == "unreadable sheet"
 
 
+def test_retry_failed_sheets_reruns_only_failed_sheets_and_updates_batch_status(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-2.png")
+    calls = []
+    failing_sheet_2 = True
+
+    def fake_runner(context):
+        calls.append(context.sheet.sheet_id)
+        if context.sheet.sheet_id == "sheet-2" and failing_sheet_2:
+            raise RuntimeError("temporary failure")
+        return RecognitionOutput(result={"ok": context.sheet.sheet_id})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(
+        _make_request(
+            sheets=[
+                BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png"),
+                BatchSheetRequest(sheet_id="sheet-2", osskey="incoming/sheet-2.png"),
+            ]
+        )
+    )
+    assert service.process_batch("task-1").status == "partial_failed"
+
+    failing_sheet_2 = False
+    result = service.retry_failed_sheets("task-1")
+
+    assert calls == ["sheet-1", "sheet-2", "sheet-2"]
+    assert result.status == "completed"
+    sheets = {sheet["sheet_id"]: sheet for sheet in store.list_sheets("task-1")}
+    assert sheets["sheet-1"]["result_json"] == {"ok": "sheet-1"}
+    assert sheets["sheet-2"]["status"] == "completed"
+    assert sheets["sheet-2"]["error"] is None
+    assert sheets["sheet-2"]["result_json"] == {"ok": "sheet-2"}
+    assert store.get_batch("task-1")["status"] == "completed"
+
+
 def test_artifact_upload_failure_is_non_fatal_and_reflected_in_result_metadata(tmp_path: Path) -> None:
     class UploadFailingCos(LocalCosClient):
         def upload_file(self, local_path, osskey, content_type=None):

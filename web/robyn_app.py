@@ -244,6 +244,27 @@ def get_batch(task_id: str) -> dict[str, Any]:
     return _batch_payload_from_store(task_id)
 
 
+@app.post("/api/omr/batches/:task_id/retry")
+def retry_batch(task_id: str) -> dict[str, Any]:
+    batch = _BATCH_SERVICE.store.get_batch(task_id)
+    if batch is None:
+        return {"status": "not_found", "taskId": task_id, "error": "batch not found"}
+    failed_sheets = [sheet for sheet in _BATCH_SERVICE.store.list_sheets(task_id) if sheet["status"] == "failed"]
+    if not failed_sheets:
+        payload = _batch_payload_from_store(task_id)
+        payload["retrySheets"] = 0
+        return payload
+    _BATCH_SERVICE.store.update_batch_status(task_id, "pending", result_json=batch.get("result_json"), error=None)
+    _BATCH_EXECUTOR.submit(_retry_batch_safely, task_id)
+    return {
+        "taskId": task_id,
+        "examId": batch.get("exam_id"),
+        "status": "pending",
+        "retrySheets": len(failed_sheets),
+        "links": {"self": f"/api/omr/batches/{task_id}"},
+    }
+
+
 @app.get("/api/omr/tasks")
 def get_tasks(request: Request) -> dict[str, Any]:
     query_params = getattr(request, "query_params", None) or getattr(request, "queries", None) or {}
@@ -329,6 +350,16 @@ def _json_request_body(request: Request) -> dict[str, Any]:
 def _process_batch_safely(task_id: str) -> None:
     try:
         _BATCH_SERVICE.process_batch(task_id)
+    except Exception as exc:  # noqa: BLE001 - background failures must be persisted.
+        try:
+            _BATCH_SERVICE.store.update_batch_status(task_id, "failed", error=str(exc))
+        except KeyError:
+            return
+
+
+def _retry_batch_safely(task_id: str) -> None:
+    try:
+        _BATCH_SERVICE.retry_failed_sheets(task_id)
     except Exception as exc:  # noqa: BLE001 - background failures must be persisted.
         try:
             _BATCH_SERVICE.store.update_batch_status(task_id, "failed", error=str(exc))

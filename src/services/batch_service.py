@@ -89,6 +89,15 @@ class BatchRecognitionService:
         return self._result_from_store(task_id)
 
     def process_batch(self, task_id: str) -> BatchRecognitionResult:
+        return self._process_batch_sheets(task_id)
+
+    def retry_failed_sheets(self, task_id: str) -> BatchRecognitionResult:
+        failed_sheet_ids = [sheet["sheet_id"] for sheet in self.store.list_sheets(task_id) if sheet["status"] == "failed"]
+        if not failed_sheet_ids:
+            return self._result_from_store(task_id)
+        return self._process_batch_sheets(task_id, sheet_ids=failed_sheet_ids)
+
+    def _process_batch_sheets(self, task_id: str, sheet_ids: Sequence[str] | None = None) -> BatchRecognitionResult:
         batch = self._require_batch(task_id)
         request = BatchRecognitionRequest.from_api_json(batch["request_json"])
         preserve_debug_artifacts = self._should_preserve_debug_artifacts(request)
@@ -97,7 +106,10 @@ class BatchRecognitionService:
         self._persist_request_template_dependencies(request)
 
         any_artifact_errors = False
+        selected_sheet_ids = set(sheet_ids) if sheet_ids is not None else None
         for sheet_request in request.sheets:
+            if selected_sheet_ids is not None and sheet_request.sheet_id not in selected_sheet_ids:
+                continue
             self.store.update_sheet(
                 task_id=task_id,
                 sheet_id=sheet_request.sheet_id,

@@ -134,6 +134,49 @@ def test_get_batch_by_task_id_returns_camel_case_payload_and_unknown_returns_404
     assert missing == {"status": "not_found", "taskId": "missing-task", "error": "batch not found"}
 
 
+def test_retry_batch_resubmits_existing_failed_sheets_by_task_id(monkeypatch, tmp_path):
+    service, store = _service(tmp_path)
+    executor = QueuedExecutor()
+    monkeypatch.setattr(robyn_app, "_BATCH_SERVICE", service)
+    monkeypatch.setattr(robyn_app, "_BATCH_EXECUTOR", executor)
+    robyn_app.create_batch(DummyRequest(json_payload=_payload()))
+    store.update_sheet(
+        task_id="batch-task-1",
+        sheet_id="sheet-1",
+        source_osskey="incoming/sheet-1.png",
+        status="failed",
+        result_json={},
+        error="temporary failure",
+    )
+    store.update_batch_status("batch-task-1", "failed", error="temporary failure")
+
+    response = robyn_app.retry_batch("batch-task-1")
+
+    assert response == {
+        "taskId": "batch-task-1",
+        "examId": "exam-1",
+        "status": "pending",
+        "retrySheets": 1,
+        "links": {"self": "/api/omr/batches/batch-task-1"},
+    }
+    assert len(executor.submissions) == 2
+    assert executor.submissions[-1][0] == robyn_app._retry_batch_safely
+    assert executor.submissions[-1][1] == ("batch-task-1",)
+
+
+def test_retry_batch_returns_current_payload_when_no_failed_sheets(monkeypatch, tmp_path):
+    service, _store = _service(tmp_path)
+    monkeypatch.setattr(robyn_app, "_BATCH_SERVICE", service)
+    monkeypatch.setattr(robyn_app, "_BATCH_EXECUTOR", InlineExecutor())
+    robyn_app.create_batch(DummyRequest(json_payload=_payload()))
+
+    response = robyn_app.retry_batch("batch-task-1")
+
+    assert response["taskId"] == "batch-task-1"
+    assert response["retrySheets"] == 0
+    assert response["sheets"][0]["status"] == "completed"
+
+
 def test_query_batches_filters_by_exam_status_external_and_paginates(monkeypatch, tmp_path):
     service, _store = _service(tmp_path)
     monkeypatch.setattr(robyn_app, "_BATCH_SERVICE", service)

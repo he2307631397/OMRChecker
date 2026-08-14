@@ -206,11 +206,11 @@
         "fill_blank_score_text"
       ],
       "origin": [
-        125,
+        140,
         998
       ],
       "dimensions": [
-        95,
+        80,
         60
       ],
       "regionCode": "FillBlank",
@@ -218,7 +218,8 @@
       "type": "score",
       "ocr": {
         "lang": "ch",
-        "archiveRegion": true
+        "archiveRegion": true,
+        "digitsOnly": true
       }
     },
     "FillQ12AnswerOcr": {
@@ -286,11 +287,11 @@
         "q15_score_text"
       ],
       "origin": [
-        125,
+        140,
         1182
       ],
       "dimensions": [
-        95,
+        80,
         65
       ],
       "regionCode": "Q15",
@@ -298,7 +299,8 @@
       "type": "score",
       "ocr": {
         "lang": "ch",
-        "archiveRegion": true
+        "archiveRegion": true,
+        "digitsOnly": true
       }
     },
     "Q15AnswerOcr": {

@@ -54,10 +54,11 @@ class ImageInstanceOps:
         field_label = field_block.parsed_field_labels[0]
         crop = crop_ocr_region(image, field_block)
         result = self.ocr_engine.recognize(crop, field_block.ocr_options)
+        text = self.normalize_ocr_text(result.text, field_block)
         x, y = field_block.origin
         width, height = field_block.dimensions
         self.last_ocr_results[field_label] = {
-            "text": result.text,
+            "text": text,
             "confidence": result.confidence,
             "engine": "paddleocr",
             "blockName": field_block.name,
@@ -66,7 +67,30 @@ class ImageInstanceOps:
             "regionName": field_block.region_name,
             "type": field_block.region_type,
         }
-        return field_label, result.text
+        return field_label, text
+
+    @staticmethod
+    def normalize_ocr_text(text, field_block):
+        options = field_block.ocr_options or {}
+        if options.get("digitsOnly") is not True:
+            return text
+        normalized = str(text or "")
+        replacements = {
+            "O": "0",
+            "o": "0",
+            "〇": "0",
+            "○": "0",
+            "一": "1",
+            "I": "1",
+            "l": "1",
+            "|": "1",
+            "/": "1",
+            "／": "1",
+            "S": "5",
+            "s": "5",
+        }
+        normalized = "".join(replacements.get(ch, ch) for ch in normalized)
+        return "".join(ch for ch in normalized if ch.isdigit())
 
     @staticmethod
     def get_page_blank_model(q_vals):

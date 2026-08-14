@@ -37,6 +37,7 @@ ocr_options_schema = {
         "cls": {"type": "boolean"},
         "returnConfidence": {"type": "boolean"},
         "archiveRegion": {"type": "boolean"},
+        "digitsOnly": {"type": "boolean"},
     },
 }
 

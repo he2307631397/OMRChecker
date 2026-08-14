@@ -134,6 +134,33 @@ def test_read_omr_response_dispatches_paddleocr_block(tmp_path: Path) -> None:
     }
 
 
+def test_read_omr_response_normalizes_digits_only_ocr_text(tmp_path: Path) -> None:
+    template_path = tmp_path / "template.json"
+    _write_template(
+        template_path,
+        """
+        {
+          "blank_score_1": {
+            "engine": "paddleocr",
+            "fieldLabels": ["blankScore1"],
+            "origin": [10, 20],
+            "dimensions": [30, 15],
+            "ocr": {"lang": "en", "digitsOnly": true}
+          }
+        }
+        """,
+        '["blankScore1"]',
+    )
+    template = Template(template_path, CONFIG_DEFAULTS)
+    fake_ocr = FakeOcrEngine(OcrResult(text=":/O分", confidence=0.72))
+    ops = ImageInstanceOps(CONFIG_DEFAULTS, ocr_engine=fake_ocr)
+
+    response, *_ = ops.read_omr_response(template, np.full((120, 200), 255, dtype=np.uint8), "sample.png")
+
+    assert response["blankScore1"] == "10"
+    assert ops.last_ocr_results["blankScore1"]["text"] == "10"
+
+
 def test_read_omr_response_does_not_call_ocr_engine_for_pure_omr_template(
     tmp_path: Path,
 ) -> None:

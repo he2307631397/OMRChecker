@@ -1,0 +1,125 @@
+{
+  "archiveRegions": [
+    {
+      "regionCode": "candidateNumber",
+      "regionName": "准考证号区域",
+      "type": "DIGIT",
+      "bbox": [
+        752,
+        326,
+        340,
+        350
+      ]
+    },
+    {
+      "regionCode": "singleChoice",
+      "regionName": "单选题区域",
+      "type": "SINGLE_CHOICE",
+      "bbox": [
+        39,
+        690,
+        1055,
+        154
+      ]
+    },
+    {
+      "regionCode": "multiChoice",
+      "regionName": "多选题区域",
+      "type": "MULTI_CHOICE",
+      "bbox": [
+        39,
+        846,
+        660,
+        134
+      ]
+    },
+    {
+      "regionCode": "FillBlank",
+      "regionName": "填空题",
+      "type": "score",
+      "bbox": [
+        125,
+        998,
+        95,
+        60
+      ]
+    },
+    {
+      "regionCode": "Q12",
+      "regionName": "第12题填空题",
+      "type": "answer",
+      "bbox": [
+        170,
+        1068,
+        225,
+        60
+      ]
+    },
+    {
+      "regionCode": "Q13",
+      "regionName": "第13题填空题",
+      "type": "answer",
+      "bbox": [
+        485,
+        1068,
+        225,
+        60
+      ]
+    },
+    {
+      "regionCode": "Q14",
+      "regionName": "第14题填空题",
+      "type": "answer",
+      "bbox": [
+        790,
+        1068,
+        225,
+        60
+      ]
+    },
+    {
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
+      "type": "score",
+      "bbox": [
+        125,
+        1182,
+        95,
+        65
+      ]
+    },
+    {
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
+      "type": "answer",
+      "bbox": [
+        85,
+        1257,
+        1020,
+        300
+      ]
+    },
+    {
+      "bbox": [
+        65,
+        980,
+        1050,
+        175
+      ],
+      "regionCode": "FillBlankReview",
+      "regionName": "填空题人工审核区域",
+      "type": "FILL_BLANK_REVIEW"
+    },
+    {
+      "bbox": [
+        65,
+        1160,
+        1050,
+        457
+      ],
+      "regionCode": "SolutionQ15Review",
+      "regionName": "第15题解答题人工审核区域",
+      "type": "SOLUTION_REVIEW"
+    }
+  ]
+}

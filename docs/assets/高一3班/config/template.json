@@ -1,0 +1,391 @@
+{
+  "bubbleDimensions": [
+    29,
+    18
+  ],
+  "fieldBlocks": {
+    "ExamId": {
+      "bubbleDimensions": [
+        28,
+        17
+      ],
+      "bubblesGap": 26,
+      "fieldLabels": [
+        "id1..8"
+      ],
+      "fieldType": "QTYPE_INT",
+      "labelsGap": 42,
+      "origin": [
+        764,
+        417
+      ]
+    },
+    "Q1": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q1"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        134,
+        757
+      ]
+    },
+    "Q10": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q10"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "multiSelect": true,
+      "origin": [
+        337,
+        923
+      ]
+    },
+    "Q11": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q11"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "multiSelect": true,
+      "origin": [
+        540,
+        923
+      ]
+    },
+    "Q2": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q2"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        337,
+        757
+      ]
+    },
+    "Q3": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q3"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        540,
+        757
+      ]
+    },
+    "Q4": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q4"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        743,
+        757
+      ]
+    },
+    "Q5": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q5"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        946,
+        757
+      ]
+    },
+    "Q6": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q6"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        134,
+        792
+      ]
+    },
+    "Q7": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q7"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        337,
+        792
+      ]
+    },
+    "Q8": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q8"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        540,
+        792
+      ]
+    },
+    "Q9": {
+      "bubbleDimensions": [
+        29,
+        18
+      ],
+      "bubblesGap": 39,
+      "fieldLabels": [
+        "q9"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "multiSelect": true,
+      "origin": [
+        134,
+        923
+      ]
+    }
+  },
+  "fieldBlockOcrs": {
+    "FillBlankScoreOcr": {
+      "fieldLabels": [
+        "fill_blank_score_text"
+      ],
+      "origin": [
+        125,
+        1040
+      ],
+      "dimensions": [
+        95,
+        60
+      ],
+      "regionCode": "FillBlank",
+      "regionName": "填空题",
+      "type": "score",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ12AnswerOcr": {
+      "fieldLabels": [
+        "fill_q12_answer_text"
+      ],
+      "origin": [
+        170,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q12",
+      "regionName": "第12题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ13AnswerOcr": {
+      "fieldLabels": [
+        "fill_q13_answer_text"
+      ],
+      "origin": [
+        485,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q13",
+      "regionName": "第13题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "FillQ14AnswerOcr": {
+      "fieldLabels": [
+        "fill_q14_answer_text"
+      ],
+      "origin": [
+        790,
+        1110
+      ],
+      "dimensions": [
+        225,
+        50
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题填空题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "Q14ScoreOcr": {
+      "fieldLabels": [
+        "q14_score_text"
+      ],
+      "origin": [
+        125,
+        1215
+      ],
+      "dimensions": [
+        95,
+        65
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题解答题",
+      "type": "score",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    },
+    "Q15AnswerOcr": {
+      "fieldLabels": [
+        "solution_q15_answer_text"
+      ],
+      "origin": [
+        85,
+        1285
+      ],
+      "dimensions": [
+        1020,
+        290
+      ],
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
+      "type": "answer",
+      "ocr": {
+        "lang": "ch",
+        "archiveRegion": true
+      }
+    }
+  },
+  "outputColumns": [
+    "id1",
+    "id2",
+    "id3",
+    "id4",
+    "id5",
+    "id6",
+    "id7",
+    "id8",
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9",
+    "q10",
+    "q11",
+    "fill_blank_score_text",
+    "fill_q12_answer_text",
+    "fill_q13_answer_text",
+    "fill_q14_answer_text",
+    "q14_score_text",
+    "solution_q15_answer_text"
+  ],
+  "pageDimensions": [
+    1190,
+    1682
+  ],
+  "preProcessors": [
+    {
+      "name": "FeatureBasedAlignment",
+      "options": {
+        "2d": true,
+        "goodMatchPercent": 0.25,
+        "maxFeatures": 2000,
+        "reference": "reference.png"
+      }
+    }
+  ],
+  "archiveRegions": [
+    {
+      "bbox": [
+        65,
+        1015,
+        1050,
+        160
+      ],
+      "regionCode": "FillBlankReview",
+      "regionName": "填空题人工审核区域",
+      "type": "FILL_BLANK_REVIEW"
+    },
+    {
+      "bbox": [
+        65,
+        1190,
+        1050,
+        445
+      ],
+      "regionCode": "SolutionQ15Review",
+      "regionName": "第15题解答题人工审核区域",
+      "type": "SOLUTION_REVIEW"
+    }
+  ]
+}

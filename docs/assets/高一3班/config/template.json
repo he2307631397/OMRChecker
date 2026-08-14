@@ -206,11 +206,11 @@
         "fill_blank_score_text"
       ],
       "origin": [
-        125,
+        140,
         1040
       ],
       "dimensions": [
-        95,
+        80,
         60
       ],
       "regionCode": "FillBlank",
@@ -218,7 +218,8 @@
       "type": "score",
       "ocr": {
         "lang": "ch",
-        "archiveRegion": true
+        "archiveRegion": true,
+        "digitsOnly": true
       }
     },
     "FillQ12AnswerOcr": {
@@ -281,24 +282,25 @@
         "archiveRegion": true
       }
     },
-    "Q14ScoreOcr": {
+    "Q15ScoreOcr": {
       "fieldLabels": [
-        "q14_score_text"
+        "q15_score_text"
       ],
       "origin": [
-        125,
+        140,
         1215
       ],
       "dimensions": [
-        95,
+        80,
         65
       ],
-      "regionCode": "Q14",
-      "regionName": "第14题解答题",
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
       "type": "score",
       "ocr": {
         "lang": "ch",
-        "archiveRegion": true
+        "archiveRegion": true,
+        "digitsOnly": true
       }
     },
     "Q15AnswerOcr": {
@@ -346,7 +348,7 @@
     "fill_q12_answer_text",
     "fill_q13_answer_text",
     "fill_q14_answer_text",
-    "q14_score_text",
+    "q15_score_text",
     "solution_q15_answer_text"
   ],
   "pageDimensions": [

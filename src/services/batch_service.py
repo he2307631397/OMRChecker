@@ -357,6 +357,7 @@ class BatchRecognitionService:
         if template is None:
             template = request.recognition_config.get("templateConfig")
         config = request.recognition_config.get("config")
+        archive_regions = _runtime_archive_regions(request.recognition_config)
         if isinstance(template, dict):
             normalized_template = _drop_none_values(template)
             if normalized_template:
@@ -364,6 +365,8 @@ class BatchRecognitionService:
                 _write_json(template_path, _merge_json_file(template_path, normalized_template))
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
+        if archive_regions is not None:
+            _write_json(workdir / "regions.json", {"archiveRegions": archive_regions})
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -447,6 +450,33 @@ def _safe_config_dependency_dir(*parts: str) -> Path:
 def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _runtime_archive_regions(recognition_config: dict) -> list[dict] | None:
+    raw_regions = recognition_config.get("regions")
+    if raw_regions is None:
+        raw_regions = recognition_config.get("archiveRegions")
+    if raw_regions is None:
+        return None
+    if isinstance(raw_regions, dict):
+        raw_regions = raw_regions.get("archiveRegions")
+    if not isinstance(raw_regions, list):
+        return None
+    return [_normalize_archive_region(region) for region in raw_regions if isinstance(region, dict)]
+
+
+def _normalize_archive_region(region: dict) -> dict:
+    normalized = dict(region)
+    normalized["regionCode"] = str(region.get("regionCode", "")).strip()
+    normalized["regionName"] = str(region.get("regionName", "")).strip()
+    normalized["type"] = str(region.get("type", "")).strip()
+    normalized["bbox"] = [_normalize_region_coordinate(value) for value in region.get("bbox", [])]
+    return normalized
+
+
+def _normalize_region_coordinate(value) -> int | float:
+    numeric = float(value)
+    return int(numeric) if numeric.is_integer() else numeric
 
 
 def _merge_json_file(path: Path, override: dict) -> dict:

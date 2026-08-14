@@ -73,6 +73,24 @@ def test_batch_request_defaults_recognition_config_to_empty_dict_when_omitted_or
     assert "callbackUrl" not in omitted.to_api_dict()
 
 
+def test_batch_request_accepts_dynamic_archive_regions():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "recognitionConfig": {
+                "regions": {
+                    "archiveRegions": [
+                        {"regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "bbox": [10, 20, 30, 40]}
+                    ]
+                }
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}],
+        }
+    )
+
+    assert request.recognition_config["regions"]["archiveRegions"][0]["regionCode"] == "blankScore"
+
+
 def test_batch_request_accepts_integer_business_ids_from_complete_payload():
     request = BatchRecognitionRequest.from_api_json(
         {
@@ -110,6 +128,8 @@ def test_batch_request_accepts_integer_business_ids_from_complete_payload():
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": [] , "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig must be an object"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": {"template": "standard"}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.template must be an object"),
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": {"config": []}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.config must be an object"),
+        ({"examId": "exam-1", "recognitionConfig": {"regions": "bad"}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.regions must be a list or an object with archiveRegions"),
+        ({"examId": "exam-1", "recognitionConfig": {"archiveRegions": [{"regionCode": "blank", "regionName": "填空", "type": "BLANK", "bbox": [1, 2, 0, 4]}]}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.archiveRegions[0].bbox width and height must be positive"),
     ],
 )
 def test_batch_request_validation_failures_are_clear(payload, message):

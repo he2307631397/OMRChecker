@@ -66,6 +66,10 @@ class BatchRecognitionRequest:
             runtime_value = recognition_config.get(runtime_field)
             if runtime_value is not None and not isinstance(runtime_value, dict):
                 raise ValueError(f"recognitionConfig.{runtime_field} must be an object")
+        for regions_field in ("regions", "archiveRegions"):
+            runtime_regions = recognition_config.get(regions_field)
+            if runtime_regions is not None:
+                _validate_archive_regions(runtime_regions, f"recognitionConfig.{regions_field}")
         debug_artifacts = recognition_config.get("debugArtifacts")
         if debug_artifacts is not None and not isinstance(debug_artifacts, bool):
             raise ValueError("recognitionConfig.debugArtifacts must be a boolean")
@@ -290,6 +294,30 @@ def _optional_template_path_component(value: Any, display_name: str, *, example:
     if ".." in component:
         raise ValueError(f"{display_name} must be a safe template path component like {example}")
     return component
+
+
+def _validate_archive_regions(value: Any, display_name: str) -> None:
+    if isinstance(value, dict):
+        if set(value.keys()) != {"archiveRegions"}:
+            raise ValueError(f"{display_name} must be a list or an object with archiveRegions")
+        value = value.get("archiveRegions")
+    if not isinstance(value, list):
+        raise ValueError(f"{display_name} must be a list or an object with archiveRegions")
+    for index, region in enumerate(value):
+        region_name = f"{display_name}[{index}]"
+        if not isinstance(region, dict):
+            raise ValueError(f"{region_name} must be an object")
+        for key in ("regionCode", "regionName", "type"):
+            if not isinstance(region.get(key), str) or not region[key].strip():
+                raise ValueError(f"{region_name}.{key} must be a non-empty string")
+        bbox = region.get("bbox")
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            raise ValueError(f"{region_name}.bbox must be a list of four numbers")
+        for bbox_index, coordinate in enumerate(bbox):
+            if isinstance(coordinate, bool) or not isinstance(coordinate, int | float):
+                raise ValueError(f"{region_name}.bbox[{bbox_index}] must be a number")
+        if bbox[2] <= 0 or bbox[3] <= 0:
+            raise ValueError(f"{region_name}.bbox width and height must be positive")
 
 
 def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:

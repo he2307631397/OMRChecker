@@ -676,6 +676,57 @@ def test_process_batch_derives_archive_regions_from_template_code_schema(monkeyp
     ]
 
 
+def test_process_batch_writes_request_regions_json_for_template_code(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    (config_v1 / "template.json").write_text(json.dumps({"pageDimensions": [1190, 1682], "fieldBlocks": {}}), encoding="utf-8")
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
+            "recognitionConfig": {
+                "regions": [
+                    {"regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "bbox": [10.0, 20, 30, 40]}
+                ]
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    captured_regions = []
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        assert json.loads((config_v1 / "regions.json").read_text(encoding="utf-8")) == {
+            "archiveRegions": [
+                {"regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "bbox": [10, 20, 30, 40]}
+            ]
+        }
+        checked_path = context.workdir / "checked" / "sheet-1.png"
+        _write_image(checked_path)
+        return RecognitionOutput(result={"ok": True}, checked_image_path=checked_path)
+
+    def fake_region_generator(_image_path, regions, _output_dir, **_kwargs):
+        captured_regions.extend(regions)
+        return []
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path, regions=[]),
+        recognition_runner=fake_runner,
+        region_artifact_generator=fake_region_generator,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+    assert [(region.region_code, region.bbox) for region in captured_regions] == [("blankScore", [10, 20, 30, 40])]
+
+
 def test_process_batch_requires_central_template_json_for_template_code(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

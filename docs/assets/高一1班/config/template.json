@@ -207,7 +207,7 @@
       ],
       "origin": [
         125,
-        1040
+        1018
       ],
       "dimensions": [
         95,
@@ -227,11 +227,11 @@
       ],
       "origin": [
         170,
-        1110
+        1088
       ],
       "dimensions": [
         225,
-        50
+        60
       ],
       "regionCode": "Q12",
       "regionName": "第12题填空题",
@@ -247,11 +247,11 @@
       ],
       "origin": [
         485,
-        1110
+        1088
       ],
       "dimensions": [
         225,
-        50
+        60
       ],
       "regionCode": "Q13",
       "regionName": "第13题填空题",
@@ -267,11 +267,11 @@
       ],
       "origin": [
         790,
-        1110
+        1088
       ],
       "dimensions": [
         225,
-        50
+        60
       ],
       "regionCode": "Q14",
       "regionName": "第14题填空题",
@@ -287,7 +287,7 @@
       ],
       "origin": [
         125,
-        1215
+        1200
       ],
       "dimensions": [
         95,
@@ -307,11 +307,11 @@
       ],
       "origin": [
         85,
-        1285
+        1275
       ],
       "dimensions": [
         1020,
-        290
+        300
       ],
       "regionCode": "Q15",
       "regionName": "第15题解答题",
@@ -368,9 +368,9 @@
     {
       "bbox": [
         65,
-        1015,
+        1000,
         1050,
-        160
+        175
       ],
       "regionCode": "FillBlankReview",
       "regionName": "填空题人工审核区域",
@@ -379,9 +379,9 @@
     {
       "bbox": [
         65,
-        1190,
+        1178,
         1050,
-        445
+        457
       ],
       "regionCode": "SolutionQ15Review",
       "regionName": "第15题解答题人工审核区域",

@@ -85,8 +85,6 @@ Use `config/robyn-service.example.json` as the starting point for `config/robyn-
 
 For Windows paths with Chinese characters, start with UTF-8 mode:
 
-```cmd
-python -X utf8 web\robyn_app.py
 ```
 ```cmd
 python3 main.py
@@ -651,9 +649,8 @@ Request body fields:
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
 | `templateCode` | no | Template code such as `ASTS-HTTP-001`. When supplied, Robyn copies top-level files from project `config/<templateCode>/<schemaVersion>/` into each sheet workdir before writing request `template.json` and `config.json`. Use this for binary/template dependency files such as `reference.png`. |
 | `schemaVersion` | no | Template schema/version such as `v1` or `v2`. Required when `templateCode` is used to select a non-default schema. If omitted with `templateCode`, Robyn defaults to `v1`. |
-| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. `regions` or `archiveRegions` can supply dynamic screenshot/archive regions and are written to `regions.json`. Other keys are persisted but not interpreted. |
+| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
-| `recognitionConfig.regions` / `recognitionConfig.archiveRegions` | no | List of region objects, or object `{ "archiveRegions": [...] }`. Each region requires `regionCode`, `regionName`, `type`, and `bbox: [x, y, width, height]`. For `templateCode` requests, Robyn writes `config/<templateCode>/<schemaVersion>/regions.json`; otherwise it writes `regions.json` into each sheet workdir. |
 | `sheets` | yes | Non-empty list of sheet objects. |
 | `sheets[].sheetId` | yes | Business sheet ID. |
 | `sheets[].osskey` | yes | Source object key to download from COS or fake COS. |
@@ -674,20 +671,6 @@ curl -X POST http://localhost:8080/api/omr/batches \
       "batchId": 1,
       "recognitionConfig": {
           "debugArtifacts": false,
-          "regions": [
-              {
-                  "regionCode": "blankScore",
-                  "regionName": "填空题得分区域",
-                  "type": "BLANK_SCORE",
-                  "bbox": [116, 1215, 540, 66]
-              },
-              {
-                  "regionCode": "solutionAnswer",
-                  "regionName": "解答题答案区域",
-                  "type": "SOLUTION_ANSWER",
-                  "bbox": [105, 1320, 960, 260]
-              }
-          ],
           "config": {
               "dimensions": {
                   "displayHeight": 1682,
@@ -1415,12 +1398,13 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
        "score": "0",
        "sourceOsskey": "private/exam/exam_scan/exam-http-invalid/raw/2026/08/07/f_4f612dd1db0d4149b9a1af30ac620aa3.pdf",
        "checkedImageOsskey": "checked/ff1e0dc25a4e4dbd87e7eb4a1fd60f76/1/f_4f612dd1db0d4149b9a1af30ac620aa3.png",
-       "exam_id": "27423564",
-       "file_id": "f_4f612dd1db0d4149b9a1af30ac620aa3.png",
+       "examNo": "27423564",
+       "fileId": "f_4f612dd1db0d4149b9a1af30ac620aa3.png",
        "review_required": true,
        "weak_marks": [],
        "answers": [
          {
+           "engine":"omr",
            "type": "DIGIT",
            "regionCode": "candidateNumber",
            "regionName": "准考证号区域",
@@ -1469,6 +1453,7 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
            ]
          },
          {
+           "engine":"omr",
            "type": "SINGLE_CHOICE",
            "regionCode": "singleChoice",
            "regionName": "单选题区域",
@@ -1517,6 +1502,7 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
            ]
          },
          {
+           "engine":"omr",
            "type": "MULTIPLE_CHOICE",
            "regionCode": "multipleChoice",
            "regionName": "多选题区域",
@@ -1540,6 +1526,7 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
            ]
          },
          {
+           "engine":"ocr",
            "type": "FILL_BLANK",
            "regionCode": "fillBank",
            "regionName": "填空题",
@@ -1568,6 +1555,7 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
            ]
          },
          {
+           "engine":"ocr",
            "type": "SOLUTION",
            "regionCode": "solution",
            "regionName": "解答题",
@@ -1589,3 +1577,5 @@ Current implementation detail: `callback.timeoutSeconds` is used by `HttpCallbac
      }
    ]
  }
+生成F:\opensource\OMRChecker\docs/assets/高一1班新答题卡模板参数文件，放到这个目录下config目录下
+生成F:\opensource\OMRChecker\docs/assets/高一3班新答题卡模板参数文件，放到这个目录下config目录下

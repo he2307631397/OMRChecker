@@ -651,6 +651,7 @@ Request body fields:
 | `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. `regions`, when supplied as a list, is written as runtime `regions.json`. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
 | `recognitionConfig.regions` | no | List of archive region objects with `regionCode`, `regionName`, `type`, and `bbox`. This replaces template-level `archiveRegions`. |
+| `recognitionConfig.templateConfig.preProcessors[].options.reference` | no | Local reference file name or OSS key. If the value is an OSS key such as `template-assets/reference.png`, Robyn downloads it from COS into the template directory and rewrites the generated `template.json` to the local file name before recognition. |
 | `sheets` | yes | Non-empty list of sheet objects. |
 | `sheets[].sheetId` | yes | Business sheet ID. |
 | `sheets[].osskey` | yes | Source object key to download from COS or fake COS. |

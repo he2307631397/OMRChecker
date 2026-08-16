@@ -477,6 +477,52 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_downloads_runtime_template_reference_from_cos(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    (tmp_path / "cos" / "template-assets" / "reference.png").parent.mkdir(parents=True)
+    (tmp_path / "cos" / "template-assets" / "reference.png").write_bytes(b"remote-reference")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
+        recognition_config={
+            "templateConfig": {
+                "pageDimensions": [1190, 1682],
+                "preProcessors": [
+                    {"name": "FeatureBasedAlignment", "options": {"reference": "template-assets/reference.png"}}
+                ],
+                "fieldBlocks": {},
+            }
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        local_reference = written_template["preProcessors"][0]["options"]["reference"]
+        assert local_reference == "reference-1-reference.png"
+        assert (config_v1 / local_reference).read_bytes() == b"remote-reference"
+        assert (context.workdir / local_reference).read_bytes() == b"remote-reference"
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_merges_template_config_with_central_template_for_field_block_ocrs(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

@@ -373,12 +373,74 @@ class BatchRecognitionService:
         if isinstance(template, dict):
             normalized_template = _drop_none_values(template)
             if normalized_template:
+                normalized_template = self._materialize_template_reference_images(normalized_template, workdir)
                 template_path = workdir / "template.json"
                 _write_json(template_path, _merge_json_file(template_path, normalized_template))
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
         if archive_regions is not None:
             _write_json(workdir / "regions.json", archive_regions)
+
+    def _materialize_template_reference_images(self, template: dict, workdir: Path) -> dict:
+        """Download preProcessor reference images from object storage into the template dir.
+
+        Runtime template payloads may carry an OSS key in
+        ``preProcessors[].options.reference``. OMRChecker expects that value to be
+        a local file name under the template/work directory, so remote keys are
+        downloaded and the template reference is rewritten to the local name.
+        Existing local references such as ``reference.png`` are left unchanged.
+        """
+
+        pre_processors = template.get("preProcessors")
+        if not isinstance(pre_processors, list):
+            return template
+
+        rewritten_template = dict(template)
+        rewritten_pre_processors = []
+        changed = False
+        remote_reference_names: dict[str, str] = {}
+        for index, pre_processor in enumerate(pre_processors):
+            if not isinstance(pre_processor, dict):
+                rewritten_pre_processors.append(pre_processor)
+                continue
+            options = pre_processor.get("options")
+            if not isinstance(options, dict):
+                rewritten_pre_processors.append(pre_processor)
+                continue
+            reference = options.get("reference")
+            if not isinstance(reference, str) or not reference.strip():
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            local_reference = self._materialize_reference_image(reference.strip(), workdir, index=index, name_map=remote_reference_names)
+            if local_reference == reference:
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            changed = True
+            rewritten_options = dict(options)
+            rewritten_options["reference"] = local_reference
+            rewritten_pre_processor = dict(pre_processor)
+            rewritten_pre_processor["options"] = rewritten_options
+            rewritten_pre_processors.append(rewritten_pre_processor)
+
+        if not changed:
+            return template
+        rewritten_template["preProcessors"] = rewritten_pre_processors
+        return rewritten_template
+
+    def _materialize_reference_image(self, reference: str, workdir: Path, *, index: int, name_map: dict[str, str]) -> str:
+        reference_path = Path(reference)
+        if _is_local_template_reference(reference_path) and (workdir / reference_path).is_file():
+            return reference
+        if reference in name_map:
+            return name_map[reference]
+
+        local_name = _safe_reference_filename(reference, index=index)
+        destination = workdir / local_name
+        self.object_storage.download_file(reference, destination)
+        name_map[reference] = local_name
+        return local_name
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -447,6 +509,18 @@ def _safe_component(value: str) -> str:
     sanitized = sanitized.replace("..", "_")
     sanitized = re.sub(r"_+", "_", sanitized).strip("._")
     return sanitized or "item"
+
+
+def _is_local_template_reference(reference_path: Path) -> bool:
+    return not reference_path.is_absolute() and len(reference_path.parts) == 1
+
+
+def _safe_reference_filename(reference: str, *, index: int) -> str:
+    suffix = Path(reference).suffix
+    if not suffix or len(suffix) > 16 or _SAFE_COMPONENT_PATTERN.search(suffix.lstrip(".")):
+        suffix = ".png"
+    stem = _safe_component(Path(reference).stem or f"reference-{index + 1}")
+    return f"reference-{index + 1}-{stem}{suffix}"
 
 
 def _safe_config_dependency_dir(*parts: str) -> Path:

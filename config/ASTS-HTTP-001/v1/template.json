@@ -363,29 +363,5 @@
         "reference": "reference.png"
       }
     }
-  ],
-  "archiveRegions": [
-    {
-      "bbox": [
-        65,
-        1015,
-        1050,
-        160
-      ],
-      "regionCode": "fillBank",
-      "regionName": "填空题",
-      "type": "FILL_BLANK"
-    },
-    {
-      "bbox": [
-        65,
-        1190,
-        1050,
-        445
-      ],
-      "regionCode": "solution",
-      "regionName": "解答题",
-      "type": "SOLUTION"
-    }
   ]
 }

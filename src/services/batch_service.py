@@ -378,7 +378,7 @@ class BatchRecognitionService:
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
         if archive_regions is not None:
-            _write_json(workdir / "regions.json", {"archiveRegions": archive_regions})
+            _write_json(workdir / "regions.json", archive_regions)
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -459,15 +459,13 @@ def _safe_config_dependency_dir(*parts: str) -> Path:
     return dependency_dir
 
 
-def _write_json(path: Path, payload: dict) -> None:
+def _write_json(path: Path, payload: dict | list) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _runtime_archive_regions(recognition_config: dict) -> list[dict] | None:
     raw_regions = recognition_config.get("regions")
-    if raw_regions is None:
-        raw_regions = recognition_config.get("archiveRegions")
     if raw_regions is None:
         return None
     if isinstance(raw_regions, dict):

@@ -66,10 +66,9 @@ class BatchRecognitionRequest:
             runtime_value = recognition_config.get(runtime_field)
             if runtime_value is not None and not isinstance(runtime_value, dict):
                 raise ValueError(f"recognitionConfig.{runtime_field} must be an object")
-        for regions_field in ("regions", "archiveRegions"):
-            runtime_regions = recognition_config.get(regions_field)
-            if runtime_regions is not None:
-                _validate_archive_regions(runtime_regions, f"recognitionConfig.{regions_field}")
+        runtime_regions = recognition_config.get("regions")
+        if runtime_regions is not None:
+            _validate_archive_regions(runtime_regions, "recognitionConfig.regions")
         debug_artifacts = recognition_config.get("debugArtifacts")
         if debug_artifacts is not None and not isinstance(debug_artifacts, bool):
             raise ValueError("recognitionConfig.debugArtifacts must be a boolean")
@@ -299,10 +298,10 @@ def _optional_template_path_component(value: Any, display_name: str, *, example:
 def _validate_archive_regions(value: Any, display_name: str) -> None:
     if isinstance(value, dict):
         if set(value.keys()) != {"archiveRegions"}:
-            raise ValueError(f"{display_name} must be a list or an object with archiveRegions")
+            raise ValueError(f"{display_name} must be a list of archive region objects")
         value = value.get("archiveRegions")
     if not isinstance(value, list):
-        raise ValueError(f"{display_name} must be a list or an object with archiveRegions")
+        raise ValueError(f"{display_name} must be a list of archive region objects")
     for index, region in enumerate(value):
         region_name = f"{display_name}[{index}]"
         if not isinstance(region, dict):

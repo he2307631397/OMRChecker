@@ -365,29 +365,5 @@
         "reference": "reference.png"
       }
     }
-  ],
-  "archiveRegions": [
-    {
-      "bbox": [
-        65,
-        1015,
-        1050,
-        160
-      ],
-      "regionCode": "FillBlankReview",
-      "regionName": "填空题人工审核区域",
-      "type": "FILL_BLANK_REVIEW"
-    },
-    {
-      "bbox": [
-        65,
-        1190,
-        1050,
-        445
-      ],
-      "regionCode": "SolutionQ15Review",
-      "regionName": "第15题解答题人工审核区域",
-      "type": "SOLUTION_REVIEW"
-    }
   ]
 }

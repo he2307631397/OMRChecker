@@ -700,11 +700,9 @@ def test_process_batch_writes_request_regions_json_for_template_code(monkeypatch
     monkeypatch.chdir(tmp_path)
 
     def fake_runner(context):
-        assert json.loads((config_v1 / "regions.json").read_text(encoding="utf-8")) == {
-            "archiveRegions": [
-                {"regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "bbox": [10, 20, 30, 40]}
-            ]
-        }
+        assert json.loads((config_v1 / "regions.json").read_text(encoding="utf-8")) == [
+            {"regionCode": "blankScore", "regionName": "填空题得分区域", "type": "BLANK_SCORE", "bbox": [10, 20, 30, 40]}
+        ]
         checked_path = context.workdir / "checked" / "sheet-1.png"
         _write_image(checked_path)
         return RecognitionOutput(result={"ok": True}, checked_image_path=checked_path)

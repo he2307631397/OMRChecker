@@ -4,10 +4,10 @@
     "regionName": "准考证号区域",
     "type": "DIGIT",
     "bbox": [
-      752,
-      326,
-      340,
-      350
+      241,
+      261,
+      898,
+      419
     ]
   },
   {
@@ -17,7 +17,7 @@
     "bbox": [
       39,
       690,
-      1055,
+      1077,
       154
     ]
   },
@@ -27,9 +27,9 @@
     "type": "MULTI_CHOICE",
     "bbox": [
       39,
-      846,
-      660,
-      134
+      866,
+      671,
+      109
     ]
   },
   {
@@ -37,9 +37,9 @@
     "regionName": "填空题",
     "type": "score",
     "bbox": [
-      140,
-      998,
-      80,
+      125,
+      1040,
+      95,
       60
     ]
   },
@@ -49,9 +49,9 @@
     "type": "answer",
     "bbox": [
       170,
-      1068,
+      1110,
       225,
-      60
+      50
     ]
   },
   {
@@ -60,9 +60,9 @@
     "type": "answer",
     "bbox": [
       485,
-      1068,
+      1110,
       225,
-      60
+      50
     ]
   },
   {
@@ -71,53 +71,53 @@
     "type": "answer",
     "bbox": [
       790,
-      1068,
+      1110,
       225,
-      60
+      50
     ]
   },
   {
-    "regionCode": "Q15",
-    "regionName": "第15题解答题",
+    "regionCode": "Q14",
+    "regionName": "第14题解答题",
     "type": "score",
     "bbox": [
-      140,
-      1182,
-      80,
+      125,
+      1215,
+      95,
       65
     ]
   },
   {
-    "regionCode": "Q15",
-    "regionName": "第15题解答题",
+    "regionCode": "Q14",
+    "regionName": "第14题解答题",
     "type": "answer",
     "bbox": [
       85,
-      1257,
+      1285,
       1020,
-      300
+      290
     ]
   },
   {
     "bbox": [
       65,
-      980,
+      1015,
       1050,
-      175
+      160
     ],
-    "regionCode": "FillBlankReview",
-    "regionName": "填空题人工审核区域",
-    "type": "FILL_BLANK_REVIEW"
+    "regionCode": "fillBank",
+    "regionName": "填空题",
+    "type": "FILL_BLANK"
   },
   {
     "bbox": [
       65,
-      1160,
+      1190,
       1050,
-      457
+      445
     ],
-    "regionCode": "SolutionQ15Review",
-    "regionName": "第15题解答题人工审核区域",
-    "type": "SOLUTION_REVIEW"
+    "regionCode": "solution",
+    "regionName": "解答题",
+    "type": "SOLUTION"
   }
 ]

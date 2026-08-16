@@ -607,8 +607,7 @@ For local fake COS:
   "database": {"url": "sqlite:///service_data/omr_service.db"},
   "cos": {"enabled": false, "localRoot": "service_data/cos_mock"},
   "callback": {"maxAttempts": 3, "timeoutSeconds": 10},
-  "recognition": {"debugArtifacts": false},
-  "archiveRegions": []
+  "recognition": {"debugArtifacts": false}
 }
 ```
 
@@ -649,8 +648,9 @@ Request body fields:
 | `externalBatchId` | no | Caller batch ID. Must be non-empty if supplied. |
 | `templateCode` | no | Template code such as `ASTS-HTTP-001`. When supplied, Robyn copies top-level files from project `config/<templateCode>/<schemaVersion>/` into each sheet workdir before writing request `template.json` and `config.json`. Use this for binary/template dependency files such as `reference.png`. |
 | `schemaVersion` | no | Template schema/version such as `v1` or `v2`. Required when `templateCode` is used to select a non-default schema. If omitted with `templateCode`, Robyn defaults to `v1`. |
-| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. Other keys are persisted but not interpreted. |
+| `recognitionConfig` | no | Object. `debugArtifacts` controls debug workdirs. `template` or `templateConfig`, when supplied as objects, are written as runtime `template.json`. `config`, when supplied as an object, is normalized from Java-friendly camelCase section/key names to OMRChecker runtime `config.json` keys. `regions`, when supplied as a list, is written as runtime `regions.json`. Other keys are persisted but not interpreted. |
 | `recognitionConfig.debugArtifacts` | no | Boolean. Overrides config default for preserving sheet workdirs. |
+| `recognitionConfig.regions` | no | List of archive region objects with `regionCode`, `regionName`, `type`, and `bbox`. This replaces template-level `archiveRegions`. |
 | `sheets` | yes | Non-empty list of sheet objects. |
 | `sheets[].sheetId` | yes | Business sheet ID. |
 | `sheets[].osskey` | yes | Source object key to download from COS or fake COS. |
@@ -1177,7 +1177,7 @@ For each sheet:
 3. Top-level template files from `storage.templateDir` are copied into the sheet workdir.
 4. OMR recognition runs against the sheet workdir.
 5. The checked image is uploaded to `checked/<taskId>/<sheetId>/<checked-image-name>` when available.
-6. If `archiveRegions` are configured, region screenshots are generated from the checked image and uploaded to `artifacts/<taskId>/<sheetId>/<filename>`.
+6. If `regions.json` or derived template regions are configured, region screenshots are generated from the checked image and uploaded to `artifacts/<taskId>/<sheetId>/<filename>`.
 7. Sheet status becomes `completed` or `failed`.
 8. Batch status becomes:
    - `completed` when all sheets completed and artifact uploads had no errors.

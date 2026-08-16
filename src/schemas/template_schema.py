@@ -92,31 +92,6 @@ TEMPLATE_SCHEMA = {
             "items": FIELD_STRING_TYPE,
             "description": "The ordered list of columns to be contained in the output csv(default order: alphabetical)",
         },
-        "archiveRegions": {
-            "description": "Additional large archive-only regions for manual review. These do not affect OMR or OCR recognition regions.",
-            "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["regionCode", "regionName", "type", "bbox"],
-                "properties": {
-                    "regionCode": {"type": "string"},
-                    "regionName": {"type": "string"},
-                    "type": {"type": "string"},
-                    "bbox": {
-                        "type": "array",
-                        "prefixItems": [
-                            positive_integer,
-                            positive_integer,
-                            positive_integer,
-                            positive_integer,
-                        ],
-                        "maxItems": 4,
-                        "minItems": 4,
-                    },
-                },
-            },
-        },
         "pageDimensions": {
             **two_positive_integers,
             "description": "The dimensions(width, height) to which the page will be resized to before applying template",

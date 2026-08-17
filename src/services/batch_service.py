@@ -676,7 +676,12 @@ def _ensure_template_preprocessors(template: dict, generated_pre_processors: lis
     pre_processors = list(existing) if isinstance(existing, list) else []
     for generated in reversed(generated_pre_processors):
         name = generated.get("name")
-        if any(isinstance(item, dict) and item.get("name") == name for item in pre_processors):
+        existing_index = next(
+            (index for index, item in enumerate(pre_processors) if isinstance(item, dict) and item.get("name") == name),
+            None,
+        )
+        if existing_index is not None:
+            pre_processors[existing_index] = _deep_merge_dicts(pre_processors[existing_index], generated)
             continue
         pre_processors.insert(0, generated)
     rewritten["preProcessors"] = pre_processors

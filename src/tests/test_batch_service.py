@@ -647,6 +647,66 @@ def test_process_batch_reference_config_overrides_marker_reference_generation(mo
 
     assert service.process_batch("task-1").status == "completed"
 
+
+def test_process_batch_marker_config_replaces_existing_feature_reference_url(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    _write_pdf(tmp_path / "cos" / "template-assets" / "sheet-template.pdf")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
+            "recognitionConfig": {
+                "templateConfig": {
+                    "pageDimensions": [240, 320],
+                    "fieldBlocks": {},
+                    "preProcessors": [
+                        {
+                            "name": "FeatureBasedAlignment",
+                            "options": {
+                                "reference": "https://edu-test-1424598985.cos.ap-chengdu.myqcloud.com/reference.png",
+                                "2d": False,
+                            },
+                        }
+                    ],
+                },
+                "markerConfig": {
+                    "sourcePdfOsskey": "template-assets/sheet-template.pdf",
+                    "pdfPage": 1,
+                    "pdfDpi": 144,
+                    "bbox": [20, 20, 40, 40],
+                    "outputName": "marker.png",
+                },
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        feature = next(item for item in written_template["preProcessors"] if item["name"] == "FeatureBasedAlignment")
+        assert feature["options"]["reference"] == "reference.png"
+        assert feature["options"]["2d"] is True
+        assert (config_v1 / "reference.png").is_file()
+        assert (context.workdir / "reference.png").is_file()
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
 def test_process_batch_merges_template_config_with_central_template_for_field_block_ocrs(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

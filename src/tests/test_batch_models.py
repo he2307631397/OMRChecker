@@ -157,6 +157,7 @@ def test_batch_request_accepts_integer_business_ids_from_complete_payload():
         ({"examId": "exam-1", "callbackUrl": "https://example.test/callback", "recognitionConfig": {"config": []}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.config must be an object"),
         ({"examId": "exam-1", "recognitionConfig": {"regions": "bad"}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.regions must be a list of archive region objects"),
         ({"examId": "exam-1", "recognitionConfig": {"regions": [{"regionCode": "blank", "regionName": "填空", "type": "BLANK", "bbox": [1, 2, 0, 4]}]}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.regions[0].bbox width and height must be positive"),
+        ({"examId": "exam-1", "recognitionConfig": {"markerConfig": {"sourcePdfOsskey": "template.pdf", "bbox": [1, 2, 3, 4], "enableCropOnMarkers": "yes"}}, "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}]}, "recognitionConfig.markerConfig.enableCropOnMarkers must be a boolean"),
     ],
 )
 def test_batch_request_validation_failures_are_clear(payload, message):

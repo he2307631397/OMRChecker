@@ -454,7 +454,8 @@ class BatchRecognitionService:
 
         if isinstance(marker_config, dict):
             marker_options = self._materialize_marker_config(marker_config, workdir)
-            generated_pre_processors.append({"name": "CropOnMarkers", "options": marker_options})
+            if marker_config.get("enableCropOnMarkers") is True:
+                generated_pre_processors.append({"name": "CropOnMarkers", "options": marker_options})
 
         if isinstance(reference_config, dict):
             reference_options = self._materialize_reference_config(reference_config, workdir)

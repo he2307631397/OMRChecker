@@ -343,6 +343,9 @@ def _validate_generated_marker_config(value: Any, display_name: str) -> None:
             raise ValueError(f"{display_name}.bbox[{index}] must be a number")
     if bbox[2] <= 0 or bbox[3] <= 0:
         raise ValueError(f"{display_name}.bbox width and height must be positive")
+    enable_crop_on_markers = value.get("enableCropOnMarkers")
+    if enable_crop_on_markers is not None and not isinstance(enable_crop_on_markers, bool):
+        raise ValueError(f"{display_name}.enableCropOnMarkers must be a boolean")
     pre_processor_options = value.get("preProcessorOptions")
     if pre_processor_options is not None and not isinstance(pre_processor_options, dict):
         raise ValueError(f"{display_name}.preProcessorOptions must be an object")

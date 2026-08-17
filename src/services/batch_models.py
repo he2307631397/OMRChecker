@@ -69,6 +69,12 @@ class BatchRecognitionRequest:
         runtime_regions = recognition_config.get("regions")
         if runtime_regions is not None:
             _validate_archive_regions(runtime_regions, "recognitionConfig.regions")
+        marker_config = recognition_config.get("markerConfig")
+        if marker_config is not None:
+            _validate_generated_marker_config(marker_config, "recognitionConfig.markerConfig")
+        reference_config = recognition_config.get("referenceConfig")
+        if reference_config is not None:
+            _validate_generated_reference_config(reference_config, "recognitionConfig.referenceConfig")
         debug_artifacts = recognition_config.get("debugArtifacts")
         if debug_artifacts is not None and not isinstance(debug_artifacts, bool):
             raise ValueError("recognitionConfig.debugArtifacts must be a boolean")
@@ -317,6 +323,43 @@ def _validate_archive_regions(value: Any, display_name: str) -> None:
                 raise ValueError(f"{region_name}.bbox[{bbox_index}] must be a number")
         if bbox[2] <= 0 or bbox[3] <= 0:
             raise ValueError(f"{region_name}.bbox width and height must be positive")
+
+
+def _validate_generated_marker_config(value: Any, display_name: str) -> None:
+    if not isinstance(value, dict):
+        raise ValueError(f"{display_name} must be an object")
+    _validate_generated_asset_base(value, display_name)
+    bbox = value.get("bbox")
+    if not isinstance(bbox, list) or len(bbox) != 4:
+        raise ValueError(f"{display_name}.bbox must be a list of four numbers")
+    for index, coordinate in enumerate(bbox):
+        if isinstance(coordinate, bool) or not isinstance(coordinate, int | float):
+            raise ValueError(f"{display_name}.bbox[{index}] must be a number")
+    if bbox[2] <= 0 or bbox[3] <= 0:
+        raise ValueError(f"{display_name}.bbox width and height must be positive")
+    pre_processor_options = value.get("preProcessorOptions")
+    if pre_processor_options is not None and not isinstance(pre_processor_options, dict):
+        raise ValueError(f"{display_name}.preProcessorOptions must be an object")
+
+
+def _validate_generated_reference_config(value: Any, display_name: str) -> None:
+    if not isinstance(value, dict):
+        raise ValueError(f"{display_name} must be an object")
+    _validate_generated_asset_base(value, display_name)
+
+
+def _validate_generated_asset_base(value: dict[str, Any], display_name: str) -> None:
+    if not isinstance(value.get("sourcePdfOsskey"), str) or not value["sourcePdfOsskey"].strip():
+        raise ValueError(f"{display_name}.sourcePdfOsskey must be a non-empty string")
+    for key in ("pdfPage", "pdfDpi"):
+        field_value = value.get(key)
+        if field_value is None:
+            continue
+        if isinstance(field_value, bool) or not isinstance(field_value, int) or field_value < 1:
+            raise ValueError(f"{display_name}.{key} must be a positive integer")
+    output_name = value.get("outputName")
+    if output_name is not None and (not isinstance(output_name, str) or not output_name.strip()):
+        raise ValueError(f"{display_name}.outputName must be a non-empty string")
 
 
 def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:

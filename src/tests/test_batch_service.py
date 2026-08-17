@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import cv2
+import fitz
 import numpy as np
 import pytest
 from src.defaults.config import CONFIG_DEFAULTS
@@ -149,6 +150,21 @@ def _write_image(path: Path) -> None:
     image = np.zeros((80, 120, 3), dtype=np.uint8)
     image[10:30, 5:45] = (0, 0, 255)
     assert cv2.imwrite(str(path), image)
+
+
+def _write_pdf(path: Path, *, width: int = 120, height: int = 160) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc = fitz.open()
+    page = doc.new_page(width=width, height=height)
+    for rect in (
+        fitz.Rect(10, 10, 30, 30),
+        fitz.Rect(width - 30, 10, width - 10, 30),
+        fitz.Rect(10, height - 30, 30, height - 10),
+        fitz.Rect(width - 30, height - 30, width - 10, height - 10),
+    ):
+        page.draw_rect(rect, color=(0, 0, 0), fill=(0, 0, 0))
+    doc.save(str(path))
+    doc.close()
 
 
 def test_submit_batch_persists_batch_and_sheets_and_returns_business_fields(tmp_path: Path) -> None:
@@ -522,6 +538,114 @@ def test_process_batch_downloads_runtime_template_reference_from_cos(monkeypatch
 
     assert service.process_batch("task-1").status == "completed"
 
+
+
+def test_process_batch_generates_marker_and_reference_from_marker_config(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    _write_pdf(tmp_path / "cos" / "template-assets" / "sheet-template.pdf")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
+            "recognitionConfig": {
+                "templateConfig": {"pageDimensions": [240, 320], "fieldBlocks": {}},
+                "markerConfig": {
+                    "sourcePdfOsskey": "template-assets/sheet-template.pdf",
+                    "pdfPage": 1,
+                    "pdfDpi": 144,
+                    "bbox": [20, 20, 40, 40],
+                    "outputName": "marker.png",
+                    "preProcessorOptions": {"min_matching_threshold": 0.4},
+                },
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        pre_processors = written_template["preProcessors"]
+        assert pre_processors[0] == {
+            "name": "CropOnMarkers",
+            "options": {"relativePath": "marker.png", "min_matching_threshold": 0.4},
+        }
+        assert pre_processors[1]["name"] == "FeatureBasedAlignment"
+        assert pre_processors[1]["options"]["reference"] == "reference.png"
+        assert (config_v1 / "marker.png").is_file()
+        assert (config_v1 / "reference.png").is_file()
+        assert cv2.imread(str(config_v1 / "marker.png"), cv2.IMREAD_GRAYSCALE).shape == (40, 40)
+        assert cv2.imread(str(config_v1 / "reference.png"), cv2.IMREAD_GRAYSCALE).shape == (320, 240)
+        assert (context.workdir / "marker.png").is_file()
+        assert (context.workdir / "reference.png").is_file()
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_reference_config_overrides_marker_reference_generation(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    _write_pdf(tmp_path / "cos" / "template-assets" / "marker-template.pdf", width=120, height=160)
+    _write_pdf(tmp_path / "cos" / "template-assets" / "reference-template.pdf", width=100, height=140)
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "templateCode": "ASTS-HTTP-001",
+            "schemaVersion": "v1",
+            "recognitionConfig": {
+                "templateConfig": {"pageDimensions": [200, 280], "fieldBlocks": {}},
+                "markerConfig": {
+                    "sourcePdfOsskey": "template-assets/marker-template.pdf",
+                    "bbox": [20, 20, 20, 20],
+                    "outputName": "marker.png",
+                },
+                "referenceConfig": {
+                    "sourcePdfOsskey": "template-assets/reference-template.pdf",
+                    "pdfPage": 1,
+                    "pdfDpi": 144,
+                    "outputName": "custom-reference.png",
+                },
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "incoming/sheet-1.png"}],
+        }
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        assert written_template["preProcessors"][1]["options"]["reference"] == "custom-reference.png"
+        assert (config_v1 / "custom-reference.png").is_file()
+        assert cv2.imread(str(config_v1 / "custom-reference.png"), cv2.IMREAD_GRAYSCALE).shape == (280, 200)
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
 
 def test_process_batch_merges_template_config_with_central_template_for_field_block_ocrs(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import cv2
+import numpy as np
 import shutil
 import uuid
 import json
@@ -370,6 +372,9 @@ class BatchRecognitionService:
             template = request.recognition_config.get("templateConfig")
         config = request.recognition_config.get("config")
         archive_regions = _runtime_archive_regions(request.recognition_config)
+        generated_template_options = self._materialize_generated_template_assets(request.recognition_config, workdir)
+        if generated_template_options:
+            template = _ensure_template_preprocessors(template if isinstance(template, dict) else {}, generated_template_options)
         if isinstance(template, dict):
             normalized_template = _drop_none_values(template)
             if normalized_template:
@@ -441,6 +446,85 @@ class BatchRecognitionService:
         self.object_storage.download_file(reference, destination)
         name_map[reference] = local_name
         return local_name
+
+    def _materialize_generated_template_assets(self, recognition_config: dict, workdir: Path) -> list[dict]:
+        marker_config = recognition_config.get("markerConfig")
+        reference_config = recognition_config.get("referenceConfig")
+        generated_pre_processors: list[dict] = []
+
+        if isinstance(marker_config, dict):
+            marker_options = self._materialize_marker_config(marker_config, workdir)
+            generated_pre_processors.append({"name": "CropOnMarkers", "options": marker_options})
+
+        if isinstance(reference_config, dict):
+            reference_options = self._materialize_reference_config(reference_config, workdir)
+            generated_pre_processors.append({"name": "FeatureBasedAlignment", "options": reference_options})
+        elif isinstance(marker_config, dict):
+            reference_options = self._materialize_reference_config(
+                {
+                    "sourcePdfOsskey": marker_config.get("sourcePdfOsskey"),
+                    "pdfPage": marker_config.get("pdfPage", 1),
+                    "pdfDpi": marker_config.get("pdfDpi", 144),
+                    "outputName": "reference.png",
+                },
+                workdir,
+            )
+            generated_pre_processors.append({"name": "FeatureBasedAlignment", "options": reference_options})
+
+        return generated_pre_processors
+
+    def _materialize_marker_config(self, marker_config: dict, workdir: Path) -> dict:
+        source_pdf = _required_config_string(marker_config, "sourcePdfOsskey", "markerConfig.sourcePdfOsskey")
+        pdf_page = _positive_int_config(marker_config.get("pdfPage", 1), "markerConfig.pdfPage")
+        pdf_dpi = _positive_int_config(marker_config.get("pdfDpi", 144), "markerConfig.pdfDpi")
+        bbox = _bbox_config(marker_config.get("bbox"), "markerConfig.bbox")
+        output_name = _safe_template_asset_name(marker_config.get("outputName") or "marker.png", default="marker.png")
+
+        rendered = self._render_pdf_from_object(source_pdf, workdir, pdf_page=pdf_page, pdf_dpi=pdf_dpi)
+        x, y, width, height = _clamped_bbox(bbox, rendered.shape[1], rendered.shape[0], "markerConfig.bbox")
+        marker = rendered[y : y + height, x : x + width]
+        destination = workdir / output_name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if not cv2.imwrite(str(destination), marker):
+            raise ValueError(f"unable to write generated marker image: {destination}")
+
+        options = {"relativePath": output_name}
+        pre_processor_options = marker_config.get("preProcessorOptions")
+        if isinstance(pre_processor_options, dict):
+            options.update(_drop_none_values(pre_processor_options))
+        return options
+
+    def _materialize_reference_config(self, reference_config: dict, workdir: Path) -> dict:
+        source_pdf = _required_config_string(reference_config, "sourcePdfOsskey", "referenceConfig.sourcePdfOsskey")
+        pdf_page = _positive_int_config(reference_config.get("pdfPage", 1), "referenceConfig.pdfPage")
+        pdf_dpi = _positive_int_config(reference_config.get("pdfDpi", 144), "referenceConfig.pdfDpi")
+        output_name = _safe_template_asset_name(reference_config.get("outputName") or "reference.png", default="reference.png")
+
+        rendered = self._render_pdf_from_object(source_pdf, workdir, pdf_page=pdf_page, pdf_dpi=pdf_dpi)
+        destination = workdir / output_name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if not cv2.imwrite(str(destination), rendered):
+            raise ValueError(f"unable to write generated reference image: {destination}")
+        return {"reference": output_name, "2d": True, "goodMatchPercent": 0.25, "maxFeatures": 2000}
+
+    def _render_pdf_from_object(self, osskey: str, workdir: Path, *, pdf_page: int, pdf_dpi: int) -> np.ndarray:
+        import fitz
+
+        source_path = workdir / "_generated_template_assets" / _safe_component(Path(osskey).name or "template.pdf")
+        self.object_storage.download_file(osskey, source_path)
+        try:
+            doc = fitz.open(str(source_path))
+            try:
+                if pdf_page < 1 or pdf_page > len(doc):
+                    raise ValueError(f"PDF page {pdf_page} out of range for generated template asset '{osskey}' (has {len(doc)} pages)")
+                page = doc[pdf_page - 1]
+                mat = fitz.Matrix(pdf_dpi / 72, pdf_dpi / 72)
+                pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY)
+                return np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width).copy()
+            finally:
+                doc.close()
+        except Exception as exc:  # noqa: BLE001
+            raise ValueError(f"unable to render generated template asset PDF '{osskey}': {exc}") from exc
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -584,6 +668,72 @@ def _deep_merge_dicts(base: dict, override: dict) -> dict:
         else:
             merged[key] = value
     return merged
+
+
+def _ensure_template_preprocessors(template: dict, generated_pre_processors: list[dict]) -> dict:
+    rewritten = dict(template)
+    existing = rewritten.get("preProcessors")
+    pre_processors = list(existing) if isinstance(existing, list) else []
+    for generated in reversed(generated_pre_processors):
+        name = generated.get("name")
+        if any(isinstance(item, dict) and item.get("name") == name for item in pre_processors):
+            continue
+        pre_processors.insert(0, generated)
+    rewritten["preProcessors"] = pre_processors
+    return rewritten
+
+
+def _required_config_string(config: dict, key: str, display_name: str) -> str:
+    value = config.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{display_name} must be a non-empty string")
+    return value.strip()
+
+
+def _positive_int_config(value, display_name: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{display_name} must be a positive integer")
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if not isinstance(value, int) or value < 1:
+        raise ValueError(f"{display_name} must be a positive integer")
+    return value
+
+
+def _bbox_config(value, display_name: str) -> list[int]:
+    if not isinstance(value, list) or len(value) != 4:
+        raise ValueError(f"{display_name} must be a list of four numbers")
+    bbox = []
+    for index, coordinate in enumerate(value):
+        if isinstance(coordinate, bool) or not isinstance(coordinate, int | float):
+            raise ValueError(f"{display_name}[{index}] must be a number")
+        bbox.append(int(round(float(coordinate))))
+    if bbox[2] <= 0 or bbox[3] <= 0:
+        raise ValueError(f"{display_name} width and height must be positive")
+    return bbox
+
+
+def _clamped_bbox(bbox: list[int], page_width: int, page_height: int, display_name: str) -> tuple[int, int, int, int]:
+    x, y, width, height = bbox
+    if x >= page_width or y >= page_height or x + width <= 0 or y + height <= 0:
+        raise ValueError(f"{display_name} is outside generated reference page bounds")
+    x0 = max(0, x)
+    y0 = max(0, y)
+    x1 = min(page_width, x + width)
+    y1 = min(page_height, y + height)
+    if x1 <= x0 or y1 <= y0:
+        raise ValueError(f"{display_name} has no area inside generated reference page bounds")
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def _safe_template_asset_name(value, *, default: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        value = default
+    name = _safe_component(Path(value).name)
+    suffix = Path(name).suffix.lower()
+    if suffix not in {".png", ".jpg", ".jpeg"}:
+        name = f"{Path(name).stem or Path(default).stem}.png"
+    return name
 
 
 def _normalize_runtime_config(config: dict) -> dict:

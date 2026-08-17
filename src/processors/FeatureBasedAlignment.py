@@ -5,6 +5,7 @@ Credits: https://www.learnopencv.com/image-alignment-feature-based-using-opencv-
 import cv2
 import numpy as np
 
+from src.logger import logger
 from src.processors.interfaces.ImagePreprocessor import ImagePreprocessor
 from src.utils.image import ImageUtils
 from src.utils.interaction import InteractionUtils
@@ -40,6 +41,8 @@ class FeatureBasedAlignment(ImagePreprocessor):
         self.to_keypoints, self.to_descriptors = self.orb.detectAndCompute(
             self.ref_img, None
         )
+        if self.to_descriptors is None or len(self.to_keypoints) == 0:
+            logger.warning(f"FeatureBasedAlignment reference has no ORB descriptors: {self.ref_path}")
 
     def __str__(self):
         return self.ref_path.name
@@ -58,6 +61,14 @@ class FeatureBasedAlignment(ImagePreprocessor):
         # Detect ORB features and compute descriptors.
         from_keypoints, from_descriptors = self.orb.detectAndCompute(image, None)
 
+        if from_descriptors is None or self.to_descriptors is None:
+            logger.warning(
+                f"Skipping FeatureBasedAlignment for '{_file_path}': insufficient ORB descriptors "
+                f"(source={0 if from_descriptors is None else len(from_keypoints)}, "
+                f"reference={0 if self.to_descriptors is None else len(self.to_keypoints)})"
+            )
+            return image
+
         # Match features.
         matcher = cv2.DescriptorMatcher_create(
             cv2.DESCRIPTOR_MATCHER_BRUTEFORCE_HAMMING
@@ -74,6 +85,14 @@ class FeatureBasedAlignment(ImagePreprocessor):
         # Remove not so good matches
         num_good_matches = int(len(matches) * self.good_match_percent)
         matches = matches[:num_good_matches]
+
+        min_required_matches = 3 if self.transform_2_d else 4
+        if len(matches) < min_required_matches:
+            logger.warning(
+                f"Skipping FeatureBasedAlignment for '{_file_path}': only {len(matches)} good matches, "
+                f"requires at least {min_required_matches}"
+            )
+            return image
 
         # Draw top matches
         if config.outputs.show_image_level > 2:
@@ -93,9 +112,23 @@ class FeatureBasedAlignment(ImagePreprocessor):
         # Find homography
         height, width = self.ref_img.shape
         if self.transform_2_d:
-            m, _inliers = cv2.estimateAffine2D(points1, points2)
+            try:
+                m, _inliers = cv2.estimateAffine2D(points1, points2)
+            except cv2.error as exc:
+                logger.warning(f"Skipping FeatureBasedAlignment for '{_file_path}': affine transform estimation errored: {exc}")
+                return image
+            if m is None:
+                logger.warning(f"Skipping FeatureBasedAlignment for '{_file_path}': affine transform estimation failed")
+                return image
             return cv2.warpAffine(image, m, (width, height))
 
         # Use homography
-        h, _mask = cv2.findHomography(points1, points2, cv2.RANSAC)
+        try:
+            h, _mask = cv2.findHomography(points1, points2, cv2.RANSAC)
+        except cv2.error as exc:
+            logger.warning(f"Skipping FeatureBasedAlignment for '{_file_path}': homography estimation errored: {exc}")
+            return image
+        if h is None:
+            logger.warning(f"Skipping FeatureBasedAlignment for '{_file_path}': homography estimation failed")
+            return image
         return cv2.warpPerspective(image, h, (width, height))

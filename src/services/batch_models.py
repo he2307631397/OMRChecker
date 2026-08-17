@@ -62,6 +62,10 @@ class BatchRecognitionRequest:
             recognition_config = {}
         if not isinstance(recognition_config, dict):
             raise ValueError("recognitionConfig must be an object")
+        recognition_config = dict(recognition_config)
+        for generated_asset_field in ("markerConfig", "referenceConfig"):
+            if generated_asset_field in payload and generated_asset_field not in recognition_config:
+                recognition_config[generated_asset_field] = payload[generated_asset_field]
         for runtime_field in ("template", "config", "templateConfig"):
             runtime_value = recognition_config.get(runtime_field)
             if runtime_value is not None and not isinstance(runtime_value, dict):
@@ -93,6 +97,8 @@ class BatchRecognitionRequest:
             "templateCode",
             "schemaVersion",
             "templateVersion",
+            "markerConfig",
+            "referenceConfig",
             "recognitionConfig",
             "sheets",
         }

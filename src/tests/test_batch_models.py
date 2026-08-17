@@ -89,6 +89,35 @@ def test_batch_request_accepts_dynamic_archive_regions():
     assert request.recognition_config["regions"][0]["regionCode"] == "blankScore"
 
 
+def test_batch_request_accepts_top_level_marker_and_reference_configs():
+    request = BatchRecognitionRequest.from_api_json(
+        {
+            "examId": "exam-1",
+            "recognitionConfig": {"templateConfig": {}},
+            "markerConfig": {
+                "sourcePdfOsskey": "template-assets/template.pdf",
+                "pdfPage": 1,
+                "pdfDpi": 144,
+                "bbox": [10, 20, 30, 40],
+                "outputName": "marker.png",
+            },
+            "referenceConfig": {
+                "sourcePdfOsskey": "template-assets/reference.pdf",
+                "pdfPage": 1,
+                "pdfDpi": 144,
+                "outputName": "reference.png",
+            },
+            "sheets": [{"sheetId": "sheet-1", "osskey": "inputs/sheet-1.pdf"}],
+        }
+    )
+
+    assert request.recognition_config["markerConfig"]["bbox"] == [10, 20, 30, 40]
+    assert request.recognition_config["referenceConfig"]["outputName"] == "reference.png"
+    assert "markerConfig" not in request.extra_fields
+    assert "referenceConfig" not in request.extra_fields
+    assert request.to_api_dict()["recognitionConfig"]["markerConfig"]["outputName"] == "marker.png"
+
+
 def test_batch_request_accepts_integer_business_ids_from_complete_payload():
     request = BatchRecognitionRequest.from_api_json(
         {

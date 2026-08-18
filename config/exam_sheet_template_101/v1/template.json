@@ -1,0 +1,541 @@
+{
+  "bubbleDimensions": [
+    28,
+    16
+  ],
+  "fieldBlockOcrs": {
+    "FillQ12AnswerOcr": {
+      "dimensions": [
+        322,
+        56
+      ],
+      "fieldLabels": [
+        "fill_q12_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        1041
+      ],
+      "regionCode": "Q12",
+      "regionName": "第12题填空题",
+      "type": "answer"
+    },
+    "FillQ12ScoreOcr": {
+      "dimensions": [
+        144,
+        68
+      ],
+      "fieldLabels": [
+        "fill_q12_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        954,
+        989
+      ],
+      "regionCode": "Q12",
+      "regionName": "第12-14题填空题",
+      "type": "score"
+    },
+    "FillQ13AnswerOcr": {
+      "dimensions": [
+        322,
+        56
+      ],
+      "fieldLabels": [
+        "fill_q13_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        434,
+        1041
+      ],
+      "regionCode": "Q13",
+      "regionName": "第13题填空题",
+      "type": "answer"
+    },
+    "FillQ14AnswerOcr": {
+      "dimensions": [
+        322,
+        56
+      ],
+      "fieldLabels": [
+        "fill_q14_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        776,
+        1041
+      ],
+      "regionCode": "Q14",
+      "regionName": "第14题填空题",
+      "type": "answer"
+    },
+    "Q15AnswerOcr": {
+      "dimensions": [
+        1006,
+        276
+      ],
+      "fieldLabels": [
+        "solution_q15_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        1237
+      ],
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
+      "type": "answer"
+    },
+    "Q15ScoreOcr": {
+      "dimensions": [
+        144,
+        72
+      ],
+      "fieldLabels": [
+        "q15_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        942,
+        1153
+      ],
+      "regionCode": "Q15",
+      "regionName": "第15题解答题",
+      "type": "score"
+    },
+    "Q16AnswerOcr": {
+      "dimensions": [
+        1006,
+        276
+      ],
+      "fieldLabels": [
+        "solution_q16_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        144
+      ],
+      "regionCode": "Q16",
+      "regionName": "第16题解答题",
+      "type": "answer"
+    },
+    "Q16ScoreOcr": {
+      "dimensions": [
+        144,
+        72
+      ],
+      "fieldLabels": [
+        "q16_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        942,
+        60
+      ],
+      "regionCode": "Q16",
+      "regionName": "第16题解答题",
+      "type": "score"
+    },
+    "Q17AnswerOcr": {
+      "dimensions": [
+        1006,
+        276
+      ],
+      "fieldLabels": [
+        "solution_q17_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        567
+      ],
+      "regionCode": "Q17",
+      "regionName": "第17题解答题",
+      "type": "answer"
+    },
+    "Q17ScoreOcr": {
+      "dimensions": [
+        144,
+        72
+      ],
+      "fieldLabels": [
+        "q17_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        942,
+        483
+      ],
+      "regionCode": "Q17",
+      "regionName": "第17题解答题",
+      "type": "score"
+    },
+    "Q18AnswerOcr": {
+      "dimensions": [
+        1006,
+        276
+      ],
+      "fieldLabels": [
+        "solution_q18_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        991
+      ],
+      "regionCode": "Q18",
+      "regionName": "第18题解答题",
+      "type": "answer"
+    },
+    "Q18ScoreOcr": {
+      "dimensions": [
+        144,
+        72
+      ],
+      "fieldLabels": [
+        "q18_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        942,
+        907
+      ],
+      "regionCode": "Q18",
+      "regionName": "第18题解答题",
+      "type": "score"
+    },
+    "Q19AnswerOcr": {
+      "dimensions": [
+        1006,
+        276
+      ],
+      "fieldLabels": [
+        "solution_q19_answer_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        92,
+        144
+      ],
+      "regionCode": "Q19",
+      "regionName": "第19题解答题",
+      "type": "answer"
+    },
+    "Q19ScoreOcr": {
+      "dimensions": [
+        144,
+        72
+      ],
+      "fieldLabels": [
+        "q19_score_text"
+      ],
+      "ocr": {
+        "archiveRegion": true,
+        "lang": "ch"
+      },
+      "origin": [
+        942,
+        60
+      ],
+      "regionCode": "Q19",
+      "regionName": "第19题解答题",
+      "type": "score"
+    }
+  },
+  "fieldBlocks": {
+    "ExamId": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 38,
+      "fieldLabels": [
+        "id1..8"
+      ],
+      "fieldType": "QTYPE_INT",
+      "labelsGap": 26,
+      "origin": [
+        833,
+        385
+      ]
+    },
+    "Q1": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q1"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        132,
+        717
+      ]
+    },
+    "Q10": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q10"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "multiSelect": true,
+      "origin": [
+        364,
+        885
+      ]
+    },
+    "Q11": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q11"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "multiSelect": true,
+      "origin": [
+        596,
+        885
+      ]
+    },
+    "Q2": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q2"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        364,
+        717
+      ]
+    },
+    "Q3": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q3"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        596,
+        717
+      ]
+    },
+    "Q4": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q4"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        828,
+        717
+      ]
+    },
+    "Q5": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q5"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        132,
+        750
+      ]
+    },
+    "Q6": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q6"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        364,
+        750
+      ]
+    },
+    "Q7": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q7"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        596,
+        750
+      ]
+    },
+    "Q8": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q8"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "origin": [
+        828,
+        750
+      ]
+    },
+    "Q9": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q9"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 2,
+      "multiSelect": true,
+      "origin": [
+        132,
+        885
+      ]
+    }
+  },
+  "outputColumns": [
+    "id1",
+    "id2",
+    "id3",
+    "id4",
+    "id5",
+    "id6",
+    "id7",
+    "id8",
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9",
+    "q10",
+    "q11",
+    "fill_q12_score_text",
+    "fill_q12_answer_text",
+    "fill_q13_answer_text",
+    "fill_q14_answer_text",
+    "q15_score_text",
+    "solution_q15_answer_text",
+    "q16_score_text",
+    "solution_q16_answer_text",
+    "q17_score_text",
+    "solution_q17_answer_text",
+    "q18_score_text",
+    "solution_q18_answer_text",
+    "q19_score_text",
+    "solution_q19_answer_text"
+  ],
+  "pageDimensions": [
+    1190,
+    1682
+  ],
+  "preProcessors": [
+    {
+      "name": "CropOnMarkers",
+      "options": {
+        "relativePath": "marker.png"
+      }
+    },
+    {
+      "name": "FeatureBasedAlignment",
+      "options": {
+        "2d": true,
+        "goodMatchPercent": 0.25,
+        "maxFeatures": 2000,
+        "reference": "reference.png"
+      }
+    }
+  ]
+}

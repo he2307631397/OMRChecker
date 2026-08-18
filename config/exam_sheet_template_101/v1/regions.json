@@ -1,0 +1,255 @@
+[
+  {
+    "bbox": [
+      814,
+      300,
+      304,
+      316
+    ],
+    "regionCode": "candidateNumber",
+    "regionName": "准考证号区域",
+    "type": "DIGIT"
+  },
+  {
+    "bbox": [
+      72,
+      669,
+      1046,
+      128
+    ],
+    "regionCode": "singleChoice",
+    "regionName": "单选题区域",
+    "type": "SINGLE_CHOICE"
+  },
+  {
+    "bbox": [
+      72,
+      837,
+      1046,
+      96
+    ],
+    "regionCode": "multiChoice",
+    "regionName": "多选题区域",
+    "type": "MULTI_CHOICE"
+  },
+  {
+    "bbox": [
+      72,
+      973,
+      1046,
+      120
+    ],
+    "regionCode": "FillBlankReview",
+    "regionName": "填空题人工审核区域",
+    "type": "FILL_BLANK_REVIEW"
+  },
+  {
+    "bbox": [
+      72,
+      1133,
+      1046,
+      400
+    ],
+    "regionCode": "SolutionQ15Review",
+    "regionName": "第15题解答题人工审核区域",
+    "type": "SOLUTION_REVIEW"
+  },
+  {
+    "bbox": [
+      72,
+      40,
+      1046,
+      400
+    ],
+    "regionCode": "SolutionQ16Review",
+    "regionName": "第16题解答题人工审核区域",
+    "type": "SOLUTION_REVIEW"
+  },
+  {
+    "bbox": [
+      72,
+      464,
+      1046,
+      400
+    ],
+    "regionCode": "SolutionQ17Review",
+    "regionName": "第17题解答题人工审核区域",
+    "type": "SOLUTION_REVIEW"
+  },
+  {
+    "bbox": [
+      72,
+      887,
+      1046,
+      400
+    ],
+    "regionCode": "SolutionQ18Review",
+    "regionName": "第18题解答题人工审核区域",
+    "type": "SOLUTION_REVIEW"
+  },
+  {
+    "bbox": [
+      72,
+      40,
+      1046,
+      400
+    ],
+    "regionCode": "SolutionQ19Review",
+    "regionName": "第19题解答题人工审核区域",
+    "type": "SOLUTION_REVIEW"
+  },
+  {
+    "bbox": [
+      954,
+      989,
+      144,
+      68
+    ],
+    "regionCode": "Q12",
+    "regionName": "第12-14题填空题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      1041,
+      322,
+      56
+    ],
+    "regionCode": "Q12",
+    "regionName": "第12题填空题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      434,
+      1041,
+      322,
+      56
+    ],
+    "regionCode": "Q13",
+    "regionName": "第13题填空题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      776,
+      1041,
+      322,
+      56
+    ],
+    "regionCode": "Q14",
+    "regionName": "第14题填空题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      942,
+      1153,
+      144,
+      72
+    ],
+    "regionCode": "Q15",
+    "regionName": "第15题解答题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      1237,
+      1006,
+      276
+    ],
+    "regionCode": "Q15",
+    "regionName": "第15题解答题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      942,
+      60,
+      144,
+      72
+    ],
+    "regionCode": "Q16",
+    "regionName": "第16题解答题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      144,
+      1006,
+      276
+    ],
+    "regionCode": "Q16",
+    "regionName": "第16题解答题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      942,
+      483,
+      144,
+      72
+    ],
+    "regionCode": "Q17",
+    "regionName": "第17题解答题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      567,
+      1006,
+      276
+    ],
+    "regionCode": "Q17",
+    "regionName": "第17题解答题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      942,
+      907,
+      144,
+      72
+    ],
+    "regionCode": "Q18",
+    "regionName": "第18题解答题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      991,
+      1006,
+      276
+    ],
+    "regionCode": "Q18",
+    "regionName": "第18题解答题",
+    "type": "answer"
+  },
+  {
+    "bbox": [
+      942,
+      60,
+      144,
+      72
+    ],
+    "regionCode": "Q19",
+    "regionName": "第19题解答题",
+    "type": "score"
+  },
+  {
+    "bbox": [
+      92,
+      144,
+      1006,
+      276
+    ],
+    "regionCode": "Q19",
+    "regionName": "第19题解答题",
+    "type": "answer"
+  }
+]

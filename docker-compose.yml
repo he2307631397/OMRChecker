@@ -1,0 +1,30 @@
+services:
+  omr-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: omrchecker-robyn:latest
+    container_name: omrchecker-robyn
+    restart: unless-stopped
+    ports:
+      - "${OMR_SERVICE_PORT:-8080}:8080"
+    environment:
+      OMR_SERVICE_PORT: "8080"
+      OMR_SERVICE_HOST: "0.0.0.0"
+      OMR_SERVICE_WORKERS: "${OMR_SERVICE_WORKERS:-auto}"
+      OMR_SERVICE_DATA_DIR: "/app/service_data"
+      OMR_TEMPLATE_DIR: "/app/inputs"
+      COS_SECRET_ID: "${COS_SECRET_ID:-}"
+      COS_SECRET_KEY: "${COS_SECRET_KEY:-}"
+      OMR_CALLBACK_URL: "${OMR_CALLBACK_URL:-}"
+      OMR_RECOGNITION_DEBUG_ARTIFACTS: "${OMR_RECOGNITION_DEBUG_ARTIFACTS:-false}"
+    volumes:
+      - ./service_data:/app/service_data
+      - ./inputs:/app/inputs:ro
+      - ./config:/app/config
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)); assert data.get('status') == 'ok'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

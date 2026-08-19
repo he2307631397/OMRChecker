@@ -64,7 +64,7 @@ The single-file API uses module-level environment variables read when `web/robyn
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `OMR_SERVICE_PORT` | `8080` | Robyn HTTP port. |
-| `OMR_SERVICE_WORKERS` | `1` | Worker count for both single and batch executors. |
+| `OMR_SERVICE_WORKERS` | `auto` | Worker count for both single and batch executors. `auto` uses the process CPU count. |
 | `OMR_SERVICE_DATA_DIR` | `service_data` | Single-task work/output directory root. |
 | `OMR_TEMPLATE_DIR` | `inputs` | Template directory copied into uploaded single-task input folders. |
 
@@ -82,6 +82,29 @@ The batch API uses `load_service_config()` and reads `config/robyn-service.json`
 | `OMR_RECOGNITION_DEBUG_ARTIFACTS` | `recognition.debugArtifacts`. |
 
 Use `config/robyn-service.example.json` as the starting point for `config/robyn-service.json`.
+
+### Docker Compose deployment
+
+The current branch includes `Dockerfile`, `.dockerignore`, `docker-compose.yml`, and `.env.example` for deployment and operations.
+
+```bash
+cp .env.example .env
+cp config/robyn-service.example.json config/robyn-service.json
+# Edit .env and config/robyn-service.json for COS credentials, bucket, callback, port, and workers.
+docker compose up -d --build
+docker compose logs -f omr-service
+curl http://localhost:8080/health
+```
+
+Compose exposes `${OMR_SERVICE_PORT:-8080}` on the host and keeps the container listening on `8080`. It mounts:
+
+| Host path | Container path | Purpose |
+| --- | --- | --- |
+| `./service_data` | `/app/service_data` | SQLite task store and runtime work directory. |
+| `./inputs` | `/app/inputs` | Default template/input directory for single-file tasks. |
+| `./config` | `/app/config` | `robyn-service.json` and template-code dependencies. |
+
+Use `OMR_SERVICE_WORKERS=auto` for CPU-count concurrency, or set a positive integer when operations wants a fixed limit.
 
 For Windows paths with Chinese characters, start with UTF-8 mode:
 
@@ -105,7 +128,7 @@ Response shape:
 {
   "status": "ok",
   "service": "omrchecker-robyn",
-  "workers": 1,
+  "workers": "auto",
   "template_dir": "inputs"
 }
 ```

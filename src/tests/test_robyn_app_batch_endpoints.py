@@ -212,5 +212,13 @@ def test_startup_port_uses_service_config(monkeypatch):
     assert robyn_app._startup_port() == 8089
 
 
+def test_startup_host_defaults_to_loopback_and_allows_env_override(monkeypatch):
+    monkeypatch.delenv("OMR_SERVICE_HOST", raising=False)
+    assert robyn_app._startup_host() == "127.0.0.1"
+
+    monkeypatch.setenv("OMR_SERVICE_HOST", "0.0.0.0")
+    assert robyn_app._startup_host() == "0.0.0.0"
+
+
 def test_module_workers_come_from_loaded_service_config():
     assert robyn_app._MAX_WORKERS == robyn_app._SERVICE_CONFIG.server.workers

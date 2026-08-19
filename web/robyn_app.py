@@ -573,5 +573,9 @@ def _startup_port() -> int:
     return _SERVICE_CONFIG.server.port
 
 
+def _startup_host() -> str:
+    return os.getenv("OMR_SERVICE_HOST", "127.0.0.1")
+
+
 if __name__ == "__main__":
-    app.start(port=_startup_port())
+    app.start(host=_startup_host(), port=_startup_port())

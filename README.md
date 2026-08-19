@@ -214,11 +214,23 @@ By default, the service listens on port `8080`. You can override the port and se
 
 ```bash
 OMR_SERVICE_PORT=8080 \
-OMR_SERVICE_WORKERS=1 \
+OMR_SERVICE_WORKERS=auto \
 OMR_SERVICE_DATA_DIR=service_data \
 OMR_TEMPLATE_DIR=inputs \
 python3 web/robyn_app.py
 ```
+
+Docker Compose deployment is also supported:
+
+```bash
+cp .env.example .env
+cp config/robyn-service.example.json config/robyn-service.json
+# edit .env and config/robyn-service.json for COS, callback, port, and workers
+docker compose up -d --build
+curl http://localhost:8080/health
+```
+
+Compose mounts `./service_data`, `./inputs`, and `./config` into the container. Keep `OMR_SERVICE_WORKERS=auto` to use the container CPU count, or set a positive integer for fixed concurrency.
 
 Check that the service is running:
 

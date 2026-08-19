@@ -1,18 +1,27 @@
 from dataclasses import dataclass
 
 import cv2
-from screeninfo import get_monitors
+from screeninfo import ScreenInfoError, get_monitors
 
 from src.logger import logger
 from src.utils.image import ImageUtils
 
-monitor_window = get_monitors()[0]
+
+def _primary_monitor_size() -> tuple[int, int]:
+    try:
+        monitor = get_monitors()[0]
+        return monitor.width, monitor.height
+    except (IndexError, ScreenInfoError):
+        return 1920, 1080
+
+
+_MONITOR_WIDTH, _MONITOR_HEIGHT = _primary_monitor_size()
 
 
 @dataclass
 class ImageMetrics:
     # TODO: Move TEXT_SIZE, etc here and find a better class name
-    window_width, window_height = monitor_window.width, monitor_window.height
+    window_width, window_height = _MONITOR_WIDTH, _MONITOR_HEIGHT
     # for positioning image windows
     window_x, window_y = 0, 0
     reset_pos = [0, 0]

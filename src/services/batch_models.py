@@ -144,31 +144,17 @@ class SheetRecognitionResult:
     error: str | None = None
 
     def to_callback_dict(self) -> dict[str, Any]:
-        result = self.result
-        if isinstance(result, dict) and "checkedImageOsskey" in result:
-            result = {
-                key: value
-                for key, value in result.items()
-                if key != "checkedImageOsskey"
-            }
         payload: dict[str, Any] = {
             "sheetId": self.sheet_id,
             "osskey": self.source_osskey,
             "sourceOsskey": self.source_osskey,
             "status": self.status,
-            "result": result,
+            "result": self.result,
             "artifacts": [artifact.to_callback_dict() for artifact in self.artifacts],
         }
         if isinstance(self.result, dict):
             for key, value in self.result.items():
                 payload.setdefault(key, value)
-        region_images = [
-            _region_image_payload(artifact)
-            for artifact in self.artifacts
-            if artifact.artifact_type == "region_screenshot"
-        ]
-        if region_images:
-            payload["regionImages"] = region_images
         if self.error is not None:
             payload["error"] = self.error
         return payload
@@ -299,19 +285,3 @@ def _aggregate_counts(sheets: list[SheetRecognitionResult]) -> dict[str, int]:
         counts[sheet.status] = counts.get(sheet.status, 0) + 1
     return counts
 
-
-def _region_image_payload(artifact: ArtifactPayload) -> dict[str, Any]:
-    metadata = artifact.metadata or {}
-    payload: dict[str, Any] = {
-        "osskey": artifact.osskey,
-        "uploadStatus": "uploaded",
-    }
-    if "regionCode" in metadata:
-        payload["regionCode"] = metadata["regionCode"]
-    if "regionName" in metadata:
-        payload["regionName"] = metadata["regionName"]
-    if "regionType" in metadata:
-        payload["type"] = metadata["regionType"]
-    if "bbox" in metadata:
-        payload["bbox"] = metadata["bbox"]
-    return payload

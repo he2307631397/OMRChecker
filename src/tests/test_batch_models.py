@@ -131,8 +131,8 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
                 result={"answers": ["A", "B"], "score": 2},
                 artifacts=[
                     ArtifactPayload(
-                        artifact_type="region_screenshot",
-                        osskey="artifacts/task-1/sheet-1/region-1.png",
+                        artifact_type="diagnostic",
+                        osskey="artifacts/task-1/sheet-1/diagnostic.json",
                         metadata={"region": "business-large"},
                     )
                 ],
@@ -166,15 +166,9 @@ def test_result_payload_serializes_correlation_fields_counts_and_artifacts():
                 "result": {"answers": ["A", "B"], "score": 2},
                 "artifacts": [
                     {
-                        "artifactType": "region_screenshot",
-                        "osskey": "artifacts/task-1/sheet-1/region-1.png",
+                        "artifactType": "diagnostic",
+                        "osskey": "artifacts/task-1/sheet-1/diagnostic.json",
                         "metadata": {"region": "business-large"},
-                    }
-                ],
-                "regionImages": [
-                    {
-                        "osskey": "artifacts/task-1/sheet-1/region-1.png",
-                        "uploadStatus": "uploaded",
                     }
                 ],
             },

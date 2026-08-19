@@ -54,14 +54,6 @@ class RecognitionConfig:
 
 
 @dataclass(frozen=True)
-class ArchiveRegionConfig:
-    region_code: str
-    region_name: str
-    type: str
-    bbox: list[int]
-
-
-@dataclass(frozen=True)
 class ServiceConfig:
     server: ServerConfig = field(default_factory=ServerConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
@@ -69,7 +61,6 @@ class ServiceConfig:
     cos: CosConfig = field(default_factory=CosConfig)
     callback: CallbackConfig = field(default_factory=CallbackConfig)
     recognition: RecognitionConfig = field(default_factory=RecognitionConfig)
-    archive_regions: list[ArchiveRegionConfig] = field(default_factory=list)
 
 
 def load_service_config(path: str | Path | None = None) -> ServiceConfig:
@@ -122,15 +113,6 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
                 "recognition.debugArtifacts",
             ),
         ),
-        archive_regions=[
-            ArchiveRegionConfig(
-                region_code=str(region.get("regionCode", "")),
-                region_name=str(region.get("regionName", "")),
-                type=str(region.get("type", "")),
-                bbox=list(region.get("bbox", [])),
-            )
-            for region in resolved_config.get("archiveRegions", [])
-        ],
     )
 
 

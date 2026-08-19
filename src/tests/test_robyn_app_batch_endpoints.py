@@ -203,7 +203,7 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
 
     assert result.status == "completed"
     assert result.sheets[0].result["answers"] == {"q1": "A"}
-    assert Path(result.sheets[0].result["checkedImagePath"]).parts[-2:] == ("CheckedOMRs", "sheet-1.png")
+    assert "checkedImagePath" not in result.sheets[0].result
     assert len(runner_calls) == 1
 
 

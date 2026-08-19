@@ -15,8 +15,7 @@ def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
         "storage": {"serviceDataDir": "service_data", "templateDir": "inputs", "archivePrefix": "omr-archive"},
         "database": {"url": "sqlite:///service_data/omr_service.db"},
         "cos": {"enabled": True, "region": "ap-guangzhou", "bucket": "bucket", "secretId": "${COS_SECRET_ID}", "secretKey": "${COS_SECRET_KEY}"},
-        "callback": {"url": "${OMR_CALLBACK_TARGET}", "maxAttempts": 3, "timeoutSeconds": 10},
-        "archiveRegions": [{"regionCode": "singleChoice", "regionName": "单选题区域", "type": "SINGLE_CHOICE", "bbox": [1, 2, 30, 40]}]
+        "callback": {"url": "${OMR_CALLBACK_TARGET}", "maxAttempts": 3, "timeoutSeconds": 10}
     }), encoding="utf-8")
     monkeypatch.setenv("OMR_CALLBACK_TARGET", "https://callback.example.test/omr")
 
@@ -27,7 +26,6 @@ def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
     assert config.cos.secret_id == "sid"
     assert config.cos.secret_key == "skey"
     assert config.callback.url == "https://callback.example.test/omr"
-    assert config.archive_regions[0].bbox == [1, 2, 30, 40]
 
 
 def test_load_service_config_reads_env_file_for_cos_secrets(tmp_path, monkeypatch):

@@ -102,20 +102,7 @@ def _run_batch_omr(context: RecognitionContext) -> RecognitionOutput:
     output_dir = context.workdir / "output"
     result = run_omr_directory(context.workdir, output_dir, template_dir=context.template_dir)
     result_payload = result.rows[0] if len(result.rows) == 1 else result.to_dict()
-    checked_image_path = _checked_image_path_for_result(output_dir, result_payload)
-    if checked_image_path is not None and isinstance(result_payload, dict):
-        result_payload = dict(result_payload)
-        result_payload["checkedImagePath"] = str(checked_image_path)
-    return RecognitionOutput(result=result_payload, checked_image_path=checked_image_path)
-
-
-def _checked_image_path_for_result(output_dir: Path, result_payload: dict[str, Any] | Any) -> Path | None:
-    if not isinstance(result_payload, dict):
-        return None
-    file_id = result_payload.get("file_id")
-    if not file_id:
-        return None
-    return get_checked_image_path(output_dir, str(file_id))
+    return RecognitionOutput(result=result_payload)
 
 
 _BATCH_SERVICE = _build_batch_service()

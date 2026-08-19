@@ -477,6 +477,99 @@ def test_process_batch_persists_runtime_jsons_to_template_code_schema_dir(monkey
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_downloads_template_preprocessor_reference_oss_key(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    (tmp_path / "cos" / "template-assets").mkdir(parents=True)
+    (tmp_path / "cos" / "template-assets" / "remote-reference.png").write_bytes(b"remote-reference")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
+        recognition_config={
+            "templateConfig": {
+                "pageDimensions": [1190, 1682],
+                "preProcessors": [
+                    {
+                        "name": "FeatureBasedAlignment",
+                        "options": {
+                            "reference": "template-assets/remote-reference.png",
+                            "2d": True,
+                        },
+                    }
+                ],
+            }
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        pre_processor = written_template["preProcessors"][0]
+        assert pre_processor["options"]["reference"] == "remote-reference.png"
+        assert pre_processor["options"]["2d"] is True
+        assert (config_v1 / "remote-reference.png").read_bytes() == b"remote-reference"
+        assert (context.workdir / "remote-reference.png").read_bytes() == b"remote-reference"
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
+def test_process_batch_reuses_downloaded_template_preprocessor_reference(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    (tmp_path / "cos" / "template-assets").mkdir(parents=True)
+    (tmp_path / "cos" / "template-assets" / "shared-reference.png").write_bytes(b"shared-reference")
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        recognition_config={
+            "templateConfig": {
+                "preProcessors": [
+                    {"name": "FeatureBasedAlignment", "options": {"reference": "template-assets/shared-reference.png"}},
+                    {"name": "FeatureBasedAlignment", "options": {"reference": "template-assets/shared-reference.png"}},
+                ]
+            },
+            "debugArtifacts": True,
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((context.workdir / "template.json").read_text(encoding="utf-8"))
+        references = [item["options"]["reference"] for item in written_template["preProcessors"]]
+        assert references == ["shared-reference.png", "shared-reference.png"]
+        assert (context.workdir / "shared-reference.png").read_bytes() == b"shared-reference"
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_derives_archive_regions_from_template_code_schema(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

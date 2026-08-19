@@ -360,9 +360,91 @@ class BatchRecognitionService:
         if isinstance(template, dict):
             normalized_template = _drop_none_values(template)
             if normalized_template:
+                normalized_template = self._materialize_template_reference_images(normalized_template, workdir)
                 _write_json(workdir / "template.json", normalized_template)
         if isinstance(config, dict):
             _write_json(workdir / "config.json", _normalize_runtime_config(config))
+
+    def _materialize_template_reference_images(self, template: dict, workdir: Path) -> dict:
+        """Download FeatureBasedAlignment reference images from object storage.
+
+        Java callers may pass an OSS key in
+        ``templateConfig.preProcessors[].options.reference``. OMRChecker expects
+        that value to be a local file name relative to the template/work
+        directory, so remote references are downloaded and the generated
+        template is rewritten to the local file name. Existing local files such
+        as ``reference.png`` are left unchanged.
+        """
+
+        pre_processors = template.get("preProcessors")
+        if not isinstance(pre_processors, list):
+            return template
+
+        rewritten_template = dict(template)
+        rewritten_pre_processors = []
+        changed = False
+        downloaded_names: dict[str, str] = {}
+        used_local_names: set[str] = set()
+        for index, pre_processor in enumerate(pre_processors):
+            if not isinstance(pre_processor, dict):
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            options = pre_processor.get("options")
+            if not isinstance(options, dict):
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            reference = options.get("reference")
+            if not isinstance(reference, str) or not reference.strip():
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            local_reference = self._materialize_reference_image(
+                reference.strip(),
+                workdir,
+                index=index,
+                name_map=downloaded_names,
+                used_local_names=used_local_names,
+            )
+            if local_reference == reference:
+                rewritten_pre_processors.append(pre_processor)
+                continue
+
+            changed = True
+            rewritten_options = dict(options)
+            rewritten_options["reference"] = local_reference
+            rewritten_pre_processor = dict(pre_processor)
+            rewritten_pre_processor["options"] = rewritten_options
+            rewritten_pre_processors.append(rewritten_pre_processor)
+
+        if not changed:
+            return template
+        rewritten_template["preProcessors"] = rewritten_pre_processors
+        return rewritten_template
+
+    def _materialize_reference_image(
+        self,
+        reference: str,
+        workdir: Path,
+        *,
+        index: int,
+        name_map: dict[str, str],
+        used_local_names: set[str],
+    ) -> str:
+        reference_path = Path(reference)
+        if _is_local_template_reference(reference_path) and (workdir / reference_path).is_file():
+            used_local_names.add(reference)
+            return reference
+        if reference in name_map:
+            return name_map[reference]
+
+        local_name = _safe_reference_filename(reference, index=index, used_names=used_local_names)
+        destination = workdir / local_name
+        self.object_storage.download_file(reference, destination)
+        name_map[reference] = local_name
+        used_local_names.add(local_name)
+        return local_name
 
     def _sheet_workdir(self, task_id: str, sheet_id: str) -> Path:
         workdir = self.config.storage.service_data_dir / "tasks" / _safe_component(task_id) / "sheets" / _safe_component(sheet_id)
@@ -441,6 +523,30 @@ def _safe_config_dependency_dir(*parts: str) -> Path:
     if resolved_config_root != resolved_dependency_dir and resolved_config_root not in resolved_dependency_dir.parents:
         raise ValueError(f"template dependency directory is outside config directory: {dependency_dir}")
     return dependency_dir
+
+
+def _is_local_template_reference(path: Path) -> bool:
+    return not path.is_absolute() and not path.drive and len(path.parts) == 1 and path.name not in {"", ".", ".."}
+
+
+def _safe_reference_filename(reference: str, *, index: int, used_names: set[str]) -> str:
+    name = Path(reference).name.strip()
+    if not name or name in {".", ".."}:
+        name = f"reference_{index + 1}.png"
+    sanitized = _SAFE_COMPONENT_PATTERN.sub("_", name)
+    sanitized = sanitized.replace("..", "_").strip("._")
+    if not sanitized:
+        sanitized = f"reference_{index + 1}.png"
+    if sanitized not in used_names:
+        return sanitized
+    stem = Path(sanitized).stem or "reference"
+    suffix = Path(sanitized).suffix or ".png"
+    counter = index + 1
+    while True:
+        candidate = f"{stem}_{counter}{suffix}"
+        if candidate not in used_names:
+            return candidate
+        counter += 1
 
 
 def _write_json(path: Path, payload: dict) -> None:

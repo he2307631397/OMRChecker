@@ -35,12 +35,13 @@ from src.services.omr_service import (
 from src.services.batch_models import BatchRecognitionRequest, render_callback_payload_from_records
 from src.services.batch_service import BatchRecognitionService, RecognitionContext, RecognitionOutput
 from src.services.cos_client import build_cos_client
-from src.services.service_config import load_service_config
+from src.services.service_config import ServiceConfig, load_service_config
 from src.services.task_store import TaskStore
 
 app = Robyn(__file__)
 
-_MAX_WORKERS = int(os.getenv("OMR_SERVICE_WORKERS", "1"))
+_SERVICE_CONFIG = load_service_config()
+_MAX_WORKERS = _SERVICE_CONFIG.server.workers
 _SERVICE_DATA_DIR = Path(os.getenv("OMR_SERVICE_DATA_DIR", str(DEFAULT_SERVICE_DATA_DIR)))
 _TEMPLATE_DIR = Path(os.getenv("OMR_TEMPLATE_DIR", str(DEFAULT_TEMPLATE_DIR)))
 _EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-worker")
@@ -84,8 +85,8 @@ def _sqlite_path_from_url(url: str) -> Path:
     return Path(url)
 
 
-def _build_batch_service() -> BatchRecognitionService:
-    config = load_service_config()
+def _build_batch_service(config: ServiceConfig | None = None) -> BatchRecognitionService:
+    config = config or _SERVICE_CONFIG
     db_path = _sqlite_path_from_url(config.database.url or "sqlite:///service_data/omr_service.db")
     store = TaskStore(db_path)
     store.initialize()
@@ -105,7 +106,7 @@ def _run_batch_omr(context: RecognitionContext) -> RecognitionOutput:
     return RecognitionOutput(result=result_payload)
 
 
-_BATCH_SERVICE = _build_batch_service()
+_BATCH_SERVICE = _build_batch_service(_SERVICE_CONFIG)
 _BATCH_EXECUTOR = ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="omr-batch-worker")
 
 
@@ -569,7 +570,7 @@ def _now_iso() -> str:
 
 
 def _startup_port() -> int:
-    return load_service_config().server.port
+    return _SERVICE_CONFIG.server.port
 
 
 if __name__ == "__main__":

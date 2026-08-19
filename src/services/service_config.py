@@ -11,12 +11,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 _ENV_PLACEHOLDER_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+DEFAULT_SERVER_WORKERS = max(1, os.cpu_count() or 1)
 
 
 @dataclass(frozen=True)
 class ServerConfig:
     port: int = 8080
-    workers: int = 1
+    workers: int = DEFAULT_SERVER_WORKERS
 
 
 @dataclass(frozen=True)
@@ -83,8 +84,8 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
 
     return ServiceConfig(
         server=ServerConfig(
-            port=int(server.get("port", ServerConfig.port)),
-            workers=int(server.get("workers", ServerConfig.workers)),
+            port=_parse_positive_int(server.get("port", ServerConfig.port), "server.port"),
+            workers=_parse_workers(server.get("workers", ServerConfig.workers), "server.workers"),
         ),
         storage=StorageConfig(
             service_data_dir=Path(storage.get("serviceDataDir", StorageConfig.service_data_dir)),
@@ -155,7 +156,7 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
     if "OMR_SERVICE_PORT" in os.environ:
         server["port"] = int(os.environ["OMR_SERVICE_PORT"])
     if "OMR_SERVICE_WORKERS" in os.environ:
-        server["workers"] = int(os.environ["OMR_SERVICE_WORKERS"])
+        server["workers"] = os.environ["OMR_SERVICE_WORKERS"]
     if "OMR_SERVICE_DATA_DIR" in os.environ:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]
     if "OMR_TEMPLATE_DIR" in os.environ:
@@ -179,6 +180,22 @@ def _parse_bool(value: Any, field_name: str) -> bool:
         if normalized in {"0", "false", "no", "off"}:
             return False
     raise ValueError(f"{field_name} must be a boolean")
+
+
+def _parse_positive_int(value: Any, field_name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a positive integer") from exc
+    if parsed < 1:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return parsed
+
+
+def _parse_workers(value: Any, field_name: str) -> int:
+    if isinstance(value, str) and value.strip().lower() == "auto":
+        return DEFAULT_SERVER_WORKERS
+    return _parse_positive_int(value, field_name)
 
 
 def _optional_non_empty_string(value: Any, field_name: str) -> str | None:

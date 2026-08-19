@@ -191,11 +191,10 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
             rows=[{"file_id": "sheet-1.png", "answers": {"q1": "A"}}],
         )
 
-    monkeypatch.setattr(robyn_app, "load_service_config", lambda: service_config)
     monkeypatch.setattr(robyn_app, "build_cos_client", lambda _config: LocalCosClient(cos_root))
     monkeypatch.setattr(robyn_app, "run_omr_directory", fake_run_omr_directory)
 
-    service = robyn_app._build_batch_service()
+    service = robyn_app._build_batch_service(service_config)
     service.task_id_factory = lambda: "batch-task-1"
     service.submit_batch(BatchRecognitionRequest.from_api_json(_payload()))
 
@@ -208,6 +207,10 @@ def test_default_batch_service_wires_real_omr_runner(monkeypatch, tmp_path):
 
 
 def test_startup_port_uses_service_config(monkeypatch):
-    monkeypatch.setattr(robyn_app, "load_service_config", lambda: ServiceConfig(server=ServerConfig(port=8089)))
+    monkeypatch.setattr(robyn_app, "_SERVICE_CONFIG", ServiceConfig(server=ServerConfig(port=8089)))
 
     assert robyn_app._startup_port() == 8089
+
+
+def test_module_workers_come_from_loaded_service_config():
+    assert robyn_app._MAX_WORKERS == robyn_app._SERVICE_CONFIG.server.workers

@@ -527,6 +527,9 @@ def _normalize_runtime_config(config: dict) -> dict:
         },
         "weak_identifier_params": {
             "excludeLabels": "exclude_labels",
+            "resolveConflicts": "resolve_conflicts",
+            "conflictAutoResolveMinConfidence": "conflict_auto_resolve_min_confidence",
+            "conflictReviewMinConfidence": "conflict_review_min_confidence",
             "minGap": "min_gap",
             "minDeltaFromBlank": "min_delta_from_blank",
             "adaptiveMinGap": "adaptive_min_gap",

@@ -155,6 +155,17 @@ CONFIG_SCHEMA = {
                     "type": "array",
                     "items": {"type": "string"},
                 },
+                "resolve_conflicts": {"type": "boolean"},
+                "conflict_auto_resolve_min_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "conflict_review_min_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
                 "min_gap": {"type": "number", "minimum": 0, "maximum": 100},
                 "min_delta_from_blank": {
                     "type": "number",

@@ -559,20 +559,30 @@ class ImageInstanceOps:
         )
 
     def append_identifier_review(
-        self, field_label, candidate, diagnostics, status, legacy_rejection=""
+        self,
+        field_label,
+        candidate,
+        diagnostics,
+        status,
+        legacy_rejection="",
+        *,
+        original_value="",
+        confidence=None,
+        reason="weak_identifier_candidate",
     ):
         """Store one weak identifier candidate for auxiliary review outputs."""
-        confidence = self.get_identifier_review_confidence(diagnostics)
+        if confidence is None:
+            confidence = self.get_identifier_review_confidence(diagnostics)
         self.last_weak_fill_reviews.append(
             {
                 "review_type": "ID_REVIEW",
                 "field": field_label,
-                "original_value": "",
+                "original_value": original_value,
                 "candidate": candidate,
                 "status": status,
                 "confidence": confidence,
                 "score": confidence * 5.0,
-                "reason": "weak_identifier_candidate",
+                "reason": reason,
                 "legacy_rejection": legacy_rejection,
                 "evidence": "gap,delta_from_blank,page_z,density_gap",
                 "ambiguity": 1.0 - confidence,
@@ -583,6 +593,104 @@ class ImageInstanceOps:
                 "multiscale_stability": 0.0,
             }
         )
+
+    def resolve_identifier_conflict(
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+    ):
+        """Resolve impossible multi-mark output for one identifier column.
+
+        Identifier columns are single-choice by definition. If normal thresholding
+        marks several digits, keep the darkest digit only when the local gap is
+        confident enough. Otherwise return blank and emit a review row so the
+        caller can route the page to manual verification instead of accepting a
+        multi-digit identifier cell.
+        """
+        weak_identifier_params = self.tuning_config.weak_identifier_params
+        if not getattr(weak_identifier_params, "resolve_conflicts", True):
+            return detected_bubbles
+
+        if field_block.field_type not in weak_identifier_params.supported_field_types:
+            return detected_bubbles
+
+        if field_block.direction != "vertical":
+            return detected_bubbles
+
+        if len(detected_bubbles) <= 1:
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        configured_labels = weak_identifier_params.labels
+        if configured_labels and field_label not in configured_labels:
+            return detected_bubbles
+
+        if field_label in weak_identifier_params.exclude_labels:
+            return detected_bubbles
+
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        darkest_bubble = field_block_bubbles[diagnostics["darkest_index"]]
+        # Conflict inputs have already crossed the normal threshold for several
+        # digits. At this stage the useful signal is the separation between the
+        # darkest digit and the rest, not density evidence that is only computed
+        # by the weak blank-field fallback.
+        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        auto_min_confidence = getattr(
+            weak_identifier_params, "conflict_auto_resolve_min_confidence", 0.8
+        )
+        review_min_confidence = getattr(
+            weak_identifier_params, "conflict_review_min_confidence", 0.65
+        )
+
+        if confidence >= auto_min_confidence:
+            status = "RESOLVED_CANDIDATE"
+        elif confidence >= review_min_confidence:
+            status = "NEEDS_REVIEW"
+        else:
+            status = "LOW_CONFIDENCE"
+
+        original_value = "".join(b.field_value for b in detected_bubbles)
+        if status in {"RESOLVED_CANDIDATE", "NEEDS_REVIEW"}:
+            logger.warning(
+                f"Identifier conflict resolved: field '{field_label}' "
+                f"{original_value} -> '{darkest_bubble.field_value}' "
+                f"status={status} confidence={confidence:.3f} "
+                f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
+                f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
+                f"gap={diagnostics['gap']:.2f}, "
+                f"blank_baseline={diagnostics['blank_baseline']:.2f}, "
+                f"delta={diagnostics['delta_from_blank']:.2f})"
+            )
+            self.append_identifier_review(
+                field_label,
+                darkest_bubble.field_value,
+                diagnostics,
+                status,
+                f"multi_identifier_conflict:{original_value}",
+                original_value=original_value,
+                confidence=confidence,
+                reason="identifier_conflict",
+            )
+            return [darkest_bubble]
+
+        logger.warning(
+            f"Identifier conflict unresolved: field '{field_label}' "
+            f"{original_value} -> blank status={status} confidence={confidence:.3f} "
+            f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
+            f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
+            f"gap={diagnostics['gap']:.2f}, "
+            f"blank_baseline={diagnostics['blank_baseline']:.2f}, "
+            f"delta={diagnostics['delta_from_blank']:.2f})"
+        )
+        self.append_identifier_review(
+            field_label,
+            darkest_bubble.field_value,
+            diagnostics,
+            status,
+            f"multi_identifier_conflict:{original_value}",
+            original_value=original_value,
+            confidence=confidence,
+            reason="identifier_conflict",
+        )
+        return []
 
     def observe_single_choice_conflict_review(
         self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
@@ -1399,6 +1507,12 @@ class ImageInstanceOps:
                         detected_bubbles,
                     )
                     detected_bubbles = self.resolve_single_choice_conflict(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                    )
+                    detected_bubbles = self.resolve_identifier_conflict(
                         field_block,
                         field_block_bubbles,
                         all_q_strip_arrs[total_q_strip_no],

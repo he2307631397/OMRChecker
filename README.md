@@ -225,12 +225,12 @@ Docker Compose deployment is also supported:
 ```bash
 cp .env.example .env
 cp config/robyn-service.example.json config/robyn-service.json
-# edit .env and config/robyn-service.json for COS, callback, port, and workers
+# edit .env for deployment secrets and config/robyn-service.json for server.workers
 docker compose up -d --build
 curl http://localhost:8080/health
 ```
 
-Compose mounts `./service_data`, `./inputs`, and `./config` into the container. Keep `OMR_SERVICE_WORKERS=auto` to use the container CPU count, or set a positive integer for fixed concurrency.
+Compose mounts `./service_data`, `./inputs`, and `./config` into the container. Configure concurrency in `config/robyn-service.json` via `server.workers`, for example `"auto"` for container CPU count or a positive integer for fixed concurrency. Recreate the container after changing it: `docker compose up -d --force-recreate`.
 
 Check that the service is running:
 

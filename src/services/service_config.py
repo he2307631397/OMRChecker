@@ -155,7 +155,7 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
 
     if "OMR_SERVICE_PORT" in os.environ:
         server["port"] = int(os.environ["OMR_SERVICE_PORT"])
-    if "OMR_SERVICE_WORKERS" in os.environ:
+    if "OMR_SERVICE_WORKERS" in os.environ and os.environ["OMR_SERVICE_WORKERS"].strip():
         server["workers"] = os.environ["OMR_SERVICE_WORKERS"]
     if "OMR_SERVICE_DATA_DIR" in os.environ:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]

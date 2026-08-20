@@ -90,7 +90,7 @@ The current branch includes `Dockerfile`, `.dockerignore`, `docker-compose.yml`,
 ```bash
 cp .env.example .env
 cp config/robyn-service.example.json config/robyn-service.json
-# Edit .env and config/robyn-service.json for COS credentials, bucket, callback, port, and workers.
+# Edit .env for deployment secrets and config/robyn-service.json for server.workers.
 docker compose up -d --build
 docker compose logs -f omr-service
 curl http://localhost:8080/health
@@ -104,7 +104,11 @@ Compose exposes `${OMR_SERVICE_PORT:-8080}` on the host and keeps the container 
 | `./inputs` | `/app/inputs` | Default template/input directory for single-file tasks. |
 | `./config` | `/app/config` | `robyn-service.json` and template-code dependencies. |
 
-Use `OMR_SERVICE_WORKERS=auto` for CPU-count concurrency, or set a positive integer when operations wants a fixed limit.
+Configure concurrency in `config/robyn-service.json` with `server.workers`, for example `"auto"` for container CPU count or a positive integer for fixed concurrency. Recreate the container after changing it:
+
+```bash
+docker compose up -d --force-recreate
+```
 
 For Windows paths with Chinese characters, start with UTF-8 mode:
 
@@ -128,7 +132,7 @@ Response shape:
 {
   "status": "ok",
   "service": "omrchecker-robyn",
-  "workers": "auto",
+  "workers": 8,
   "template_dir": "inputs"
 }
 ```

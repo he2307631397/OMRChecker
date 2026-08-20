@@ -89,6 +89,9 @@ def test_server_workers_can_be_configured_from_json_and_env(tmp_path, monkeypatc
     monkeypatch.setenv("OMR_SERVICE_WORKERS", "auto")
     assert load_service_config(config_path).server.workers == DEFAULT_SERVER_WORKERS
 
+    monkeypatch.setenv("OMR_SERVICE_WORKERS", "")
+    assert load_service_config(config_path).server.workers == 3
+
 
 def test_server_workers_must_be_positive(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

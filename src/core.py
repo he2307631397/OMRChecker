@@ -959,6 +959,51 @@ class ImageInstanceOps:
                 diagnostics,
                 page_blank_model,
             )
+            center_densities = diagnostics.get("center_densities", [])
+            if (
+                getattr(weak_mark_params, "detect_true_multi_conflicts", True)
+                and center_densities
+            ):
+                detected_indices = [
+                    index
+                    for index, bubble in enumerate(field_block_bubbles)
+                    if bubble in detected_bubbles
+                ]
+                detected_center_densities = sorted(
+                    (center_densities[index] for index in detected_indices), reverse=True
+                )
+                if len(detected_center_densities) >= 2:
+                    second_density = detected_center_densities[1]
+                    top_density_gap = detected_center_densities[0] - second_density
+                    true_multi_min_density = getattr(
+                        weak_mark_params, "true_multi_min_center_density", 0.35
+                    )
+                    true_multi_max_gap = getattr(
+                        weak_mark_params, "true_multi_max_top_density_gap", 0.20
+                    )
+                    if (
+                        second_density >= true_multi_min_density
+                        and top_density_gap <= true_multi_max_gap
+                    ):
+                        original_value = "".join(b.field_value for b in detected_bubbles)
+                        confidence = min(second_density / max(true_multi_min_density, 0.01), 1.0)
+                        logger.warning(
+                            f"Single-choice true multi-mark conflict: field '{field_label}' "
+                            f"{original_value} kept for review "
+                            f"(top_density={detected_center_densities[0]:.3f}, "
+                            f"second_density={second_density:.3f}, "
+                            f"top_gap={top_density_gap:.3f})"
+                        )
+                        self.append_single_choice_conflict_review(
+                            field_label,
+                            original_value,
+                            original_value,
+                            diagnostics,
+                            "TRUE_MULTI_MARK_CONFLICT",
+                            confidence,
+                            "single_choice_true_multi_mark",
+                        )
+                        return detected_bubbles
         darkest_index = diagnostics["darkest_index"]
         darkest_bubble = field_block_bubbles[darkest_index]
         gap = diagnostics["gap"]

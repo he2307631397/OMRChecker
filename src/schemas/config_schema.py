@@ -114,6 +114,17 @@ CONFIG_SCHEMA = {
                     "minimum": 0,
                     "maximum": 1,
                 },
+                "detect_true_multi_conflicts": {"type": "boolean"},
+                "true_multi_min_center_density": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "true_multi_max_top_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
                 "resolve_single_choice_conflicts": {"type": "boolean"},
                 "conflict_min_gap": {"type": "number", "minimum": 0, "maximum": 100},
                 "conflict_min_delta_from_blank": {

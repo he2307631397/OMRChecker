@@ -1223,6 +1223,105 @@ class ImageInstanceOps:
 
         return weak_bubbles
 
+    def filter_multi_marked_bubbles(
+        self,
+        field_block,
+        field_block_bubbles,
+        q_strip_vals,
+        detected_bubbles,
+        image,
+        page_blank_model,
+    ):
+        """Filter multi-select noise using inner-ROI relative fill evidence."""
+        weak_multi_params = self.tuning_config.weak_multi_mark_params
+        if not getattr(weak_multi_params, "filter_use_density", True):
+            return detected_bubbles
+
+        if not field_block.multi_select:
+            return detected_bubbles
+
+        if not detected_bubbles:
+            return detected_bubbles
+
+        if not self.is_weak_multi_label_allowed(field_block_bubbles):
+            return detected_bubbles
+
+        field_label = field_block_bubbles[0].field_label
+        diagnostics = self.get_field_diagnostics(q_strip_vals)
+        diagnostics = self.enrich_diagnostics_with_density(
+            image,
+            field_block,
+            field_block_bubbles,
+            q_strip_vals,
+            diagnostics,
+            page_blank_model,
+        )
+        center_densities = diagnostics.get("center_densities", [])
+        if not center_densities:
+            return detected_bubbles
+
+        detected_values = {bubble.field_value for bubble in detected_bubbles}
+        detected_indices = [
+            index
+            for index, bubble in enumerate(field_block_bubbles)
+            if bubble.field_value in detected_values
+        ]
+        if not detected_indices:
+            return detected_bubbles
+
+        min_center_density = getattr(
+            weak_multi_params, "filter_min_center_density", 0.18
+        )
+        min_density_gap = getattr(weak_multi_params, "filter_min_density_gap", 0.08)
+        detected_densities = [center_densities[index] for index in detected_indices]
+
+        # Preserve true full-select rows. If every option has enough center fill
+        # and the fill is reasonably uniform, ABCD is likely intentional.
+        if len(detected_indices) == len(field_block_bubbles):
+            full_min_density = getattr(
+                weak_multi_params, "full_select_min_center_density", 0.35
+            )
+            full_max_spread = getattr(
+                weak_multi_params, "full_select_max_density_spread", 0.35
+            )
+            if (
+                min(detected_densities) >= full_min_density
+                and max(detected_densities) - min(detected_densities) <= full_max_spread
+            ):
+                logger.warning(
+                    f"Multi-select density filter preserved full-select field '{field_label}' "
+                    f"(center_densities={','.join(f'{value:.3f}' for value in detected_densities)})"
+                )
+                return detected_bubbles
+
+        blank_densities = [
+            density
+            for index, density in enumerate(center_densities)
+            if index not in detected_indices
+        ]
+        density_baseline = float(np.median(blank_densities)) if blank_densities else min(center_densities)
+
+        kept_bubbles = []
+        dropped = []
+        for bubble, index in zip(detected_bubbles, detected_indices):
+            density = center_densities[index]
+            density_gap = density - density_baseline
+            if density >= min_center_density and density_gap >= min_density_gap:
+                kept_bubbles.append(bubble)
+            else:
+                dropped.append((bubble.field_value, density, density_gap))
+
+        if dropped:
+            logger.warning(
+                f"Multi-select density filter: field '{field_label}' "
+                f"{''.join(b.field_value for b in detected_bubbles)} -> "
+                f"{''.join(b.field_value for b in kept_bubbles) or '<blank>'} "
+                f"(baseline={density_baseline:.3f}, dropped="
+                f"{','.join(f'{value}:{density:.3f}/{gap:.3f}' for value, density, gap in dropped)})"
+            )
+
+        return kept_bubbles
+
     def is_weak_multi_label_allowed(self, field_block_bubbles):
         weak_multi_params = self.tuning_config.weak_multi_mark_params
         field_label = field_block_bubbles[0].field_label
@@ -1600,6 +1699,14 @@ class ImageInstanceOps:
                         page_blank_model,
                     )
                     detected_bubbles = self.resolve_identifier_conflict(
+                        field_block,
+                        field_block_bubbles,
+                        all_q_strip_arrs[total_q_strip_no],
+                        detected_bubbles,
+                        img,
+                        page_blank_model,
+                    )
+                    detected_bubbles = self.filter_multi_marked_bubbles(
                         field_block,
                         field_block_bubbles,
                         all_q_strip_arrs[total_q_strip_no],

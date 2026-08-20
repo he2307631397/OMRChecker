@@ -241,6 +241,27 @@ CONFIG_SCHEMA = {
                 },
                 "max_mean": {"type": "number", "minimum": 0, "maximum": 255},
                 "max_marks": {"type": "integer", "minimum": 1, "maximum": 10},
+                "filter_use_density": {"type": "boolean"},
+                "filter_min_center_density": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "filter_min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "full_select_min_center_density": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "full_select_max_density_spread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
                 "full_select_fallback_enabled": {"type": "boolean"},
                 "full_select_max_mean": {
                     "type": "number",

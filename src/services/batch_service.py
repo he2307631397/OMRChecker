@@ -293,9 +293,17 @@ class BatchRecognitionService:
 
             reference = options.get("reference")
             if not isinstance(reference, str) or not reference.strip():
-                rewritten_pre_processors.append(pre_processor)
+                rewritten_options, removed_metadata = _strip_template_reference_metadata(options)
+                if removed_metadata:
+                    changed = True
+                    rewritten_pre_processor = dict(pre_processor)
+                    rewritten_pre_processor["options"] = rewritten_options
+                    rewritten_pre_processors.append(rewritten_pre_processor)
+                else:
+                    rewritten_pre_processors.append(pre_processor)
                 continue
 
+            rewritten_options, removed_metadata = _strip_template_reference_metadata(options)
             local_reference = self._materialize_reference_image(
                 reference.strip(),
                 workdir,
@@ -303,12 +311,11 @@ class BatchRecognitionService:
                 name_map=downloaded_names,
                 used_local_names=used_local_names,
             )
-            if local_reference == reference:
+            if local_reference == reference and not removed_metadata:
                 rewritten_pre_processors.append(pre_processor)
                 continue
 
             changed = True
-            rewritten_options = dict(options)
             rewritten_options["reference"] = local_reference
             rewritten_pre_processor = dict(pre_processor)
             rewritten_pre_processor["options"] = rewritten_options
@@ -414,6 +421,25 @@ def _safe_config_dependency_dir(*parts: str) -> Path:
 
 def _is_local_template_reference(path: Path) -> bool:
     return not path.is_absolute() and not path.drive and len(path.parts) == 1 and path.name not in {"", ".", ".."}
+
+
+def _strip_template_reference_metadata(options: dict) -> tuple[dict, bool]:
+    """Remove Java/business-only reference metadata before schema validation.
+
+    OMRChecker's FeatureBasedAlignment schema only accepts runtime options such
+    as ``reference``. API callers may include metadata like ``referenceFileId``
+    and ``referenceName`` for their own asset records, but those keys must not be
+    persisted into template.json because OMRChecker validates preProcessor
+    options with ``additionalProperties: false``.
+    """
+
+    rewritten = dict(options)
+    removed = False
+    for key in ("referenceFileId", "referenceName"):
+        if key in rewritten:
+            rewritten.pop(key, None)
+            removed = True
+    return rewritten, removed
 
 
 def _safe_reference_filename(reference: str, *, index: int, used_names: set[str]) -> str:

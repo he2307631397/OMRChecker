@@ -526,6 +526,58 @@ def test_process_batch_downloads_template_preprocessor_reference_oss_key(monkeyp
     assert service.process_batch("task-1").status == "completed"
 
 
+def test_process_batch_strips_template_reference_business_metadata(monkeypatch, tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    cos = LocalCosClient(tmp_path / "cos")
+    _write_image(tmp_path / "cos" / "incoming" / "sheet-1.png")
+    (tmp_path / "cos" / "template-assets").mkdir(parents=True)
+    (tmp_path / "cos" / "template-assets" / "remote-reference.png").write_bytes(b"remote-reference")
+    config_v1 = (tmp_path / "config" / "ASTS-HTTP-001" / "v1").resolve(strict=False)
+    config_v1.mkdir(parents=True)
+    request = BatchRecognitionRequest(
+        exam_id="exam-1",
+        callback_url=None,
+        template_code="ASTS-HTTP-001",
+        schema_version="v1",
+        recognition_config={
+            "templateConfig": {
+                "pageDimensions": [1190, 1682],
+                "preProcessors": [
+                    {
+                        "name": "FeatureBasedAlignment",
+                        "options": {
+                            "reference": "template-assets/remote-reference.png",
+                            "referenceFileId": "f_452f97fbd3944401809a63b8893fbba8",
+                            "referenceName": "reference-page-1.png",
+                            "2d": True,
+                        },
+                    }
+                ],
+            }
+        },
+        sheets=[BatchSheetRequest(sheet_id="sheet-1", osskey="incoming/sheet-1.png")],
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_runner(context):
+        written_template = json.loads((config_v1 / "template.json").read_text(encoding="utf-8"))
+        options = written_template["preProcessors"][0]["options"]
+        assert options == {"reference": "remote-reference.png", "2d": True}
+        assert (context.workdir / "remote-reference.png").read_bytes() == b"remote-reference"
+        return RecognitionOutput(result={"ok": True})
+
+    service = BatchRecognitionService(
+        store=store,
+        object_storage=cos,
+        config=_make_config(tmp_path),
+        recognition_runner=fake_runner,
+        task_id_factory=lambda: "task-1",
+    )
+    service.submit_batch(request)
+
+    assert service.process_batch("task-1").status == "completed"
+
+
 def test_process_batch_reuses_downloaded_template_preprocessor_reference(monkeypatch, tmp_path: Path) -> None:
     store = _make_store(tmp_path)
     cos = LocalCosClient(tmp_path / "cos")

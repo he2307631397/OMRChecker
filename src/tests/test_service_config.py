@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from src.services.service_config import DEFAULT_SERVER_WORKERS, load_service_config
+from src.services import service_config
+from src.services.service_config import load_service_config
 
 
 def test_load_service_config_resolves_env_placeholders(tmp_path, monkeypatch):
@@ -64,20 +65,22 @@ def test_load_service_config_allows_environment_port_override(tmp_path, monkeypa
     assert config.storage.template_dir == Path("inputs")
 
 
-def test_server_workers_default_to_cpu_count_when_unset(tmp_path, monkeypatch):
+def test_server_workers_default_to_dynamic_auto_count_when_unset(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("OMR_SERVICE_WORKERS", raising=False)
+    monkeypatch.setattr(service_config, "_auto_worker_count", lambda: 7)
     config_path = tmp_path / "robyn-service.json"
     config_path.write_text("{}", encoding="utf-8")
 
     config = load_service_config(config_path)
 
-    assert config.server.workers == DEFAULT_SERVER_WORKERS
+    assert config.server.workers == 7
 
 
 def test_server_workers_can_be_configured_from_json_and_env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("OMR_SERVICE_WORKERS", raising=False)
+    monkeypatch.setattr(service_config, "_auto_worker_count", lambda: 7)
     config_path = tmp_path / "robyn-service.json"
     config_path.write_text('{"server": {"workers": 3}}', encoding="utf-8")
 
@@ -87,10 +90,33 @@ def test_server_workers_can_be_configured_from_json_and_env(tmp_path, monkeypatc
     assert load_service_config(config_path).server.workers == 5
 
     monkeypatch.setenv("OMR_SERVICE_WORKERS", "auto")
-    assert load_service_config(config_path).server.workers == DEFAULT_SERVER_WORKERS
+    assert load_service_config(config_path).server.workers == 7
 
     monkeypatch.setenv("OMR_SERVICE_WORKERS", "")
     assert load_service_config(config_path).server.workers == 3
+
+
+def test_auto_worker_count_uses_container_cpu_quota(monkeypatch, tmp_path):
+    cgroup_v2 = tmp_path / "cpu.max"
+    cgroup_v2.write_text("250000 100000\n", encoding="utf-8")
+    parse_cgroup_v2 = service_config._cgroup_v2_cpu_quota
+    monkeypatch.setattr(service_config, "_process_cpu_count", lambda: None)
+    monkeypatch.setattr(service_config, "_cpu_affinity_count", lambda: None)
+    monkeypatch.setattr(service_config, "_cgroup_v2_cpu_quota", lambda: parse_cgroup_v2(cgroup_v2))
+    monkeypatch.setattr(service_config, "_cgroup_v1_cpu_quota", lambda: None)
+    monkeypatch.setattr(service_config.os, "cpu_count", lambda: 16)
+
+    assert service_config._auto_worker_count() == 3
+
+
+def test_auto_worker_count_uses_smallest_available_server_limit(monkeypatch):
+    monkeypatch.setattr(service_config, "_process_cpu_count", lambda: None)
+    monkeypatch.setattr(service_config, "_cpu_affinity_count", lambda: 4)
+    monkeypatch.setattr(service_config, "_cgroup_v2_cpu_quota", lambda: None)
+    monkeypatch.setattr(service_config, "_cgroup_v1_cpu_quota", lambda: 8)
+    monkeypatch.setattr(service_config.os, "cpu_count", lambda: 16)
+
+    assert service_config._auto_worker_count() == 4
 
 
 def test_server_workers_must_be_positive(tmp_path, monkeypatch):

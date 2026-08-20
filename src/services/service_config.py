@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 from dataclasses import dataclass, field
@@ -11,13 +12,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 _ENV_PLACEHOLDER_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
-DEFAULT_SERVER_WORKERS = max(1, os.cpu_count() or 1)
+DEFAULT_SERVER_WORKERS = "auto"
 
 
 @dataclass(frozen=True)
 class ServerConfig:
     port: int = 8080
-    workers: int = DEFAULT_SERVER_WORKERS
+    workers: int = field(default_factory=lambda: _auto_worker_count())
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,7 @@ def load_service_config(path: str | Path | None = None) -> ServiceConfig:
     return ServiceConfig(
         server=ServerConfig(
             port=_parse_positive_int(server.get("port", ServerConfig.port), "server.port"),
-            workers=_parse_workers(server.get("workers", ServerConfig.workers), "server.workers"),
+            workers=_parse_workers(server.get("workers", DEFAULT_SERVER_WORKERS), "server.workers"),
         ),
         storage=StorageConfig(
             service_data_dir=Path(storage.get("serviceDataDir", StorageConfig.service_data_dir)),
@@ -194,8 +195,75 @@ def _parse_positive_int(value: Any, field_name: str) -> int:
 
 def _parse_workers(value: Any, field_name: str) -> int:
     if isinstance(value, str) and value.strip().lower() == "auto":
-        return DEFAULT_SERVER_WORKERS
+        return _auto_worker_count()
     return _parse_positive_int(value, field_name)
+
+
+def _auto_worker_count() -> int:
+    """Return worker count for the current server/container CPU capacity."""
+
+    candidates = [
+        _process_cpu_count(),
+        _cpu_affinity_count(),
+        _cgroup_v2_cpu_quota(),
+        _cgroup_v1_cpu_quota(),
+        os.cpu_count(),
+    ]
+    available = [value for value in candidates if value is not None and value >= 1]
+    return max(1, min(available) if available else 1)
+
+
+def _process_cpu_count() -> int | None:
+    process_cpu_count = getattr(os, "process_cpu_count", None)
+    if process_cpu_count is None:
+        return None
+    try:
+        return int(process_cpu_count())
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _cpu_affinity_count() -> int | None:
+    sched_getaffinity = getattr(os, "sched_getaffinity", None)
+    if sched_getaffinity is None:
+        return None
+    try:
+        return len(sched_getaffinity(0))
+    except OSError:
+        return None
+
+
+def _cgroup_v2_cpu_quota(path: Path = Path("/sys/fs/cgroup/cpu.max")) -> int | None:
+    try:
+        quota_text, period_text = path.read_text(encoding="utf-8").strip().split()[:2]
+    except (FileNotFoundError, ValueError, OSError):
+        return None
+    if quota_text == "max":
+        return None
+    return _quota_to_workers(quota_text, period_text)
+
+
+def _cgroup_v1_cpu_quota(
+    quota_path: Path = Path("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"),
+    period_path: Path = Path("/sys/fs/cgroup/cpu/cpu.cfs_period_us"),
+) -> int | None:
+    try:
+        quota_text = quota_path.read_text(encoding="utf-8").strip()
+        period_text = period_path.read_text(encoding="utf-8").strip()
+    except (FileNotFoundError, OSError):
+        return None
+    return _quota_to_workers(quota_text, period_text)
+
+
+def _quota_to_workers(quota_text: str, period_text: str) -> int | None:
+    try:
+        quota = int(quota_text)
+        period = int(period_text)
+    except ValueError:
+        return None
+    if quota <= 0 or period <= 0:
+        return None
+    return max(1, math.ceil(quota / period))
 
 
 def _optional_non_empty_string(value: Any, field_name: str) -> str | None:

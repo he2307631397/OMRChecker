@@ -103,6 +103,17 @@ CONFIG_SCHEMA = {
                     "minimum": 0,
                     "maximum": 1,
                 },
+                "conflict_use_density": {"type": "boolean"},
+                "conflict_min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "conflict_min_center_density": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
                 "resolve_single_choice_conflicts": {"type": "boolean"},
                 "conflict_min_gap": {"type": "number", "minimum": 0, "maximum": 100},
                 "conflict_min_delta_from_blank": {
@@ -185,6 +196,17 @@ CONFIG_SCHEMA = {
                     "maximum": 1,
                 },
                 "min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "conflict_use_density": {"type": "boolean"},
+                "conflict_min_density_gap": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "conflict_min_center_density": {
                     "type": "number",
                     "minimum": 0,
                     "maximum": 1,

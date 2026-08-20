@@ -491,6 +491,31 @@ class ImageInstanceOps:
         )
         return max(0.0, min(confidence, 1.0))
 
+    @staticmethod
+    def get_density_conflict_confidence(
+        diagnostics, min_density_gap=0.05, min_center_density=0.08
+    ):
+        """Convert inner-ROI relative fill evidence into conflict confidence."""
+        density_gap_component = min(
+            max(diagnostics.get("density_gap", 0.0), 0.0)
+            / max(float(min_density_gap), 0.01),
+            1.0,
+        )
+        center_component = min(
+            max(diagnostics.get("darkest_center_density", 0.0), 0.0)
+            / max(float(min_center_density), 0.01),
+            1.0,
+        )
+        vote_component = diagnostics.get("threshold_vote_ratio", 0.0)
+        multiscale_component = diagnostics.get("multiscale_stability", 0.0)
+        confidence = (
+            density_gap_component * 0.40
+            + center_component * 0.30
+            + vote_component * 0.15
+            + multiscale_component * 0.15
+        )
+        return max(0.0, min(confidence, 1.0))
+
     def append_weak_fill_review(
         self, field_label, candidate, score_decision, diagnostics, legacy_rejection
     ):
@@ -533,10 +558,18 @@ class ImageInstanceOps:
         return None
 
     def append_single_choice_conflict_review(
-        self, field_label, original_value, candidate, diagnostics, status
+        self,
+        field_label,
+        original_value,
+        candidate,
+        diagnostics,
+        status,
+        confidence=None,
+        reason="single_choice_conflict",
     ):
         """Store one single-choice conflict candidate for auxiliary review outputs."""
-        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        if confidence is None:
+            confidence = self.get_single_choice_conflict_confidence(diagnostics)
         self.last_weak_fill_reviews.append(
             {
                 "review_type": "SINGLE_CHOICE_CONFLICT_REVIEW",
@@ -546,15 +579,15 @@ class ImageInstanceOps:
                 "status": status,
                 "confidence": confidence,
                 "score": confidence * 5.0,
-                "reason": "single_choice_conflict",
+                "reason": reason,
                 "legacy_rejection": "",
                 "evidence": "gap,delta_from_blank",
                 "ambiguity": 1.0 - confidence,
-                "density_gap": 0.0,
-                "center_density": 0.0,
-                "center_edge_ratio": 0.0,
-                "threshold_vote_ratio": 0.0,
-                "multiscale_stability": 0.0,
+                "density_gap": diagnostics.get("density_gap", 0.0),
+                "center_density": diagnostics.get("darkest_center_density", 0.0),
+                "center_edge_ratio": diagnostics.get("darkest_center_edge_ratio", 0.0),
+                "threshold_vote_ratio": diagnostics.get("threshold_vote_ratio", 0.0),
+                "multiscale_stability": diagnostics.get("multiscale_stability", 0.0),
             }
         )
 
@@ -595,7 +628,7 @@ class ImageInstanceOps:
         )
 
     def resolve_identifier_conflict(
-        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles, image, page_blank_model
     ):
         """Resolve impossible multi-mark output for one identifier column.
 
@@ -627,12 +660,32 @@ class ImageInstanceOps:
             return detected_bubbles
 
         diagnostics = self.get_field_diagnostics(q_strip_vals)
+        if getattr(weak_identifier_params, "conflict_use_density", True):
+            diagnostics = self.enrich_diagnostics_with_density(
+                image,
+                field_block,
+                field_block_bubbles,
+                q_strip_vals,
+                diagnostics,
+                page_blank_model,
+            )
         darkest_bubble = field_block_bubbles[diagnostics["darkest_index"]]
         # Conflict inputs have already crossed the normal threshold for several
         # digits. At this stage the useful signal is the separation between the
         # darkest digit and the rest, not density evidence that is only computed
         # by the weak blank-field fallback.
-        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        mean_confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        if getattr(weak_identifier_params, "conflict_use_density", True):
+            density_confidence = self.get_density_conflict_confidence(
+                diagnostics,
+                getattr(weak_identifier_params, "conflict_min_density_gap", 0.04),
+                getattr(weak_identifier_params, "conflict_min_center_density", 0.06),
+            )
+            confidence = max(mean_confidence, density_confidence)
+            reason = "identifier_conflict_density" if density_confidence >= mean_confidence else "identifier_conflict"
+        else:
+            confidence = mean_confidence
+            reason = "identifier_conflict"
         auto_min_confidence = getattr(
             weak_identifier_params, "conflict_auto_resolve_min_confidence", 0.8
         )
@@ -657,7 +710,9 @@ class ImageInstanceOps:
                 f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
                 f"gap={diagnostics['gap']:.2f}, "
                 f"blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                f"delta={diagnostics['delta_from_blank']:.2f})"
+                f"delta={diagnostics['delta_from_blank']:.2f}, "
+                f"density_gap={diagnostics.get('density_gap', 0.0):.3f}, "
+                f"center_density={diagnostics.get('darkest_center_density', 0.0):.3f})"
             )
             self.append_identifier_review(
                 field_label,
@@ -667,7 +722,7 @@ class ImageInstanceOps:
                 f"multi_identifier_conflict:{original_value}",
                 original_value=original_value,
                 confidence=confidence,
-                reason="identifier_conflict",
+                reason=reason,
             )
             return [darkest_bubble]
 
@@ -678,7 +733,9 @@ class ImageInstanceOps:
             f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
             f"gap={diagnostics['gap']:.2f}, "
             f"blank_baseline={diagnostics['blank_baseline']:.2f}, "
-            f"delta={diagnostics['delta_from_blank']:.2f})"
+            f"delta={diagnostics['delta_from_blank']:.2f}, "
+            f"density_gap={diagnostics.get('density_gap', 0.0):.3f}, "
+            f"center_density={diagnostics.get('darkest_center_density', 0.0):.3f})"
         )
         self.append_identifier_review(
             field_label,
@@ -688,7 +745,7 @@ class ImageInstanceOps:
             f"multi_identifier_conflict:{original_value}",
             original_value=original_value,
             confidence=confidence,
-            reason="identifier_conflict",
+            reason=reason,
         )
         return []
 
@@ -865,7 +922,7 @@ class ImageInstanceOps:
         return weak_bubble
 
     def resolve_single_choice_conflict(
-        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles
+        self, field_block, field_block_bubbles, q_strip_vals, detected_bubbles, image, page_blank_model
     ):
         """Resolve impossible multi-mark output for non-multiSelect single-choice fields.
 
@@ -893,12 +950,32 @@ class ImageInstanceOps:
             return detected_bubbles
 
         diagnostics = self.get_field_diagnostics(q_strip_vals)
+        if getattr(weak_mark_params, "conflict_use_density", True):
+            diagnostics = self.enrich_diagnostics_with_density(
+                image,
+                field_block,
+                field_block_bubbles,
+                q_strip_vals,
+                diagnostics,
+                page_blank_model,
+            )
         darkest_index = diagnostics["darkest_index"]
         darkest_bubble = field_block_bubbles[darkest_index]
         gap = diagnostics["gap"]
         delta_from_blank = diagnostics["delta_from_blank"]
 
-        confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        mean_confidence = self.get_single_choice_conflict_confidence(diagnostics)
+        if getattr(weak_mark_params, "conflict_use_density", True):
+            density_confidence = self.get_density_conflict_confidence(
+                diagnostics,
+                getattr(weak_mark_params, "conflict_min_density_gap", 0.05),
+                getattr(weak_mark_params, "conflict_min_center_density", 0.08),
+            )
+            confidence = max(mean_confidence, density_confidence)
+            reason = "single_choice_conflict_density" if density_confidence >= mean_confidence else "single_choice_conflict"
+        else:
+            confidence = mean_confidence
+            reason = "single_choice_conflict"
         auto_resolve_min_confidence = getattr(
             weak_mark_params, "conflict_auto_resolve_min_confidence", 0.8
         )
@@ -922,7 +999,9 @@ class ImageInstanceOps:
                 f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
                 f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
                 f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-                f"delta={delta_from_blank:.2f})"
+                f"delta={delta_from_blank:.2f}, "
+                f"density_gap={diagnostics.get('density_gap', 0.0):.3f}, "
+                f"center_density={diagnostics.get('darkest_center_density', 0.0):.3f})"
             )
             self.append_single_choice_conflict_review(
                 field_label,
@@ -930,6 +1009,8 @@ class ImageInstanceOps:
                 darkest_bubble.field_value,
                 diagnostics,
                 status,
+                confidence,
+                reason,
             )
             return [darkest_bubble]
 
@@ -940,7 +1021,9 @@ class ImageInstanceOps:
             f"(darkest_mean={diagnostics['darkest_mean']:.2f}, "
             f"second_darkest_mean={diagnostics['second_darkest_mean']:.2f}, "
             f"gap={gap:.2f}, blank_baseline={diagnostics['blank_baseline']:.2f}, "
-            f"delta={delta_from_blank:.2f})"
+            f"delta={delta_from_blank:.2f}, "
+            f"density_gap={diagnostics.get('density_gap', 0.0):.3f}, "
+            f"center_density={diagnostics.get('darkest_center_density', 0.0):.3f})"
         )
         self.append_single_choice_conflict_review(
             field_label,
@@ -948,6 +1031,8 @@ class ImageInstanceOps:
             darkest_bubble.field_value,
             diagnostics,
             status,
+            confidence,
+            reason,
         )
         return []
 
@@ -1511,12 +1596,16 @@ class ImageInstanceOps:
                         field_block_bubbles,
                         all_q_strip_arrs[total_q_strip_no],
                         detected_bubbles,
+                        img,
+                        page_blank_model,
                     )
                     detected_bubbles = self.resolve_identifier_conflict(
                         field_block,
                         field_block_bubbles,
                         all_q_strip_arrs[total_q_strip_no],
                         detected_bubbles,
+                        img,
+                        page_blank_model,
                     )
 
                     for bubble in detected_bubbles:

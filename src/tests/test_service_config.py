@@ -139,6 +139,16 @@ def test_load_service_config_allows_environment_callback_url_override(tmp_path, 
     assert config.callback.url == "https://env.example.test/callback"
 
 
+def test_empty_environment_callback_url_keeps_json_value(tmp_path, monkeypatch):
+    config_path = tmp_path / "robyn-service.json"
+    config_path.write_text('{"callback": {"url": "https://json.example.test/callback"}}', encoding="utf-8")
+    monkeypatch.setenv("OMR_CALLBACK_URL", "")
+
+    config = load_service_config(config_path)
+
+    assert config.callback.url == "https://json.example.test/callback"
+
+
 def test_load_service_config_rejects_malformed_callback_url(tmp_path, monkeypatch):
     config_path = tmp_path / "robyn-service.json"
     config_path.write_text('{"callback": {"url": "https:/localhost:8080/callback"}}', encoding="utf-8")

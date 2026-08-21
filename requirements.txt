@@ -9,3 +9,6 @@ screeninfo>=0.8.1
 PyMuPDF>=1.23.0
 opencv-python>=4.10.0
 robyn>=0.68.0
+# Required by the COS batch API when cos.enabled is true. The SDK is imported
+# lazily, so local filesystem mode still works without contacting Tencent COS.
+cos-python-sdk-v5>=1.9.30

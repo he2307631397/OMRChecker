@@ -162,7 +162,7 @@ def _apply_environment_overrides(config: dict[str, Any]) -> None:
         storage["serviceDataDir"] = os.environ["OMR_SERVICE_DATA_DIR"]
     if "OMR_TEMPLATE_DIR" in os.environ:
         storage["templateDir"] = os.environ["OMR_TEMPLATE_DIR"]
-    if "OMR_CALLBACK_URL" in os.environ:
+    if "OMR_CALLBACK_URL" in os.environ and os.environ["OMR_CALLBACK_URL"].strip():
         callback["url"] = os.environ["OMR_CALLBACK_URL"]
     if "OMR_RECOGNITION_DEBUG_ARTIFACTS" in os.environ:
         recognition["debugArtifacts"] = _parse_bool(

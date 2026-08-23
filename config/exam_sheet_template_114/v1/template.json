@@ -27,7 +27,7 @@
         362
       ]
     },
-    "multiple-8-10_q10": {
+    "multiple-9-11_q10": {
       "bubbleDimensions": [
         28,
         16
@@ -40,28 +40,28 @@
       "labelsGap": 0,
       "multiSelect": true,
       "origin": [
-        583,
+        351,
         879
       ]
     },
-    "multiple-8-10_q8": {
+    "multiple-9-11_q11": {
       "bubbleDimensions": [
         28,
         16
       ],
       "bubblesGap": 36,
       "fieldLabels": [
-        "q8"
+        "q11"
       ],
       "fieldType": "QTYPE_MCQ4",
       "labelsGap": 0,
       "multiSelect": true,
       "origin": [
-        119,
+        583,
         879
       ]
     },
-    "multiple-8-10_q9": {
+    "multiple-9-11_q9": {
       "bubbleDimensions": [
         28,
         16
@@ -74,11 +74,11 @@
       "labelsGap": 0,
       "multiSelect": true,
       "origin": [
-        351,
+        119,
         879
       ]
     },
-    "single-1-7_q1": {
+    "single-1-8_q1": {
       "bubbleDimensions": [
         28,
         16
@@ -94,7 +94,7 @@
         711
       ]
     },
-    "single-1-7_q2": {
+    "single-1-8_q2": {
       "bubbleDimensions": [
         28,
         16
@@ -110,7 +110,7 @@
         711
       ]
     },
-    "single-1-7_q3": {
+    "single-1-8_q3": {
       "bubbleDimensions": [
         28,
         16
@@ -126,7 +126,7 @@
         711
       ]
     },
-    "single-1-7_q4": {
+    "single-1-8_q4": {
       "bubbleDimensions": [
         28,
         16
@@ -142,7 +142,7 @@
         711
       ]
     },
-    "single-1-7_q5": {
+    "single-1-8_q5": {
       "bubbleDimensions": [
         28,
         16
@@ -158,7 +158,7 @@
         744
       ]
     },
-    "single-1-7_q6": {
+    "single-1-8_q6": {
       "bubbleDimensions": [
         28,
         16
@@ -174,7 +174,7 @@
         744
       ]
     },
-    "single-1-7_q7": {
+    "single-1-8_q7": {
       "bubbleDimensions": [
         28,
         16
@@ -187,6 +187,22 @@
       "labelsGap": 0,
       "origin": [
         583,
+        744
+      ]
+    },
+    "single-1-8_q8": {
+      "bubbleDimensions": [
+        28,
+        16
+      ],
+      "bubblesGap": 36,
+      "fieldLabels": [
+        "q8"
+      ],
+      "fieldType": "QTYPE_MCQ4",
+      "labelsGap": 0,
+      "origin": [
+        815,
         744
       ]
     }
@@ -209,7 +225,8 @@
     "q7",
     "q8",
     "q9",
-    "q10"
+    "q10",
+    "q11"
   ],
   "pageDimensions": [
     1191,
@@ -222,7 +239,7 @@
         "2d": true,
         "goodMatchPercent": 0.25,
         "maxFeatures": 2000,
-        "reference": "f_803e3fd9b7e14396ae61fb8b47490e68.png"
+        "reference": "f_04a878096e5b44b5ba05e8af378b6840.png"
       }
     }
   ]
